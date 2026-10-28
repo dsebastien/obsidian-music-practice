@@ -1,8 +1,19 @@
+import { createDefaultFieldNames } from '../domain/fields'
+import type { FieldNames } from '../domain/fields'
+import { createDefaultRules } from '../domain/rules'
+import type { PracticeRules } from '../domain/rules'
+
 export interface PluginSettings {
-    /**
-     * Enable
-     */
-    enabled: boolean
+    /** Every number the practice rules use (#27). */
+    rules: PracticeRules
+    /** Frontmatter property names. */
+    fields: FieldNames
+    /** Minutes offered by default for a practice plan. */
+    defaultPlanMinutes: number
+    /** Heading of the session note section that receives a log's note. */
+    notesHeading: string
+    /** Activity a subject's sessions count towards, by name; `{subject}` is the subject ("Learn {subject}"). */
+    activityName: string
 }
 
 /**
@@ -17,9 +28,48 @@ export interface PluginSettings {
  */
 export function createDefaultSettings(): PluginSettings {
     return {
-        enabled: false
+        rules: createDefaultRules(),
+        fields: createDefaultFieldNames(),
+        defaultPlanMinutes: 30,
+        notesHeading: 'Notes',
+        activityName: 'Learn {subject}'
     }
 }
 
 /** The defaults, for reading and comparing. Never produce from it. */
 export const DEFAULT_SETTINGS: PluginSettings = createDefaultSettings()
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/**
+ * Overlay loaded values on a default object, key by key: a loaded value is kept only when it has
+ * the default's type (numbers finite, arrays of the same element type), so a hand-edited or older
+ * data.json can never put a wrong type into the settings. Unknown keys are dropped.
+ */
+export function overlay<T>(defaults: T, loaded: unknown): T {
+    if (!isRecord(defaults) || !isRecord(loaded)) return defaults
+    const out: Record<string, unknown> = { ...defaults }
+    for (const [key, def] of Object.entries(defaults)) {
+        const value = loaded[key]
+        if (value === undefined) continue
+        if (isRecord(def)) out[key] = overlay(def, value)
+        else if (Array.isArray(def)) {
+            // Number tuples (the plan split) keep their length; lists of text may grow or shrink.
+            const sample: unknown = def[0]
+            const sameType =
+                Array.isArray(value) && value.every((v: unknown) => typeof v === typeof sample)
+            const lengthOk =
+                typeof sample !== 'number' || (Array.isArray(value) && value.length === def.length)
+            if (sameType && lengthOk) out[key] = [...(value as unknown[])]
+        } else if (typeof def === 'number') {
+            if (typeof value === 'number' && Number.isFinite(value)) out[key] = value
+        } else if (typeof value === typeof def) out[key] = value
+    }
+    return out as T
+}
+
+/** Settings from whatever data.json holds, every field checked against the defaults. */
+export function settingsFrom(loaded: unknown): PluginSettings {
+    return overlay(createDefaultSettings(), loaded)
+}

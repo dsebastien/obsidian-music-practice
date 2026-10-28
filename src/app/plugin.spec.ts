@@ -33,8 +33,8 @@ describe('default settings', () => {
 
     test('each default settings object is an independent copy', () => {
         const one = createDefaultSettings()
-        one.enabled = true
-        expect(createDefaultSettings().enabled).toBe(false)
-        expect(DEFAULT_SETTINGS.enabled).toBe(false)
+        one.defaultPlanMinutes = 99
+        expect(createDefaultSettings().defaultPlanMinutes).toBe(30)
+        expect(DEFAULT_SETTINGS.defaultPlanMinutes).toBe(30)
     })
 })

@@ -210,7 +210,12 @@ export default defineConfig([
                         'Knowii',
                         'GitHub Sponsors',
                         'Sébastien Dubois',
-                        'dSebastien'
+                        'dSebastien',
+                        // This plugin and the plugins it works with.
+                        'Music Practice',
+                        'Obsidian Starter Kit',
+                        'Kanban Action Planner',
+                        'Templater'
                     ]
                 }
             ]

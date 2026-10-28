@@ -44,33 +44,35 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
 
     override getSettingDefinitions(): SettingDefinitionItem[] {
         return [
-            // TODO: Replace this example control with your plugin's settings.
-            // `key` is the name handed to getControlValue/setControlValue.
             {
-                name: 'Enabled',
-                desc: 'Turn the plugin features on or off.',
-                control: { type: 'toggle', key: 'enabled' }
-            },
-            // TODO: Adapt this or remove
-            {
-                name: 'Follow me on X',
-                desc: 'Sébastien Dubois (@dSebastien)',
+                name: 'Learning notes',
+                desc: 'Where the learning and session note types come from.',
                 searchable: false,
-                // A CTA button, not a row `action:`. `action:` makes the WHOLE
-                // row clickable and draws no button at all, so a link row that
-                // used to have one silently loses it in the port.
+                // Read at each opening: the Starter Kit can be enabled or disabled meanwhile.
                 render: (setting): void => {
-                    setting.addButton((button) => {
-                        button
-                            .setCta()
-                            .setButtonText('Follow me on X')
-                            .onClick(() => {
-                                window.open('https://x.com/dSebastien')
-                            })
-                    })
+                    const model = this.plugin.noteModel?.refresh()
+                    const source = this.plugin.noteModel?.source ?? 'none'
+                    setting.setDesc(
+                        source === 'starter-kit'
+                            ? `From the Obsidian Starter Kit: ${model?.learningTypes.length ?? 0} learning types, ${model?.sessionTypes.length ?? 0} session types.`
+                            : 'The Obsidian Starter Kit is not available. Install and enable it: its note types define the learning notes (a standalone mode is planned).'
+                    )
                 }
             },
-            // TODO: Adapt this or remove
+            {
+                name: 'Default practice plan length',
+                desc: 'Minutes offered when you plan a practice session.',
+                control: {
+                    type: 'number',
+                    key: 'defaultPlanMinutes',
+                    min: 5,
+                    max: 240,
+                    validate: (value: number) =>
+                        Number.isFinite(value) && value >= 5 && value <= 240
+                            ? undefined
+                            : 'Between 5 and 240 minutes.'
+                }
+            },
             {
                 type: 'group',
                 // No heading: renderSupportSection draws its own.
@@ -110,8 +112,8 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
      */
     override getControlValue(key: string): unknown {
         switch (key) {
-            case 'enabled':
-                return this.plugin.settings.enabled
+            case 'defaultPlanMinutes':
+                return this.plugin.settings.defaultPlanMinutes
             default:
                 return undefined
         }
@@ -123,12 +125,12 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
      */
     override async setControlValue(key: string, value: unknown): Promise<void> {
         switch (key) {
-            case 'enabled':
-                if (typeof value !== 'boolean') {
-                    throw new Error(`Setting "${key}" expects a boolean.`)
+            case 'defaultPlanMinutes':
+                if (typeof value !== 'number' || !Number.isFinite(value) || value < 5) {
+                    throw new Error(`Setting "${key}" expects a number of minutes.`)
                 }
                 await this.plugin.updateSettings((draft) => {
-                    draft.enabled = value
+                    draft.defaultPlanMinutes = Math.round(value)
                 })
                 return
             default:
@@ -137,7 +139,6 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
         }
     }
 
-    // TODO: Adapt this or remove
     renderBuyMeACoffeeBadge(contentEl: HTMLElement | DocumentFragment, width = 175) {
         const linkEl = contentEl.createEl('a', {
             href: BUY_ME_A_COFFEE_URL

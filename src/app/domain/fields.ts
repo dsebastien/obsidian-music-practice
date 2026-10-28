@@ -1,0 +1,51 @@
+/**
+ * The frontmatter property names the plugin reads and writes. Each one is used only when the note
+ * type defines it. Review and time-tracking names follow the Kanban Action Planner's settings when
+ * it is installed, so both plugins write the same properties.
+ */
+export interface FieldNames {
+    /** Learning notes. */
+    lastPracticed: string
+    bpmCurrent: string
+    bpmTarget: string
+    priority: string
+    prerequisites: string
+    theory: string
+    /** Spaced review (Kanban Action Planner: reviewed date / interval / count properties). */
+    lastReviewed: string
+    reviewInterval: string
+    reviewCount: string
+    /** Minutes, on learning notes, sessions and activities (Kanban Action Planner: duration property). */
+    timeSpent: string
+    /** Activities (Kanban Action Planner: time entries and last session properties). */
+    timeEntries: string
+    lastSession: string
+    /** Session notes. */
+    date: string
+    startTime: string
+    quality: string
+    practiced: string
+    activities: string
+}
+
+export function createDefaultFieldNames(): FieldNames {
+    return {
+        lastPracticed: 'date_last_practiced',
+        bpmCurrent: 'bpm_current',
+        bpmTarget: 'bpm_target',
+        priority: 'priority',
+        prerequisites: 'prerequisites',
+        theory: 'theory',
+        lastReviewed: 'last_reviewed',
+        reviewInterval: 'review_interval',
+        reviewCount: 'review_count',
+        timeSpent: 'time_spent',
+        timeEntries: 'time_entries',
+        lastSession: 'date_last_session',
+        date: 'date',
+        startTime: 'start_time',
+        quality: 'session_quality',
+        practiced: 'practiced',
+        activities: 'related_activities'
+    }
+}

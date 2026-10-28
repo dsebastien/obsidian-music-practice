@@ -91,5 +91,10 @@ void mock.module('obsidian', () => ({
             arrayBuffer: new ArrayBuffer(0)
         }),
     debounce: (fn: (...args: unknown[]) => unknown) => fn,
+    normalizePath: (path: string) =>
+        path
+            .replace(/\\/g, '/')
+            .replace(/\/+/g, '/')
+            .replace(/^\/|\/$/g, ''),
     setIcon: () => {}
 }))
