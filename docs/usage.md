@@ -20,11 +20,15 @@ Each learning type pairs with a practice session type of the same instrument (`t
 
 ## Commands
 
-| Command                     | What it does                                                                                                                                          |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Practice next**           | Lists what's due for review, what to practice next (ranked by priority, staleness, BPM gap and what it unlocks) and what's ready to learn.            |
-| **Plan a practice session** | Splits the minutes you have into warm-up, focus, review and fun, with the items to work on. "Log this session" opens Log practice with them.          |
-| **Log practice**            | Records a session: minutes, date, an optional focus, the items you practiced, their new mastery, BPM, review results, the session quality and a note. |
+| Command                                                                | What it does                                                                                                                                                                                                                                                    |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Practice next**                                                      | Lists what's due for review, what to practice next (ranked by priority, staleness, BPM gap and what it unlocks) and what's ready to learn.                                                                                                                      |
+| **Plan a practice session**                                            | Splits the minutes you have into warm-up, focus, review and fun, with the items to work on. "Log this session" opens Log practice with them.                                                                                                                    |
+| **Add a learning note**                                                | Creates a chord, scale, technique, exercise or piece in the right type, folder and name. For chords, type the symbol (`F#m7`, `C/G`): the name is spelled out ("F Sharp Minor 7 - Barre"), the symbol becomes an alias, and its root and quality are filled in. |
+| **Change mastery of the current note**                                 | The levels, each with what it means for this kind of item.                                                                                                                                                                                                      |
+| **Set BPM of the current note**                                        | Current and target BPM; reaching the target offers "Can play at tempo".                                                                                                                                                                                         |
+| **Start practice timer** / **Stop practice timer and log the session** | The elapsed time shows in the status bar (click it to stop). Stopping opens Log practice with the minutes.                                                                                                                                                      |
+| **Log practice**                                                       | Records a session: minutes, date, an optional focus, the items you practiced, their new mastery, BPM, review results, the session quality and a note.                                                                                                           |
 
 ## Log practice
 
@@ -43,3 +47,7 @@ What gets written:
 - **The activity** the session counts towards (the one your previous session of that instrument linked to, or a note named "Learn Guitar"): one time entry per session, its minutes and its last session date. Logging never adds the same session twice.
 
 Dates the Obsidian Starter Kit stamps on mastery changes (started, mastered) are left to it.
+
+## Add a learning note
+
+Pick the type (Guitar Chords, Piano Scales…), type a name, or a chord symbol for chord types, and optionally the shape and the starting level. The note is created from the type's template (its prompts are skipped: the dialog already asked), in the type's folder, with the type's name suffix.
