@@ -14,17 +14,32 @@ export type NotationHost = Pick<Plugin, 'registerMarkdownCodeBlockProcessor'> & 
 /** Where each block language stands: rendered by us, turned off, or handled by another plugin. */
 export type NotationStatus = 'on' | 'off' | 'taken'
 
-/** A rendered block, removed when Obsidian re-renders or closes the note. */
+/**
+ * A rendered block, removed when Obsidian re-renders or closes the note. Known while loaded, so a
+ * layout change redraws it in place wherever it shows (reading view, live preview, embeds, canvas).
+ */
 class NotationChild extends MarkdownRenderChild {
     constructor(
         el: HTMLElement,
-        private readonly result: RenderResult
+        private result: RenderResult,
+        private readonly draw: () => RenderResult,
+        private readonly live: Set<NotationChild>
     ) {
         super(el)
     }
 
+    override onload(): void {
+        this.live.add(this)
+    }
+
     override onunload(): void {
+        this.live.delete(this)
         this.result.destroy()
+    }
+
+    redraw(): void {
+        this.result.destroy()
+        this.result = this.draw()
     }
 }
 
@@ -51,12 +66,14 @@ export function processorExists(language: string): boolean | null {
 export class NotationBlocks {
     private readonly registered = new Set<NotationLanguage>()
     private readonly taken = new Set<NotationLanguage>()
+    private readonly live = new Set<NotationChild>()
 
     constructor(
         private readonly plugin: NotationHost,
         private readonly toggles: () => NotationToggles,
         private readonly layout: () => LayoutDefaults = () => ({}),
-        private readonly exists: (language: string) => boolean | null = processorExists
+        private readonly exists: (language: string) => boolean | null = processorExists,
+        private readonly render: typeof renderBlock = renderBlock
     ) {}
 
     /** Register every language turned on, not registered yet and not taken. */
@@ -77,11 +94,12 @@ export class NotationBlocks {
                         })
                         return
                     }
-                    const result = renderBlock(language, source, el, {
-                        ...this.layout(),
-                        voicings: lookupGuitarVoicing
-                    })
-                    ctx.addChild(new NotationChild(el, result))
+                    const draw = () =>
+                        this.render(language, source, el, {
+                            ...this.layout(),
+                            voicings: lookupGuitarVoicing
+                        })
+                    ctx.addChild(new NotationChild(el, draw(), draw, this.live))
                 })
                 this.registered.add(language)
             } catch {
@@ -96,7 +114,12 @@ export class NotationBlocks {
         return this.toggles()[language] && this.registered.has(language) ? 'on' : 'off'
     }
 
-    /** Redraw open notes in reading view, after a block was turned on or off or the layout changed. */
+    /** Redraw every block on screen with the current layout settings, wherever it shows. */
+    redrawLayout(): void {
+        for (const child of [...this.live]) child.redraw()
+    }
+
+    /** Redraw open notes in reading view, after a block was turned on or off. */
     refreshOpenNotes(): void {
         for (const leaf of this.plugin.app.workspace.getLeavesOfType('markdown')) {
             if (leaf.view instanceof MarkdownView) leaf.view.previewMode.rerender(true)

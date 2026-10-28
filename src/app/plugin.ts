@@ -169,13 +169,14 @@ export class MusicPracticePlugin extends Plugin {
 
     /** Another device (sync) changed data.json: reload, so a save here never wipes its changes. */
     override async onExternalSettingsChange(): Promise<void> {
-        const notation = JSON.stringify([this.settings.notation, this.settings.notationLayout])
+        const notation = JSON.stringify(this.settings.notation)
+        const layout = JSON.stringify(this.settings.notationLayout)
         await this.loadSettings()
         this.noteModel?.refresh()
         this.renderTimer()
         this.notation?.sync()
-        if (JSON.stringify([this.settings.notation, this.settings.notationLayout]) !== notation)
-            this.notation?.refreshOpenNotes()
+        if (JSON.stringify(this.settings.notation) !== notation) this.notation?.refreshOpenNotes()
+        if (JSON.stringify(this.settings.notationLayout) !== layout) this.notation?.redrawLayout()
     }
 
     private registerCommands(): void {
@@ -454,8 +455,11 @@ export class MusicPracticePlugin extends Plugin {
             const layoutChanged = next.notationLayout !== this.settings.notationLayout
             this.settings = next
             this.noteModel?.refresh()
-            if (notationChanged) this.notation?.sync()
-            if (notationChanged || layoutChanged) this.notation?.refreshOpenNotes()
+            if (notationChanged) {
+                this.notation?.sync()
+                this.notation?.refreshOpenNotes()
+            }
+            if (layoutChanged) this.notation?.redrawLayout()
         }
         const p = this.settingsWriteChain.then(run, run)
         this.settingsWriteChain = p.catch(() => {})

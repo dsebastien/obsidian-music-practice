@@ -206,11 +206,14 @@ export class AddNoteModal extends Modal {
             voicings: lookupGuitarVoicing
         })
         // Guitar chords: the top voicings side by side, the selected one highlighted; a click
-        // picks one. Past the fourth, the dropdown picks it and it joins the row.
+        // picks one. Past the fourth, the dropdown picks it and it joins the row. "No diagram"
+        // shows none.
         const refreshVoicingRow = (symbol: string): boolean => {
             const indexes = voicingRow(voicingCount(symbol), this.voicingIndex)
-            if (!indexes.length) return false
-            const row = diagramEl.createDiv({ cls: 'mp-voicing-row' })
+            if (!indexes.length || this.voicingIndex < 0) return false
+            const row = diagramEl.createDiv({
+                cls: indexes.length > 4 ? 'mp-voicing-row has-extra' : 'mp-voicing-row'
+            })
             for (const i of indexes) {
                 const voicing = lookupGuitarVoicing(symbol, i)
                 const block = voicing ? chordBlock(symbol, 'guitar', voicing) : null
@@ -231,10 +234,15 @@ export class AddNoteModal extends Modal {
                         options()
                     )
                 )
+                // Selected in place, so the button keeps the keyboard focus.
                 button.addEventListener('click', () => {
                     this.voicingIndex = i
                     if (voicingSelect) voicingSelect.value = String(i)
-                    refresh()
+                    row.querySelectorAll('.mp-voicing').forEach((b) => {
+                        const on = b === button
+                        b.toggleClass('is-selected', on)
+                        b.setAttr('aria-pressed', String(on))
+                    })
                 })
             }
             return true

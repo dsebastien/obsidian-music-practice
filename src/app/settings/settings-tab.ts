@@ -6,6 +6,7 @@ import { BUY_ME_A_COFFEE_URL, renderSupportSection } from '../ui/support-links'
 import { createDefaultSettings } from '../types/plugin-settings.intf'
 import { parseSetting, readSetting, validateSetting, writeSetting } from './setting-paths'
 import { LANGUAGES } from '@dsebastien/music-notation'
+import { ORIENTATIONS } from '../domain/notation-layout'
 import type { NotationLanguage } from '@dsebastien/music-notation'
 
 /**
@@ -66,7 +67,9 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
             control: {
                 type: 'dropdown',
                 key: `notationLayout.${language}`,
-                options: { vertical: 'Vertical', horizontal: 'Horizontal' }
+                options: Object.fromEntries(
+                    ORIENTATIONS.map((o) => [o, o.charAt(0).toUpperCase() + o.slice(1)])
+                )
             }
         }
     }
