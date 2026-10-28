@@ -31,6 +31,7 @@ An item looks like this:
 {
     "name": "E Major - Open (Guitar Chord)",
     "path": "…/E Major - Open (Guitar Chord).md",
+    "typeId": "nt-1793124217367-axcwhqi",
     "type": "Guitar Chords",
     "kind": "chord",
     "subject": "guitar",
@@ -52,12 +53,12 @@ An item looks like this:
 
 ## Writing
 
-| Method                                  | Does                                                                                         |
-| --------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `logPractice(request, { adoptTimer? })` | Logs a session, exactly like the Log practice command.                                       |
-| `setMastery(path, level)`               | Changes an item's mastery: a number (`40`) or the type's value (`"40 - Can play at tempo"`). |
-| `setBpm(path, { current?, target? })`   | Sets the current and/or target BPM.                                                          |
-| `startTimer()`, `clearTimer()`          | Starts the practice timer, or clears it without logging.                                     |
+| Method                                  | Does                                                                                          |
+| --------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `logPractice(request, { adoptTimer? })` | Logs a session, exactly like the Log practice command.                                        |
+| `setMastery(path, level)`               | Changes an item's mastery: a number (`40`) or the type's value (`"40 - Can play at tempo"`).  |
+| `setBpm(path, { current?, target? })`   | Sets the current and/or target BPM.                                                           |
+| `startTimer()`, `clearTimer()`          | Starts the practice timer (rejects when it is already running), or clears it without logging. |
 
 A log request:
 
@@ -74,5 +75,9 @@ await api.logPractice({
         { path: '…/A Minor - Open (Guitar Chord).md', review: 'good' }
     ]
 })
-// → { sessionPath, items, activity: { path, result: 'added' | 'exists' | 'adopted' } | null, adoptedTimer }
+// → { sessionPath, items, activity: { path, result } | null, adoptedTimer, warnings }
 ```
+
+The request is checked before anything is written: a `YYYY-MM-DD` date, whole minutes from 1 to 1440, an `HH:MM` start time, each item once, whole BPMs, review results `good`, `shaky` or `failed`, levels the item's type has. Items of several instruments are refused (one log is one session); for instrument-less items, pass `sessionTypeId`. One log runs at a time.
+
+`activity.result` is `added` (a new time entry), `adopted` (the Kanban Action Planner timer's entry now points to the session), `exists`, `skipped` (the activity's time entries or minutes have a shape that can't be extended safely; nothing written) or `missing` (the adopted timer's entry didn't appear; nothing added). When a Kanban Action Planner timer runs on the activity, pass `{ adoptTimer: true }`, or the log is refused so the time is never counted twice. `warnings` lists what was left alone on purpose (minutes on a note that aren't a number…).

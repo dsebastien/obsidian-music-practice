@@ -29,9 +29,11 @@ export class AddNoteModal extends Modal {
         const input = this.text.trim()
         if (!input) return null
         const chord = this.type.kind === 'chord' ? parseChord(input) : null
-        const title = chord
-            ? chordTitle(chord, this.shape || undefined)
-            : safeTitle(this.shape ? `${input} - ${this.shape}` : input)
+        const shape = safeTitle(this.shape)
+        const title = safeTitle(
+            chord ? chordTitle(chord, shape || undefined) : shape ? `${input} - ${shape}` : input
+        )
+        if (!title) return null
         return {
             title,
             ...(chord ? { chordSymbol: chord.symbol } : {}),

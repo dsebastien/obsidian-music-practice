@@ -34,20 +34,48 @@ export function readSetting(settings: PluginSettings, key: string): unknown {
 
 export type Parsed = { ok: true; value: unknown } | { ok: false; error: string }
 
+/** Numbers that must be whole, and their minimum (divisors, multipliers and counts can't be 0). */
+const MINIMUMS: Record<string, { min: number; integer: boolean }> = {
+    'defaultPlanMinutes': { min: 5, integer: true },
+    'rules.review.firstInterval': { min: 1, integer: true },
+    'rules.review.maxInterval': { min: 1, integer: true },
+    'rules.review.goodMultiplier': { min: 1, integer: false },
+    'rules.review.dueSoonMaxDays': { min: 0, integer: true },
+    'rules.review.dueSoonDivisor': { min: 1, integer: false },
+    'rules.score.priorityTbd': { min: 1, integer: true },
+    'rules.score.stalenessMaxDays': { min: 1, integer: true },
+    'rules.score.stalenessIntervalCap': { min: 0.1, integer: false },
+    'rules.score.bpmGapDivisor': { min: 0.1, integer: false },
+    'rules.score.maxUnlocks': { min: 0, integer: true },
+    'rules.plan.minMinutesPerItem': { min: 1, integer: true },
+    'rules.plan.maxItemsPerBlock': { min: 1, integer: true },
+    'local.topPriority': { min: 0, integer: true }
+}
+
+/** Text settings that may be left empty; every other text setting needs a value. */
+const OPTIONAL_TEXT =
+    /^(rubric\.|local\.(startedField|masteredField|sessionTemplate|sessionSuffix)$)/
+
 /** Parse a control value by the type of the default at its path. */
 export function parseSetting(key: string, raw: unknown): Parsed {
     const def = getPath(DEFAULT_SETTINGS, key)
     if (def === undefined) return { ok: false, error: `Unknown setting "${key}".` }
     if (typeof def === 'number') {
         const n = typeof raw === 'number' ? raw : Number(raw)
-        return Number.isFinite(n) && n >= 0
-            ? { ok: true, value: n }
-            : { ok: false, error: 'Enter a number.' }
+        const bound = MINIMUMS[key] ?? { min: 0, integer: key.startsWith('rules.levels.') }
+        if (!Number.isFinite(n) || n < bound.min)
+            return { ok: false, error: `Enter a number of at least ${bound.min}.` }
+        if (bound.integer && !Number.isInteger(n))
+            return { ok: false, error: 'Enter a whole number.' }
+        return { ok: true, value: n }
     }
-    if (typeof def === 'string')
-        return typeof raw === 'string'
-            ? { ok: true, value: raw }
-            : { ok: false, error: 'Enter text.' }
+    if (typeof def === 'string') {
+        if (typeof raw !== 'string') return { ok: false, error: 'Enter text.' }
+        const text = raw.trim()
+        if (!text && !OPTIONAL_TEXT.test(key))
+            return { ok: false, error: 'This setting needs a value.' }
+        return { ok: true, value: text }
+    }
     if (Array.isArray(def)) {
         const parts = (typeof raw === 'string' ? raw : typeof raw === 'number' ? String(raw) : '')
             .split(',')
@@ -80,6 +108,10 @@ export function crossCheck(next: PluginSettings): string | undefined {
         next.rules.review.maxInterval < next.rules.review.firstInterval
     )
         return 'The maximum review interval must be at least the first interval (1 day or more).'
+    const names = Object.values(next.fields).map((n) => String(n).trim())
+    if (names.some((n) => !n)) return 'Property names cannot be empty.'
+    const dupe = names.find((n, i) => names.indexOf(n) !== i)
+    if (dupe) return `"${dupe}" is used for two properties.`
     return undefined
 }
 

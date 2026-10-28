@@ -12,10 +12,12 @@ This document defines the core business rules. These rules MUST be respected in 
 ## Note model source
 
 - With the Obsidian Starter Kit (OSK) available, its note types are the only source: status values and roles, folders, affixes, templates and date stamps come from OSK; plugin settings cover review, score, plan, rubric and property names (#27).
-- Without OSK, the standalone model applies (#4): learning types are inferred from notes tagged `type/<domain>/<subject>/<kind>` (or `type/<domain>/<kind>`) whose mastery property holds a level; status values are `<level number> - <level name>` from the settings; one session type per subject, with the folder pattern and name suffix from the settings; the plugin stamps the started and mastered dates itself.
+- Without OSK, the standalone model applies (#4): learning types are inferred from notes tagged `type/<domain>/<subject>/<kind>` (only the configured domains, `music` by default) (or `type/<domain>/<kind>`) whose mastery property holds a level; status values are `<level number> - <level name>` from the settings; one session type per subject, with the folder pattern and name suffix from the settings; the plugin stamps the started and mastered dates itself.
 - Detection runs on load, on OSK note type changes and before each command; switching between the two never changes notes.
 
 ## Learning notes
+
+- Tags are matched without `#` and regardless of case, whether `tags` is a list or text. When several learning types match a note, the most specific one (most tags, then longest type tag) wins.
 
 - A learning note type is a type whose status uses the numbered mastery scale (10 … 60) and that defines the practice field `date_last_practiced`. With the Obsidian Starter Kit (OSK), types are read from OSK (explicit status); without it, from the plugin's own note model settings.
 - Its notes carry the type's mandatory tags. The kind (chord, scale, technique, exercise, arrangement…) is the last segment of the type tag `type/<domain>/<subject>/<kind>`.
@@ -58,17 +60,23 @@ This document defines the core business rules. These rules MUST be respected in 
 
 - A session for N minutes split warm-up / focus / review / fun (15/50/20/15 by default, configurable). Focus takes the rounding remainder: the blocks always add up to N.
 - Warm-up: active techniques and exercises, lowest level first. Focus: active items, current focus first, then by score. Review: due items, most overdue first. Fun: items at 40+, least recently played first.
-- Up to three items per block, five minutes each at least. Minutes per item are whole minutes adding up to the block (the first items take the remainder: 20 over 3 → 7, 7, 6); a log splits its minutes between items the same way. Review and warm-up pick first; an item is planned once. A block with nothing to offer hands its minutes to focus.
+- Up to three items per block, five minutes each at least. Minutes per item are whole minutes adding up to the block (the first items take the remainder: 20 over 3 → 7, 7, 6); a log splits its minutes between items the same way.
+- Review, warm-up and fun pick first; an item is planned once; focus takes the rest. A block shorter than the minimum per item, or with nothing to offer, hands its minutes to focus. Focus always gets an item when there is one, so a very short session still has something to do.
 
 ## Sessions and time
 
 - A practice session note belongs to the session type tagged `type/session/<domain>/<subject>` matching the learning note's `type/<domain>/<subject>/<kind>`.
 - Naming: `<date> <focus> (<Session suffix>)`, `<date> (<Session suffix>)` without focus, then ` 2`, ` 3` for further sessions that day.
 - It records date, minutes, start time, quality, the practiced notes and the activity link, as far as the session type defines those fields.
-- The linked activity gets one time entry per session in the Kanban Action Planner format (`{startTime, endTime, description}`, description = the session link), its duration field increases by the minutes and its last-session date moves forward. Logging the same session again finds the entry and adds nothing (no duplicates).
-- Timer guard: when the Kanban Action Planner timer runs on the same activity, adopt its start time and stop it, or cancel.
+- One log is one session of one instrument: items of several instruments are refused. Instrument-less items (`type/music/exercise`) go to the session type the user picks among their domain's.
+- A log is checked in full before its first write (request values, items, session type, levels, session name, activity, timer), then writes the session note, the practiced notes (each computed from its own current frontmatter, not from the cache), then the activity. One log runs at a time.
+- The activity: the one the latest session of that type (by its date) linked to; else the note named after the activity setting ("Learn Guitar"); else "Learn Guitar (…)" when that note carries an activity tag.
+- The linked activity gets one time entry per session in the Kanban Action Planner format (`{startTime, endTime, description}`, description = the session link), its duration field increases by the minutes and its last-session date moves forward. An activity never gets two entries for the same session note.
+- Timer guard: when a Kanban Action Planner timer runs on the log's activity, the log must take it over: the timer is stopped and its own entry is relabeled to the session (if that entry doesn't appear within 10 s, nothing is added, so the time is never counted twice). A log that doesn't take it over is refused.
+- The practice timer's log uses the timer's start day and time.
 
 ## Writing notes
 
 - Frontmatter changes go through `processFrontMatter`, one transaction per note; number-like text (frets `022100`, codes) stays text.
-- Never lose information: existing values are only replaced by the fields the action is about.
+- Never lose information: existing values are only replaced by the fields the action is about. Minutes are never added to a value that isn't a number; existing time entries are kept as they are; the last-practiced and last-reviewed dates never move back (an older review leaves the review counters alone).
+- Creating a learning note applies its level like a change: the first review interval from "slow" up, and date stamps when the Obsidian Starter Kit doesn't stamp them.

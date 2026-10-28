@@ -9,6 +9,8 @@ import type { PracticeRules } from './rules'
  * `type/<domain>/<kind>`) on notes whose status property holds a mastery level.
  */
 export interface LocalModelSettings {
+    /** Domains whose `type/<domain>/…` tags mark learning notes ("music"). */
+    domains: string[]
     /** The mastery property of learning notes. */
     statusProperty: string
     /** Level names, by role; status values read `<number> - <name>` ("20 - Learning"). */
@@ -35,6 +37,7 @@ export interface LocalModelSettings {
 
 export function createDefaultLocalModel(): LocalModelSettings {
     return {
+        domains: ['music'],
         statusProperty: 'mastery',
         levelNames: {
             want: 'Want to learn',
@@ -115,11 +118,13 @@ export function buildLocalModel(
         'tags'
     ])
     const typeTags = new Set<string>()
+    const domains = new Set(settings.domains.map((d) => d.trim().toLowerCase()).filter(Boolean))
     for (const note of notes) {
         if (note.level === null) continue
         for (const tag of note.tags) {
             if (!tag.startsWith('type/') || tag.startsWith(SESSION_TAG_ROOT)) continue
-            if (tag.split('/').length >= 3) typeTags.add(tag)
+            const segments = tag.split('/')
+            if (segments.length >= 3 && domains.has(segments[1]!)) typeTags.add(tag)
         }
     }
     const learningTypes: LearningType[] = [...typeTags].sort().map((typeTag) => {

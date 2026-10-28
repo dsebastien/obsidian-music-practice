@@ -6,7 +6,9 @@ import {
     itemUpdate,
     sessionFileName,
     sessionTitle,
-    splitMinutes
+    splitMinutes,
+    freshItem,
+    validateLogRequest
 } from './log'
 import type { LearningType } from './note-model'
 import { computeItems } from './practice'
@@ -182,5 +184,76 @@ describe('session naming', () => {
         expect(splitMinutes(30, 3)).toEqual([10, 10, 10])
         expect(splitMinutes(20, 3)).toEqual([7, 7, 6])
         expect(splitMinutes(30, 0)).toEqual([])
+    })
+})
+
+describe('robust writes', () => {
+    it('keeps unknown time entries, skips non-list or non-numeric values', () => {
+        const entry = {
+            startTime: '2026-10-28T18:00:00',
+            endTime: '2026-10-28T18:30:00',
+            description: '[[S]]'
+        }
+        const fm: Record<string, unknown> = {
+            time_entries: ['legacy text', null],
+            time_spent: '60'
+        }
+        expect(addTimeEntry(fm, entry, 30, DATE, fields)).toBe('added')
+        expect(fm['time_entries']).toEqual(['legacy text', entry])
+        expect(fm['time_spent']).toBe(90)
+        expect(addTimeEntry({ time_entries: 'oops' }, entry, 30, DATE, fields)).toBe('skipped')
+        const text: Record<string, unknown> = { time_spent: '1h' }
+        expect(addTimeEntry(text, entry, 30, DATE, fields)).toBe('skipped')
+        expect(text).toEqual({ time_spent: '1h' })
+    })
+
+    it('never overwrites minutes that are not a number, nor moves review dates back', () => {
+        const fm: Record<string, unknown> = {
+            time_spent: '1h',
+            last_reviewed: '2026-11-01',
+            review_count: 4
+        }
+        const skipped = applyItemUpdate(
+            fm,
+            {
+                set: { last_reviewed: DATE, review_count: 5, review_interval: 6 },
+                addMinutes: { field: 'time_spent', minutes: 10 }
+            },
+            fields
+        )
+        expect(skipped).toEqual(['time_spent'])
+        expect(fm).toEqual({ time_spent: '1h', last_reviewed: '2026-11-01', review_count: 4 })
+    })
+
+    it('reads the item from the frontmatter being written', () => {
+        const stale = item({ level: 20, reviewCount: 1, reviewInterval: 3 })
+        const fresh = freshItem(
+            stale,
+            type,
+            { mastery: '40 - Can play at tempo', review_count: 2, review_interval: '6' },
+            fields
+        )
+        expect([fresh.level, fresh.reviewCount, fresh.reviewInterval]).toEqual([40, 2, 6])
+    })
+})
+
+describe('validateLogRequest', () => {
+    const ok = { date: DATE, minutes: 20, items: [{ path: 'E.md' }] }
+    it('accepts a valid request', () => {
+        expect(validateLogRequest(ok)).toBeNull()
+    })
+    it('rejects bad dates, minutes, times, items and values', () => {
+        expect(validateLogRequest({ ...ok, date: '28/10/2026' })).toMatch(/date/)
+        expect(validateLogRequest({ ...ok, minutes: Infinity })).toMatch(/Minutes/)
+        expect(validateLogRequest({ ...ok, minutes: 2.5 })).toMatch(/Minutes/)
+        expect(validateLogRequest({ ...ok, startTime: '25:00' })).toMatch(/start time/)
+        expect(validateLogRequest({ ...ok, items: [] })).toMatch(/at least one/)
+        expect(validateLogRequest({ ...ok, items: [{ path: 'E.md' }, { path: 'E.md' }] })).toMatch(
+            /twice/
+        )
+        expect(validateLogRequest({ ...ok, items: [{ path: 'E.md', bpm: -3 }] })).toMatch(/BPM/)
+        expect(
+            validateLogRequest({ ...ok, items: [{ path: 'E.md', review: 'great' as never }] })
+        ).toMatch(/review/)
     })
 })

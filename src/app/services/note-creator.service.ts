@@ -3,11 +3,47 @@ import type { App, TFile } from 'obsidian'
 import { parseChord } from '../domain/chord'
 import { isoDate } from '../domain/dates'
 import type { FieldNames } from '../domain/fields'
-import { labelFor } from '../domain/mastery'
+import { levelOf } from '../domain/mastery'
+import { mergeTags } from '../domain/item-reader'
+import { levelChange } from '../domain/log'
+import type { LearningItem } from '../domain/practice'
 import type { LearningType } from '../domain/note-model'
 import type { PracticeRules } from '../domain/rules'
 import { renderTemplate } from '../domain/template-render'
-import { resolveNoteTypeAffixes, resolveNoteTypeFolder } from './starter-kit.service'
+import {
+    resolveNoteTypeAffixes,
+    resolveNoteTypeFolder,
+    starterKitRunsAutomations
+} from './starter-kit.service'
+
+/** A learning item with no state yet: what a new note starts from. */
+const EMPTY_ITEM: LearningItem = {
+    path: '',
+    name: '',
+    kind: '',
+    typeId: '',
+    level: null,
+    priority: null,
+    topPriority: null,
+    lastPracticed: null,
+    lastReviewed: null,
+    reviewInterval: null,
+    reviewCount: null,
+    bpmCurrent: null,
+    bpmTarget: null,
+    prerequisites: [],
+    links: [],
+    daysSincePracticed: null,
+    daysSinceReview: null,
+    review: null,
+    bpmProgress: null,
+    prerequisitesOpen: 0,
+    missingPrerequisites: [],
+    ready: false,
+    unlocks: 0,
+    focus: false,
+    score: 0
+}
 import type { ItemRepository } from './item-repository'
 
 export interface NewLearningNote {
@@ -71,14 +107,22 @@ export class NoteCreatorService {
             const put = (name: string, value: unknown) => {
                 if (type.fields.has(name) && value !== undefined) fm[name] = value
             }
-            const tags = Array.isArray(fm['tags']) ? (fm['tags'] as unknown[]).map(String) : []
-            fm['tags'] = [...tags, ...type.tags.filter((t) => !tags.includes(t))]
-            // A level the template didn't set (or set to nothing) starts at the requested one.
-            const level = spec.level ?? rules.levels.want
-            if (!fm[type.statusProperty])
-                put(type.statusProperty, labelFor(level, type.statusValues) ?? undefined)
-            if (spec.level !== undefined)
-                put(type.statusProperty, labelFor(spec.level, type.statusValues) ?? undefined)
+            fm['tags'] = mergeTags(fm['tags'], type.tags)
+            // The requested level (or the template's, else "want to learn"), with what comes with
+            // it: the first review interval from "slow" up, and date stamps when the Obsidian
+            // Starter Kit doesn't stamp them itself.
+            const level = spec.level ?? levelOf(fm[type.statusProperty]) ?? rules.levels.want
+            const blank = { ...EMPTY_ITEM, typeId: type.id, kind: type.kind }
+            Object.assign(
+                fm,
+                levelChange(blank, type, level, {
+                    date: isoDate(),
+                    fields,
+                    rules,
+                    stampDates: !starterKitRunsAutomations(this.app),
+                    current: fm
+                })
+            )
             if (spec.shape) put(fields.shape, spec.shape)
             if (chord) {
                 put(fields.chordSymbol, chord.symbol)

@@ -31,7 +31,10 @@ export interface NoteModelSettings {
  */
 export class NoteModelService {
     private model: NoteModel = { learningTypes: [], sessionTypes: [] }
+    private signature = ''
     private currentSource: NoteModelSource = 'local'
+    /** The standalone model's scan of the notes, until the vault changes. */
+    private observed: { property: string; notes: ObservedNote[] } | null = null
 
     constructor(
         private readonly app: App,
@@ -46,20 +49,29 @@ export class NoteModelService {
         return this.model
     }
 
-    /** Rebuild: on load, on OSK note type changes, after settings changes, before each command. */
+    /** Forget the standalone model's scan (call on vault changes). */
+    invalidate(): void {
+        this.observed = null
+    }
+
+    /**
+     * Rebuild: on load, on OSK note type changes, after settings changes, before each command. The
+     * same model object is kept when nothing changed, so caches keyed on it stay valid.
+     */
     refresh(): NoteModel {
         const { rules, fields, local } = this.settings()
+        let next: NoteModel
         if (isStarterKitAvailable(this.app)) {
             this.currentSource = 'starter-kit'
-            this.model = buildNoteModel(this.starterKitTypes(), rules, fields)
+            next = buildNoteModel(this.starterKitTypes(), rules, fields)
         } else {
             this.currentSource = 'local'
-            this.model = buildLocalModel(
-                this.observedNotes(local.statusProperty),
-                local,
-                rules,
-                fields
-            )
+            next = buildLocalModel(this.observedNotes(local.statusProperty), local, rules, fields)
+        }
+        const signature = JSON.stringify(next, (_k, v: unknown) => (v instanceof Set ? [...v] : v))
+        if (signature !== this.signature) {
+            this.model = next
+            this.signature = signature
         }
         return this.model
     }
@@ -99,12 +111,14 @@ export class NoteModelService {
 
     /** Tags and mastery level of every note that has the status property. */
     private observedNotes(statusProperty: string): ObservedNote[] {
+        if (this.observed?.property === statusProperty) return this.observed.notes
         const out: ObservedNote[] = []
         for (const file of this.app.vault.getMarkdownFiles()) {
             const fm = this.app.metadataCache.getFileCache(file)?.frontmatter
             if (!fm || !(statusProperty in fm)) continue
             out.push({ tags: tagsOf(fm), level: levelOf(fm[statusProperty]) })
         }
+        this.observed = { property: statusProperty, notes: out }
         return out
     }
 }

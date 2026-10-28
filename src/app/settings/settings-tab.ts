@@ -51,10 +51,10 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                 searchable: false,
                 // Read at each opening: the Starter Kit can be enabled or disabled meanwhile.
                 render: (setting): void => {
-                    const model = this.plugin.noteModel?.refresh()
+                    const { source, model } = this.plugin.describeModel()
                     const counts = `${model?.learningTypes.length ?? 0} learning types, ${model?.sessionTypes.length ?? 0} session types`
                     setting.setDesc(
-                        this.plugin.noteModel?.source === 'starter-kit'
+                        source === 'starter-kit'
                             ? `From the Obsidian Starter Kit: ${counts}. Its note types own the statuses, folders, templates and date stamps.`
                             : `From this plugin's standalone note model (the Obsidian Starter Kit isn't available): ${counts}.`
                     )
@@ -302,6 +302,11 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                 desc: 'Used when the Obsidian Starter Kit is not available. Learning notes are the notes tagged type/<domain>/<subject>/<kind> (for example type/music/guitar/chord) with a mastery level.',
                 items: [
                     this.text(
+                        'local.domains',
+                        'Domains',
+                        'Comma-separated: only type/<domain>/… tags of these domains mark learning notes ("music").'
+                    ),
+                    this.text(
                         'local.statusProperty',
                         'Mastery property',
                         'The property holding the level ("20 - Learning").'
@@ -362,7 +367,7 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             setting.infoEl.remove()
                             setting.settingEl.addClass('settings-stack')
                             const el = setting.settingEl.createDiv({ cls: 'mp-modal' })
-                            const model = this.plugin.noteModel?.refresh()
+                            const { model } = this.plugin.describeModel()
                             el.createDiv({ cls: 'mp-section-title', text: 'Learning types' })
                             const list = el.createDiv({ cls: 'mp-list' })
                             for (const t of model?.learningTypes ?? []) {

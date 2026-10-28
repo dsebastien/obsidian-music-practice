@@ -25,9 +25,11 @@ export interface PracticePlan {
 /**
  * A practice session for N minutes. Warm-up: active items of the warm-up kinds, lowest level first.
  * Focus: active items, current focus first, then by score. Review: due items, most overdue first.
- * Fun: items at the "tempo" level or above, least recently played first. A capped number of items
- * per block with a minimum of minutes each; a block with nothing to offer hands its minutes to
- * focus. Review and warm-up pick first so focus doesn't take their items.
+ * Fun: items at the "tempo" level or above, least recently played first. Each block holds up to
+ * `maxItemsPerBlock` items of at least `minMinutesPerItem` minutes; a block shorter than that, or with
+ * nothing to offer, hands its minutes to focus. Review, warm-up and fun pick first (an item is
+ * planned once); focus takes the rest, and always gets an item when there is one, so even a very
+ * short session has something to do. The blocks add up to the session.
  */
 export function buildPlan(
     items: readonly LearningItem[],
@@ -36,19 +38,19 @@ export function buildPlan(
 ): PracticePlan {
     const { split, minMinutesPerItem, maxItemsPerBlock, warmUpKinds } = rules.plan
     const used = new Set<string>()
-    const pick = (pool: LearningItem[], blockMinutes: number): PlannedItem[] => {
-        const max = Math.min(
-            Math.max(1, Math.floor(blockMinutes / minMinutesPerItem)),
-            maxItemsPerBlock
-        )
+    const pick = (pool: LearningItem[], blockMinutes: number, force = false): PlannedItem[] => {
+        const fit = Math.floor(blockMinutes / Math.max(1, minMinutesPerItem))
+        const max = Math.min(force ? Math.max(1, fit) : fit, maxItemsPerBlock)
+        if (max <= 0 || blockMinutes <= 0) return []
         const chosen = pool.filter((i) => !used.has(i.path)).slice(0, max)
         chosen.forEach((i) => used.add(i.path))
-        const minutes = splitMinutes(blockMinutes, chosen.length)
-        return chosen.map((item, i) => ({ item, minutes: minutes[i]! }))
+        const split = splitMinutes(blockMinutes, chosen.length)
+        return chosen.map((item, i) => ({ item, minutes: split[i]! }))
     }
+    const total = Math.max(0, Math.round(minutes))
     // Focus takes the rounding remainder so the blocks always add up to the session.
-    const [w = 0, , r = 0, u = 0] = split.map((p) => Math.round((minutes * p) / 100))
-    const f = minutes - w - r - u
+    const [w = 0, , r = 0, u = 0] = split.map((p) => Math.round((total * p) / 100))
+    const f = Math.max(0, total - w - r - u)
     const byScore = (a: LearningItem, b: LearningItem) => b.score - a.score
     const active = (i: LearningItem) => isActive(i, rules)
     const warmUpPool = items
@@ -64,18 +66,23 @@ export function buildPlan(
 
     const review = pick(reviewPool, r)
     const warmUp = pick(warmUpPool, w)
-    const funLeft = funPool.some((i) => !used.has(i.path))
-    const spare = (warmUp.length ? 0 : w) + (review.length ? 0 : r) + (funLeft ? 0 : u)
-    const focusMinutes = f + spare
-    const focus = pick(focusPool, focusMinutes)
     const fun = pick(funPool, u)
-    return {
-        minutes,
-        blocks: [
-            { block: 'warm-up', minutes: warmUp.length ? w : 0, items: warmUp },
-            { block: 'focus', minutes: focusMinutes, items: focus },
-            { block: 'review', minutes: review.length ? r : 0, items: review },
-            { block: 'fun', minutes: fun.length ? u : 0, items: fun }
-        ]
+    const spare = (warmUp.length ? 0 : w) + (review.length ? 0 : r) + (fun.length ? 0 : u)
+    const focusMinutes = f + spare
+    const focus = pick(focusPool, focusMinutes, true)
+    // Nothing for focus either: its minutes go back to the first block that has items.
+    const blocks: PlanBlock[] = [
+        { block: 'warm-up', minutes: warmUp.length ? w : 0, items: warmUp },
+        { block: 'focus', minutes: focus.length ? focusMinutes : 0, items: focus },
+        { block: 'review', minutes: review.length ? r : 0, items: review },
+        { block: 'fun', minutes: fun.length ? u : 0, items: fun }
+    ]
+    const planned = blocks.reduce((sum, b) => sum + b.minutes, 0)
+    const receiver = blocks.find((b) => b.items.length > 0)
+    if (receiver && planned < total) {
+        receiver.minutes += total - planned
+        const extra = splitMinutes(receiver.minutes, receiver.items.length)
+        receiver.items.forEach((p, i) => (p.minutes = extra[i]!))
     }
+    return { minutes: total, blocks }
 }

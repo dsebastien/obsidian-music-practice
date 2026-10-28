@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { createDefaultFieldNames } from './fields'
-import { learningTypeOf, tagsOf, toLearningItemInput } from './item-reader'
+import { learningTypeOf, mergeTags, tagsOf, toLearningItemInput } from './item-reader'
 import { buildNoteModel, sessionTypeFor } from './note-model'
 import type { TypeDescriptor } from './note-model'
 import { createDefaultRules } from './rules'
@@ -131,5 +131,44 @@ describe('item reader', () => {
             prerequisites: ['A'],
             kind: 'chord'
         })
+    })
+})
+
+describe('tags', () => {
+    it('reads tags written as text, any case, with or without #', () => {
+        expect(tagsOf({ tags: '#Type/Music/Guitar/Chord, zone/areas' })).toEqual([
+            'type/music/guitar/chord',
+            'zone/areas'
+        ])
+        expect(tagsOf({ tags: 'a b' })).toEqual(['a', 'b'])
+        expect(tagsOf({})).toEqual([])
+    })
+
+    it('merges tags without dropping text tags or duplicating', () => {
+        expect(mergeTags('zone/journal, #Mine', ['type/session/music/guitar', 'mine'])).toEqual([
+            'zone/journal',
+            '#Mine',
+            'type/session/music/guitar'
+        ])
+        expect(mergeTags(undefined, ['a'])).toEqual(['a'])
+    })
+
+    it('prefers the most specific type when several match', () => {
+        const model = buildNoteModel(
+            [
+                ...types,
+                {
+                    id: 'broad',
+                    name: 'Broad',
+                    tags: ['type/music/guitar/chord'],
+                    properties: props('mastery', 'date_last_practiced'),
+                    status: { property: 'mastery', values: MASTERY }
+                }
+            ],
+            createDefaultRules(),
+            createDefaultFieldNames()
+        )
+        const fm = { tags: ['zone/areas', 'type/music/guitar/chord'], mastery: '20 - Learning' }
+        expect(learningTypeOf(model.learningTypes, fm)?.id).toBe('gc')
     })
 })

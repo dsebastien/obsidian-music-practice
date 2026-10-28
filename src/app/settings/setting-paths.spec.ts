@@ -44,3 +44,17 @@ describe('setting paths', () => {
         expect(draft.local.levelNames.want).toBe('Wishlist')
     })
 })
+
+describe('setting bounds', () => {
+    const settings = createDefaultSettings()
+    it('refuses zero divisors, fractional levels, empty and duplicate property names', () => {
+        expect(parseSetting('rules.score.bpmGapDivisor', 0).ok).toBe(false)
+        expect(parseSetting('rules.review.goodMultiplier', 0).ok).toBe(false)
+        expect(parseSetting('rules.levels.slow', 30.5).ok).toBe(false)
+        expect(parseSetting('fields.lastPracticed', '  ').ok).toBe(false)
+        expect(parseSetting('rubric.chord.slow', '').ok).toBe(true)
+        expect(validateSetting(settings, 'fields.bpmCurrent', 'bpm_target')).toMatch(
+            /two properties/
+        )
+    })
+})

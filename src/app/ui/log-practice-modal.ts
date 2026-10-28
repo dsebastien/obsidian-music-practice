@@ -11,17 +11,24 @@ import type { ReviewResult } from '../domain/review'
 import type { PracticeRules } from '../domain/rules'
 import { rubricFor } from '../domain/rubric'
 import type { RubricSettings } from '../domain/rubric'
+import { clockTime, minutesBetween } from '../domain/timer'
 import { linkTo, renderBadge, renderMeta } from './item-row'
 
 export interface LogPracticePreset {
     minutes?: number
+    /** YYYY-MM-DD, from the practice timer (its start day). */
+    date?: string
     /** HH:MM, from the practice timer. */
     startTime?: string
+    paths?: string[]
     /** Called after a successful log (the practice timer clears itself). */
     onLogged?: () => void
-    paths?: string[]
-    /** A running Kanban Action Planner timer that can be adopted. */
-    timer?: { startedAt: number; activityName: string } | null
+}
+
+/** A Kanban Action Planner timer running on the activity of the current selection. */
+export interface RunningTimer {
+    startedAt: number
+    activityName: string
 }
 
 export interface LogPracticeDeps {
@@ -30,8 +37,11 @@ export interface LogPracticeDeps {
     rules: PracticeRules
     fields: FieldNames
     rubric: RubricSettings
-    sessionTypeFor: (items: LearningItem[]) => SessionType | null
+    /** Session types the selection can go to (throws when it spans several instruments). */
+    sessionTypesFor: (items: LearningItem[]) => SessionType[]
+    timerFor: (items: LearningItem[], sessionTypeId?: string) => RunningTimer | null
     submit: (request: LogRequest, adoptTimer: boolean) => Promise<string>
+    onClosed: () => void
 }
 
 const REVIEW_BUTTONS: { result: ReviewResult; label: string }[] = [
@@ -43,15 +53,18 @@ const REVIEW_BUTTONS: { result: ReviewResult; label: string }[] = [
 /** Log a practice session in under a minute. */
 export class LogPracticeModal extends Modal {
     private minutes: number
-    private date = isoDate()
+    private date: string
     private focus = ''
     private note = ''
     private quality = ''
-    private adoptTimer: boolean
+    private sessionTypeId = ''
+    private adoptTimer = false
+    private submitting = false
     private query = ''
     private readonly selected = new Map<string, LogItem>()
     private listEl: HTMLElement | null = null
-    private qualityEl: HTMLElement | null = null
+    private sessionEl: HTMLElement | null = null
+    private minutesInput: HTMLInputElement | null = null
     private submitEl: HTMLButtonElement | null = null
 
     constructor(
@@ -61,26 +74,41 @@ export class LogPracticeModal extends Modal {
     ) {
         super(app)
         this.minutes = preset.minutes ?? 0
-        this.adoptTimer = Boolean(preset.timer)
-        for (const path of preset.paths ?? []) this.selected.set(path, { path })
+        this.date = preset.date ?? isoDate()
+        // Planned items of several instruments: keep the first instrument's (one log, one session).
+        let subject: string | null = null
+        for (const path of preset.paths ?? []) {
+            const item = deps.items.find((i) => i.path === path)
+            const itemSubject = item ? (this.typeOf(item)?.subject ?? null) : null
+            if (itemSubject && subject && itemSubject !== subject) continue
+            subject ??= itemSubject
+            this.selected.set(path, { path })
+        }
     }
 
     private typeOf(item: LearningItem): LearningType | undefined {
         return this.deps.model.learningTypes.find((t) => t.id === item.typeId)
     }
 
+    private selectedItems(): LearningItem[] {
+        return this.deps.items.filter((i) => this.selected.has(i.path))
+    }
+
     /** The subject of the selection; items of another subject can't join it. */
     private selectedSubject(): string | null {
-        for (const path of this.selected.keys()) {
-            const item = this.deps.items.find((i) => i.path === path)
-            const subject = item ? this.typeOf(item)?.subject : null
+        for (const item of this.selectedItems()) {
+            const subject = this.typeOf(item)?.subject
             if (subject) return subject
         }
         return null
     }
 
-    private session(): SessionType | null {
-        return this.deps.sessionTypeFor(this.deps.items.filter((i) => this.selected.has(i.path)))
+    private sessionChoices(): SessionType[] {
+        try {
+            return this.deps.sessionTypesFor(this.selectedItems())
+        } catch {
+            return []
+        }
     }
 
     override onOpen(): void {
@@ -89,26 +117,28 @@ export class LogPracticeModal extends Modal {
         contentEl.addClass('mp-modal')
 
         const row = contentEl.createDiv({ cls: 'mp-form-row' })
-        this.numberField(row, 'Minutes', this.minutes || '', (v) => (this.minutes = v))
-        this.textField(row, 'Date', this.date, 'date', (v) => (this.date = v || isoDate()))
-        this.textField(row, 'Focus (optional)', '', 'text', (v) => (this.focus = v), 'Barre chords')
+        this.minutesInput = this.field(
+            row,
+            'Minutes',
+            'number',
+            this.minutes ? String(this.minutes) : '',
+            (v) => {
+                const n = Number(v)
+                this.minutes = Number.isFinite(n) ? Math.round(n) : 0
+            }
+        )
+        this.minutesInput.min = '1'
+        this.minutesInput.max = '1440'
+        this.field(row, 'Date', 'date', this.date, (v) => (this.date = v || isoDate()))
+        this.field(row, 'Focus (optional)', 'text', '', (v) => (this.focus = v), 'Barre chords')
 
-        if (this.preset.timer) {
-            const label = contentEl.createEl('label', { cls: 'mp-field' })
-            const box = label.createEl('input', { type: 'checkbox' })
-            box.checked = this.adoptTimer
-            box.addEventListener('change', () => (this.adoptTimer = box.checked))
-            const started = new Date(this.preset.timer.startedAt)
-            label.appendText(
-                ` Use the running timer on ${this.preset.timer.activityName} (started ${String(started.getHours()).padStart(2, '0')}:${String(started.getMinutes()).padStart(2, '0')})`
-            )
-        }
+        this.sessionEl = contentEl.createDiv({ cls: 'mp-modal' })
 
-        contentEl.createEl('h4', { cls: 'mp-section-title', text: 'What did you practice?' })
+        contentEl.createDiv({ cls: 'mp-section-title', text: 'What did you practice?' })
         const search = contentEl.createEl('input', {
             cls: 'mp-search',
             type: 'search',
-            attr: { placeholder: 'Filter items…' }
+            attr: { 'placeholder': 'Filter items…', 'aria-label': 'Filter items' }
         })
         search.addEventListener('input', () => {
             this.query = search.value.trim().toLowerCase()
@@ -116,7 +146,6 @@ export class LogPracticeModal extends Modal {
         })
         this.listEl = contentEl.createDiv({ cls: 'mp-pick-list' })
 
-        this.qualityEl = contentEl.createDiv()
         const noteField = contentEl.createEl('label', { cls: 'mp-field', text: 'Note (optional)' })
         const note = noteField.createEl('textarea', { attr: { rows: '2' } })
         note.addEventListener('input', () => (this.note = note.value))
@@ -151,12 +180,11 @@ export class LogPracticeModal extends Modal {
                 !this.query ||
                 i.name.toLowerCase().includes(this.query)
         )
-        if (visible.length === 0) {
+        if (visible.length === 0)
             el.createDiv({ cls: 'mp-empty', text: 'No learning note matches.' })
-        }
         for (const item of visible.slice(0, 50)) {
             const type = this.typeOf(item)
-            const other = subject !== null && type?.subject && type.subject !== subject
+            const other = Boolean(subject && type?.subject && type.subject !== subject)
             const isOn = this.selected.has(item.path)
             const card = el.createDiv({ cls: `mp-item${isOn ? ' mp-is-selected' : ''}` })
             if (other) {
@@ -164,9 +192,12 @@ export class LogPracticeModal extends Modal {
                 card.title = 'Another instrument: log it in its own session.'
             }
             const head = card.createDiv({ cls: 'mp-item-head' })
-            const box = head.createEl('input', { type: 'checkbox' })
+            const box = head.createEl('input', {
+                type: 'checkbox',
+                attr: { 'aria-label': `Practiced ${item.name}` }
+            })
             box.checked = isOn
-            box.disabled = Boolean(other) && !isOn
+            box.disabled = other && !isOn
             const name = head.createEl('a', { cls: 'mp-item-name internal-link', text: item.name })
             linkTo(this.app, name, item)
             renderBadge(head, this.deps.model, item)
@@ -178,8 +209,63 @@ export class LogPracticeModal extends Modal {
             if (isOn && type) this.renderDetails(card, item, type)
             else renderMeta(card, item)
         }
-        this.renderQuality()
-        if (this.submitEl) this.submitEl.disabled = this.selected.size === 0
+        this.renderSession()
+        this.refreshSubmit()
+    }
+
+    /** Session choice (instrument-less items), quality, and the running timer of the activity. */
+    private renderSession(): void {
+        const el = this.sessionEl
+        if (!el) return
+        el.empty()
+        const items = this.selectedItems()
+        const choices = items.length ? this.sessionChoices() : []
+        if (!choices.some((s) => s.id === this.sessionTypeId))
+            this.sessionTypeId = choices.length === 1 ? choices[0]!.id : ''
+        if (choices.length > 1 && !this.selectedSubject()) {
+            const field = el.createEl('label', { cls: 'mp-field', text: 'Session for' })
+            const select = field.createEl('select', { cls: 'dropdown' })
+            select.createEl('option', { text: 'Choose…', value: '' })
+            for (const s of choices)
+                select.createEl('option', { text: s.name, value: s.id }).selected =
+                    s.id === this.sessionTypeId
+            select.addEventListener('change', () => {
+                this.sessionTypeId = select.value
+                this.renderSession()
+                this.refreshSubmit()
+            })
+        }
+        const session = choices.find((s) => s.id === this.sessionTypeId)
+        const qualities = session?.allowedValues[this.deps.fields.quality] ?? []
+        if (qualities.length) {
+            const field = el.createEl('label', { cls: 'mp-field', text: 'Session quality' })
+            const select = field.createEl('select', { cls: 'dropdown' })
+            select.createEl('option', { text: '—', value: '' })
+            for (const v of qualities)
+                select.createEl('option', { text: v, value: v }).selected = v === this.quality
+            select.addEventListener('change', () => (this.quality = select.value))
+        }
+        const timer = items.length
+            ? this.deps.timerFor(items, this.sessionTypeId || undefined)
+            : null
+        if (!timer) {
+            this.adoptTimer = false
+            return
+        }
+        // Offered only for a timer on this log's activity; its minutes show in the Minutes field.
+        const label = el.createEl('label', { cls: 'mp-field' })
+        const box = label.createEl('input', { type: 'checkbox' })
+        box.checked = this.adoptTimer
+        label.appendText(
+            ` Use the Kanban Action Planner timer running on ${timer.activityName} since ${clockTime(timer.startedAt)} (required: it times this activity)`
+        )
+        box.addEventListener('change', () => {
+            this.adoptTimer = box.checked
+            if (this.adoptTimer && this.minutesInput) {
+                this.minutes = Math.min(minutesBetween(timer.startedAt, Date.now()), 1440)
+                this.minutesInput.value = String(this.minutes)
+            }
+        })
     }
 
     /** Mastery (with the rubric), BPM where a target exists, and a review result for items in review. */
@@ -187,7 +273,10 @@ export class LogPracticeModal extends Modal {
         const log = this.selected.get(item.path)!
         const details = card.createDiv({ cls: 'mp-item-details' })
 
-        const mastery = details.createEl('select', { cls: 'dropdown' })
+        const mastery = details.createEl('select', {
+            cls: 'dropdown',
+            attr: { 'aria-label': `Mastery of ${item.name}` }
+        })
         for (const value of type.statusValues) {
             const option = mastery.createEl('option', { text: value, value })
             option.selected = levelOf(value) === (log.level ?? item.level)
@@ -211,16 +300,21 @@ export class LogPracticeModal extends Modal {
 
         if (item.bpmTarget !== null) {
             const bpm = details.createEl('input', {
+                cls: 'mp-bpm-input',
                 type: 'number',
-                attr: { placeholder: `BPM (target ${item.bpmTarget})`, min: '20', max: '400' }
+                attr: {
+                    'placeholder': `BPM (target ${item.bpmTarget})`,
+                    'aria-label': `BPM reached on ${item.name}`,
+                    'min': '1',
+                    'max': '1000'
+                }
             })
-            bpm.addClass('mp-bpm-input')
             if (log.bpm !== undefined) bpm.value = String(log.bpm)
             bpm.addEventListener('input', () => {
                 const n = Number(bpm.value)
-                if (bpm.value && Number.isFinite(n) && n > 0) log.bpm = Math.round(n)
+                if (bpm.value && Number.isInteger(n) && n > 0) log.bpm = n
                 else delete log.bpm
-                // Reaching the target offers "at tempo".
+                // Reaching the target offers "at tempo" (visible in the mastery list, changeable).
                 const tempo = this.deps.rules.levels.tempo
                 if (
                     log.bpm !== undefined &&
@@ -238,102 +332,87 @@ export class LogPracticeModal extends Modal {
         if (item.review !== null) {
             const group = details.createDiv({
                 cls: 'mp-segmented',
-                attr: { title: 'Review result' }
+                attr: { 'role': 'group', 'aria-label': 'Review result' }
             })
+            const buttons: HTMLButtonElement[] = []
             for (const { result, label } of REVIEW_BUTTONS) {
-                const button = group.createEl('button', { text: label })
+                const button = group.createEl('button', {
+                    text: label,
+                    attr: { 'aria-pressed': String(log.review === result) }
+                })
                 if (log.review === result) button.addClass('mp-is-on')
+                buttons.push(button)
                 button.addEventListener('click', () => {
                     if (log.review === result) delete log.review
                     else log.review = result
-                    group.querySelectorAll('button').forEach((b) => b.removeClass('mp-is-on'))
-                    if (log.review) button.addClass('mp-is-on')
+                    buttons.forEach((b, i) => {
+                        const on = log.review === REVIEW_BUTTONS[i]!.result
+                        b.toggleClass('mp-is-on', on)
+                        b.setAttr('aria-pressed', String(on))
+                    })
                 })
             }
         }
     }
 
-    private renderQuality(): void {
-        const el = this.qualityEl
-        if (!el) return
-        el.empty()
-        const values = this.session()?.allowedValues[this.deps.fields.quality] ?? []
-        if (values.length === 0) return
-        const field = el.createEl('label', { cls: 'mp-field', text: 'Session quality' })
-        const select = field.createEl('select', { cls: 'dropdown' })
-        select.createEl('option', { text: '—', value: '' })
-        for (const value of values) {
-            const option = select.createEl('option', { text: value, value })
-            option.selected = value === this.quality
-        }
-        select.addEventListener('change', () => (this.quality = select.value))
+    private refreshSubmit(): void {
+        if (!this.submitEl) return
+        const needsSession =
+            this.sessionChoices().length > 1 && !this.selectedSubject() && !this.sessionTypeId
+        this.submitEl.disabled = this.submitting || this.selected.size === 0 || needsSession
     }
 
     private async submit(): Promise<void> {
-        if (this.selected.size === 0) return
-        if (!(this.minutes > 0) && !this.adoptTimer) {
+        if (this.submitting || this.selected.size === 0) return
+        if (!(this.minutes > 0)) {
             new Notice('Enter the minutes practiced.')
             return
         }
-        const minutes =
-            this.adoptTimer && this.preset.timer
-                ? Math.max(1, Math.round((Date.now() - this.preset.timer.startedAt) / 60_000))
-                : this.minutes
-        this.submitEl?.setAttr('disabled', 'true')
+        this.submitting = true
+        this.refreshSubmit()
         try {
             const session = await this.deps.submit(
                 {
                     date: this.date,
-                    minutes,
+                    minutes: this.minutes,
                     ...(this.preset.startTime && !this.adoptTimer
                         ? { startTime: this.preset.startTime }
                         : {}),
                     ...(this.focus ? { focus: this.focus } : {}),
                     ...(this.quality ? { quality: this.quality } : {}),
                     ...(this.note.trim() ? { note: this.note.trim() } : {}),
+                    ...(this.sessionTypeId ? { sessionTypeId: this.sessionTypeId } : {}),
                     items: [...this.selected.values()]
                 },
                 this.adoptTimer
             )
-            new Notice(`Logged ${minutes} min: ${session}`)
+            new Notice(`Logged ${this.minutes} min: ${session}`)
             this.preset.onLogged?.()
             this.close()
         } catch (error: unknown) {
             new Notice(error instanceof Error ? error.message : String(error))
-            this.submitEl?.removeAttribute('disabled')
+            this.submitting = false
+            this.refreshSubmit()
         }
     }
 
-    private numberField(
+    private field(
         parent: HTMLElement,
         label: string,
-        value: number | string,
-        set: (v: number) => void
-    ): void {
-        const field = parent.createEl('label', { cls: 'mp-field', text: label })
-        const input = field.createEl('input', { type: 'number', attr: { min: '1', max: '600' } })
-        input.value = String(value)
-        input.addEventListener('input', () => {
-            const n = Number(input.value)
-            set(Number.isFinite(n) ? Math.round(n) : 0)
-        })
-    }
-
-    private textField(
-        parent: HTMLElement,
-        label: string,
-        value: string,
         type: string,
+        value: string,
         set: (v: string) => void,
         placeholder = ''
-    ): void {
+    ): HTMLInputElement {
         const field = parent.createEl('label', { cls: 'mp-field', text: label })
         const input = field.createEl('input', { type, attr: { placeholder } })
         input.value = value
         input.addEventListener('input', () => set(input.value.trim()))
+        return input
     }
 
     override onClose(): void {
         this.contentEl.empty()
+        this.deps.onClosed()
     }
 }

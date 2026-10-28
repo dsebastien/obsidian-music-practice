@@ -13,6 +13,9 @@ import type { LogResult, PracticeLogService } from './services/practice-log.serv
 export interface ItemSummary {
     name: string
     path: string
+    /** The note type's stable id (an Obsidian Starter Kit id, or `local:<type tag>`). */
+    typeId: string
+    /** The note type's display name (may change when the type is renamed). */
     type: string
     kind: string
     subject: string | null
@@ -65,6 +68,7 @@ export interface MusicPracticeApi {
     setBpm(path: string, bpm: { current?: number; target?: number }): Promise<void>
     /** The running practice timer's start (epoch ms), or null. */
     timer(): number | null
+    /** Start the practice timer; rejects when it is already running. */
     startTimer(): Promise<void>
     /** Clear the timer without logging. */
     clearTimer(): Promise<void>
@@ -83,6 +87,7 @@ export function summarize(model: NoteModel, item: LearningItem): ItemSummary {
     return {
         name: item.name,
         path: item.path,
+        typeId: item.typeId,
         type: type?.name ?? item.typeId,
         kind: item.kind,
         subject: type?.subject ?? null,
@@ -142,7 +147,7 @@ export function createApi(deps: ApiDeps): MusicPracticeApi {
             if (n === null) throw new Error(`Not a mastery level: ${String(level)}`)
             await deps.log.setLevel(find(path), n)
         },
-        setBpm: (path, bpm) => deps.log.setBpm(find(path), bpm),
+        setBpm: (path, bpm) => deps.log.setBpmAndLevel(find(path), bpm),
         timer: () => deps.timer.get(),
         startTimer: () => deps.timer.start(),
         clearTimer: () => deps.timer.clear()

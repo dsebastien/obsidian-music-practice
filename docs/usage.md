@@ -27,12 +27,12 @@ Each learning type pairs with a practice session type of the same instrument (`t
 | **Add a learning note**                                                | Creates a chord, scale, technique, exercise or piece in the right type, folder and name. For chords, type the symbol (`F#m7`, `C/G`): the name is spelled out ("F Sharp Minor 7 - Barre"), the symbol becomes an alias, and its root and quality are filled in. |
 | **Change mastery of the current note**                                 | The levels, each with what it means for this kind of item.                                                                                                                                                                                                      |
 | **Set BPM of the current note**                                        | Current and target BPM; reaching the target offers "Can play at tempo".                                                                                                                                                                                         |
-| **Start practice timer** / **Stop practice timer and log the session** | The elapsed time shows in the status bar (click it to stop). Stopping opens Log practice with the minutes.                                                                                                                                                      |
+| **Start practice timer** / **Stop practice timer and log the session** | The elapsed time shows in the status bar on desktop (click it to stop). Stopping opens Log practice with the minutes, the start time and the day the timer started.                                                                                             |
 | **Log practice**                                                       | Records a session: minutes, date, an optional focus, the items you practiced, their new mastery, BPM, review results, the session quality and a note.                                                                                                           |
 
 ## Log practice
 
-1. Enter the minutes (or use the running Kanban Action Planner timer, when there is one), the date and an optional focus ("Barre chords").
+1. Enter the minutes, the date and an optional focus ("Barre chords"). When a Kanban Action Planner timer is running on the activity of this session, the log takes it over (tick the box: its minutes fill the Minutes field), so the time is counted once.
 2. Tick what you practiced. Items you planned or that are due come first; type to filter. Items of another instrument are dimmed: log them in their own session.
 3. For each item, if it applies:
     - change its mastery (the rubric for its kind shows what the level means);
@@ -44,7 +44,9 @@ What gets written:
 
 - **Each item**: last practiced date, minutes (the session split evenly), BPM, review date, count and interval, new mastery. The first review interval starts when an item reaches "Can play slowly".
 - **A session note** in the session type's folder, named `<date> <focus>` (or `<date>`, then `<date> 2`… for more sessions that day), with the date, start time, minutes, quality, the practiced items and the activity.
-- **The activity** the session counts towards (the one your previous session of that instrument linked to, or a note named "Learn Guitar"): one time entry per session, its minutes and its last session date. Logging never adds the same session twice.
+- **The activity** the session counts towards (the one your previous session of that instrument linked to, or a note named "Learn Guitar"): one time entry per session, its minutes and its last session date. An activity never gets two entries for the same session.
+
+Everything is checked before anything is written, and one log runs at a time. Minutes are never added to a value that isn't a number, and existing time entries are kept as they are. Instrument-less items (ear training) ask which instrument's session they belong to.
 
 Dates the Obsidian Starter Kit stamps on mastery changes (started, mastered) are left to it.
 

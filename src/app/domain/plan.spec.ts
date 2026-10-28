@@ -44,3 +44,34 @@ describe('buildPlan', () => {
         )
     })
 })
+
+describe('buildPlan edge cases', () => {
+    it('keeps fun when focus could take its item, blocks adding up', () => {
+        const one = computeItems([input('Song', { kind: 'arrangement', level: 40 })], TODAY)
+        const plan = buildPlan(one, 30)
+        expect(plan.blocks.reduce((s, b) => s + b.minutes, 0)).toBe(30)
+        expect(plan.blocks.flatMap((b) => b.items).length).toBe(1)
+    })
+
+    it('skips blocks shorter than the minimum per item, minutes to focus', () => {
+        const items = computeItems(
+            [
+                input('Due', { level: 40, lastPracticed: '2026-10-01', reviewInterval: 6 }),
+                input('Active', { level: 20 })
+            ],
+            TODAY
+        )
+        const plan = buildPlan(items, 10)
+        expect(
+            plan.blocks.every((b) => b.items.every((p) => p.minutes >= 5 || b.block === 'focus'))
+        ).toBe(true)
+        expect(plan.blocks.reduce((s, b) => s + b.minutes, 0)).toBe(10)
+    })
+
+    it('still plans one item in a very short session', () => {
+        const items = computeItems([input('Active', { level: 20 })], TODAY)
+        const plan = buildPlan(items, 3)
+        expect(plan.blocks.find((b) => b.block === 'focus')!.items.length).toBe(1)
+        expect(plan.blocks.reduce((s, b) => s + b.minutes, 0)).toBe(3)
+    })
+})

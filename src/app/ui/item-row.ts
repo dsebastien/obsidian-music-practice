@@ -50,6 +50,9 @@ export function renderMeta(parent: HTMLElement, item: LearningItem, extra: strin
 
 /** Open the item's note (in a new tab with Ctrl/Cmd). */
 export function linkTo(app: App, el: HTMLElement, item: LearningItem): void {
+    // A real link target, so the keyboard reaches it and hover previews work.
+    el.setAttr('href', item.path)
+    el.setAttr('data-href', item.path)
     el.addEventListener('click', (event) => {
         event.preventDefault()
         event.stopPropagation()

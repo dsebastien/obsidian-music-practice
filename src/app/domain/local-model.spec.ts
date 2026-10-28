@@ -83,3 +83,18 @@ describe('standalone note model', () => {
         ).toBe(' (Piano Practice Session) 2026-10-28 music/piano')
     })
 })
+
+describe('standalone domains', () => {
+    it('only considers type tags of the configured domains', () => {
+        const model = buildLocalModel(
+            [
+                { tags: ['type/music/guitar/chord', 'type/project/thing'], level: 20 },
+                { tags: ['type/language/spanish/word'], level: 20 }
+            ],
+            { ...local, domains: ['music'] },
+            rules,
+            fields
+        )
+        expect(model.learningTypes.map((t) => t.typeTag)).toEqual(['type/music/guitar/chord'])
+    })
+})

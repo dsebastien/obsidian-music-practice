@@ -58,3 +58,14 @@ describe('fillSection', () => {
         expect(fillSection('# T\n', 'Notes', 'x')).toBe('# T\n')
     })
 })
+
+describe('number-like text', () => {
+    it('keeps quoted number-like values from the template as written', () => {
+        const out = renderTemplate(
+            '<%"---"%>\nfrets: "022100"\nfingers: \'x01230\'\n<%"---"%>\n# T\n',
+            'T'
+        )
+        expect(out).toContain('frets: "022100"\n')
+        expect(out).toContain("fingers: 'x01230'\n")
+    })
+})
