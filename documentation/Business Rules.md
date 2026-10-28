@@ -4,6 +4,11 @@ This document defines the core business rules. These rules MUST be respected in 
 
 ---
 
+## Configurable rules
+
+- Every number in these rules (mastery levels, review intervals and multipliers, due-soon window, score weights, plan split, minutes and items per block, warm-up kinds) is a setting (`PracticeRules`, #27). The values written below are the defaults applied on install. Domain code never hardcodes them; it takes the rules as a parameter.
+- With the Obsidian Starter Kit, its note types (status values, roles, stamped dates) stay the source of truth for what they define; plugin settings fill the rest (#27, to review).
+
 ## Learning notes
 
 - A learning note type is a type whose status uses the numbered mastery scale (10 … 60) and that defines the practice field `date_last_practiced`. With the Obsidian Starter Kit (OSK), types are read from OSK (explicit status); without it, from the plugin's own note model settings.

@@ -9,3 +9,4 @@ Code: `src/app/domain/`. Pure TypeScript, no Obsidian imports; rules in `Busines
 - **Selections** (`practice.ts`): `practiceNext` (active or due, by score), `readyToLearn`.
 - **PracticePlan** (`plan.ts`): `buildPlan(items, minutes, split)` → blocks warm-up / focus / review / fun with planned items and minutes.
 - **Dates** (`dates.ts`): `isoDate`, `daysBetween`.
+- **Rules** (`rules.ts`): `PracticeRules`, every number the rules use (levels, review, score, plan); `createDefaultRules()` gives the install defaults. Every domain function takes `rules` (default `DEFAULT_RULES`).

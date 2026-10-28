@@ -1,27 +1,28 @@
-import { LEVEL } from './mastery'
+import { DEFAULT_RULES } from './rules'
+import type { PracticeRules } from './rules'
 
 /** A light SM-2 on the review fields (last reviewed, interval in days, review count). */
-export const REVIEW_FIRST_INTERVAL = 3
-export const REVIEW_MAX_INTERVAL = 90
-const DUE_SOON_MAX_DAYS = 3
 
 export type ReviewStatus = 'overdue' | 'due-soon' | 'current' | 'never' | null
 export type ReviewResult = 'good' | 'shaky' | 'failed'
 
 /**
- * Review status of an item at level 30 or above with an interval: overdue once the days since the
- * last review (or the last practice when never reviewed) reach the interval; due soon within
- * min(3, interval / 3) days of it. Mastered items stay in review. Null when the item isn't in review.
+ * Review status of an item at the "slow" level or above with an interval: overdue once the days
+ * since the last review (or the last practice when never reviewed) reach the interval; due soon
+ * within min(dueSoonMaxDays, interval / dueSoonDivisor) days of it. Mastered items stay in review.
+ * Null when the item isn't in review.
  */
 export function reviewStatus(
     level: number | null,
     interval: number | null,
-    daysSinceReview: number | null
+    daysSinceReview: number | null,
+    rules: PracticeRules = DEFAULT_RULES
 ): ReviewStatus {
-    if (level === null || level < LEVEL.SLOW || !interval || interval <= 0) return null
+    if (level === null || level < rules.levels.slow || !interval || interval <= 0) return null
     if (daysSinceReview === null) return 'never'
     if (daysSinceReview >= interval) return 'overdue'
-    const window = Math.min(DUE_SOON_MAX_DAYS, Math.floor(interval / 3))
+    const { dueSoonMaxDays, dueSoonDivisor } = rules.review
+    const window = Math.min(dueSoonMaxDays, Math.floor(interval / dueSoonDivisor))
     return daysSinceReview >= interval - window ? 'due-soon' : 'current'
 }
 
@@ -36,28 +37,33 @@ export interface ReviewOutcome {
     level?: number
 }
 
-/** Good doubles the interval (cap 90), shaky keeps it, failed resets it to 3 and drops Mastered to Rusty. */
+/** Good multiplies the interval (capped), shaky keeps it, failed resets it and drops Mastered to Rusty. */
 export function reviewOutcome(
     result: ReviewResult,
     current: { level: number | null; interval: number | null; count: number | null },
-    date: string
+    date: string,
+    rules: PracticeRules = DEFAULT_RULES
 ): ReviewOutcome {
-    const interval =
-        current.interval && current.interval > 0 ? current.interval : REVIEW_FIRST_INTERVAL
+    const { firstInterval, maxInterval, goodMultiplier } = rules.review
+    const interval = current.interval && current.interval > 0 ? current.interval : firstInterval
     const out: ReviewOutcome = {
         lastReviewed: date,
         reviewCount: (current.count ?? 0) + 1,
         reviewInterval: interval
     }
-    if (result === 'good') out.reviewInterval = Math.min(interval * 2, REVIEW_MAX_INTERVAL)
+    if (result === 'good') out.reviewInterval = Math.min(interval * goodMultiplier, maxInterval)
     if (result === 'failed') {
-        out.reviewInterval = REVIEW_FIRST_INTERVAL
-        if (current.level === LEVEL.MASTERED) out.level = LEVEL.RUSTY
+        out.reviewInterval = firstInterval
+        if (current.level === rules.levels.mastered) out.level = rules.levels.rusty
     }
     return out
 }
 
-/** Reaching level 30 starts the review cycle when no interval is set yet. */
-export function intervalOnLevelChange(newLevel: number, interval: number | null): number | null {
-    return newLevel >= LEVEL.SLOW && !interval ? REVIEW_FIRST_INTERVAL : null
+/** Reaching the "slow" level starts the review cycle when no interval is set yet. */
+export function intervalOnLevelChange(
+    newLevel: number,
+    interval: number | null,
+    rules: PracticeRules = DEFAULT_RULES
+): number | null {
+    return newLevel >= rules.levels.slow && !interval ? rules.review.firstInterval : null
 }
