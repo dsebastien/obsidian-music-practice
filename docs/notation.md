@@ -130,3 +130,14 @@ Music Practice claims its blocks once Obsidian has started, so plugins enabled a
 ## Obsidian Publish
 
 Obsidian Publish doesn't run plugins. To draw these blocks on a Publish site, add the loader from the [library's Publish guide](https://dsebastien.github.io/music-notation/publish.html) to your site's `publish.js`.
+
+Your layout settings (left-handed, orientations) stay in Obsidian. To get the same on your site, set them at the top of `publish.js`, before the loader:
+
+```js
+window.musicNotationOptions = {
+    hand: 'left',
+    orientation: { chord: 'vertical', fretboard: 'horizontal', keyboard: 'horizontal' }
+}
+```
+
+Blocks that say `orientation:` or `hand:` look the same everywhere.

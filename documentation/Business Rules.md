@@ -83,7 +83,7 @@ This document defines the core business rules. These rules MUST be respected in 
 
 ## Notation (v0.2)
 
-- Notation blocks (`chord`, `chords`, `keyboard`, `fretboard`) are drawn by `@dsebastien/music-notation`; the plugin adds no syntax of its own, so a vault renders the same in Obsidian and on Publish (library loader).
+- Notation blocks (`chord`, `chords`, `keyboard`, `fretboard`) are drawn by `@dsebastien/music-notation`; the plugin adds no syntax of its own, so a vault renders the same in Obsidian and on Publish (library loader), apart from the layout settings (see Layout).
 - One switch per language, on by default. Registered once the layout is ready, so plugins enabled at startup register theirs first. A language another plugin registered first stays theirs: checked in Obsidian's registry before registering (a refused registration leaks a post-processor), and never retried. A language turned off renders as code until the plugin reloads, which frees it.
 - A rendering is destroyed with its section (`MarkdownRenderChild`). Mistakes render inline; the note is never changed.
 - New chord notes get a `chord block only when Music Practice draws `chord blocks and the block draws without an error.
@@ -95,5 +95,6 @@ This document defines the core business rules. These rules MUST be respected in 
 
 - Layout settings (`notationLayout`): left-handed (off), chord diagrams vertical, fretboards and keyboards horizontal. They reach the library as render defaults (`orientation` per language, `hand: left` only when left-handed); a block's own `orientation` / `hand` wins. Piano chords follow the keyboard orientation (the library's rule).
 - An orientation in data.json that isn't `vertical` or `horizontal` falls back to the default; the settings dropdowns refuse anything else.
-- Changing a layout setting redraws open notes in reading view (as the block switches do); it never re-registers processors.
-- Add a learning note, guitar chords: the first 4 voicings are drawn side by side (titled 1 to 4), plus the selected one when it's further down the list; clicking one selects it and updates the dropdown. Previews use the layout settings. The note still gets one diagram (the selected voicing).
+- Changing a layout setting redraws every block on screen in place (each rendered block is tracked while loaded: reading view, live preview, embeds, canvas); it never re-registers processors. The block switches still re-render reading view.
+- Layout settings apply in Obsidian only; a Publish site gets the same with `window.musicNotationOptions` in its `publish.js` (documented). Blocks that say `orientation:` / `hand:` render the same everywhere.
+- Add a learning note, guitar chords: the first 4 voicings are drawn side by side (titled 1 to 4), plus the selected one when it's further down the list (5 columns then); clicking one selects it in place (focus kept) and updates the dropdown; "No diagram" shows no row. Previews use the layout settings. The note still gets one diagram (the selected voicing).

@@ -27,7 +27,7 @@ One switch per kind of [notation block](notation.md), all on by default: chord d
 | Fretboard orientation     | Horizontal | Horizontal: the high string on top. Vertical: the nut on top, as a chord diagram.                   |
 | Keyboard orientation      | Horizontal | Horizontal: low notes on the left. Vertical: low notes at the bottom. Piano chords follow it.       |
 
-A block's own `orientation:` or `hand:` wins over these. Open notes redraw when you change them.
+A block's own `orientation:` or `hand:` wins over these. Diagrams on screen redraw when you change them (reading view, live preview, embeds). On Obsidian Publish, see [Notation](notation.md#obsidian-publish).
 
 ## Rules
 

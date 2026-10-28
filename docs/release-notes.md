@@ -9,6 +9,8 @@ Diagrams side by side, sideways or mirrored.
 - **Left-handed**: `hand: left` mirrors guitar chords and fretboards. A setting makes it the default everywhere, next to a default orientation for chord diagrams, fretboards and keyboards.
 - **Add a learning note** shows the four most common voicings of a guitar chord side by side: click one to pick it.
 
+If you sync your vault across devices, update Music Practice on each of them: an older version drops the new settings when it saves its own.
+
 Tabs and scores with playback, and playing chords and scales, come in 0.4.
 
 ## 0.2.0 (2026-10-28)
