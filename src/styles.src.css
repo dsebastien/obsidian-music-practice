@@ -94,3 +94,178 @@
 .my-plugin-whats-new-body .my-plugin-whats-new-links .setting-item-description {
     @apply pr-3;
 }
+
+/* ========================================
+   MUSIC PRACTICE
+   Modals (practice next, plan, log). Classes are
+   prefixed `mp-`; colors come from Obsidian's theme
+   variables so light, dark and custom themes work.
+   ======================================== */
+
+.mp-modal {
+    @apply flex flex-col gap-3;
+}
+
+.mp-section-title {
+    @apply mt-2 mb-0 flex items-baseline justify-between text-sm font-semibold tracking-wide uppercase;
+    color: var(--text-muted);
+}
+
+.mp-section-title .mp-section-minutes {
+    @apply text-xs font-normal normal-case;
+}
+
+.mp-list {
+    @apply flex flex-col gap-1.5;
+}
+
+/* One learning item */
+.mp-item {
+    @apply flex flex-col gap-1 rounded-lg border border-solid px-3 py-2;
+    border-color: var(--background-modifier-border);
+    background-color: var(--background-secondary);
+}
+
+.mp-item.mp-is-selected {
+    border-color: var(--interactive-accent);
+}
+
+.mp-item-head {
+    @apply flex items-center gap-2;
+}
+
+.mp-item-name {
+    @apply min-w-0 flex-1 truncate font-medium;
+}
+
+.mp-item-meta {
+    @apply flex flex-wrap items-center gap-1.5 text-xs;
+    color: var(--text-muted);
+}
+
+.mp-item-minutes {
+    @apply ml-auto shrink-0 text-xs font-semibold tabular-nums;
+    color: var(--text-accent);
+}
+
+/* Mastery level badge, colored by level */
+.mp-badge {
+    @apply inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap;
+    color: var(--mp-badge-color, var(--text-muted));
+    background-color: color-mix(in srgb, var(--mp-badge-color, var(--text-muted)) 15%, transparent);
+}
+
+.mp-badge[data-level='10'] {
+    --mp-badge-color: var(--text-muted);
+}
+.mp-badge[data-level='20'] {
+    --mp-badge-color: var(--color-blue);
+}
+.mp-badge[data-level='30'] {
+    --mp-badge-color: var(--color-cyan);
+}
+.mp-badge[data-level='40'] {
+    --mp-badge-color: var(--color-green);
+}
+.mp-badge[data-level='50'] {
+    --mp-badge-color: var(--color-orange);
+}
+.mp-badge[data-level='60'] {
+    --mp-badge-color: var(--color-purple);
+}
+
+.mp-pill {
+    @apply inline-flex items-center rounded-full px-1.5 py-px text-[0.7rem] font-semibold whitespace-nowrap;
+}
+
+.mp-pill-overdue {
+    color: var(--color-red);
+    background-color: color-mix(in srgb, var(--color-red) 15%, transparent);
+}
+
+.mp-pill-due {
+    color: var(--color-orange);
+    background-color: color-mix(in srgb, var(--color-orange) 15%, transparent);
+}
+
+.mp-pill-focus {
+    color: var(--text-accent);
+    background-color: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+}
+
+/* BPM progress */
+.mp-progress {
+    @apply relative h-1.5 w-16 overflow-hidden rounded-full;
+    background-color: var(--background-modifier-border);
+}
+
+.mp-progress-bar {
+    @apply absolute inset-y-0 left-0 rounded-full;
+    background-color: var(--color-green);
+}
+
+.mp-empty {
+    @apply rounded-lg border border-dashed px-4 py-6 text-center text-sm;
+    border-color: var(--background-modifier-border);
+    color: var(--text-muted);
+}
+
+/* Log practice */
+.mp-form-row {
+    @apply grid grid-cols-1 gap-2 sm:grid-cols-3;
+}
+
+.mp-field {
+    @apply flex flex-col gap-1 text-xs;
+    color: var(--text-muted);
+}
+
+.mp-field input,
+.mp-field select,
+.mp-field textarea {
+    @apply w-full;
+}
+
+.mp-search {
+    @apply w-full;
+}
+
+.mp-pick-list {
+    @apply flex max-h-[40vh] flex-col gap-1.5 overflow-y-auto pr-1;
+}
+
+.mp-item-details {
+    @apply mt-1 flex flex-wrap items-center gap-2;
+}
+
+.mp-segmented {
+    @apply inline-flex overflow-hidden rounded-md border border-solid;
+    border-color: var(--background-modifier-border);
+}
+
+.mp-segmented button {
+    @apply rounded-none border-0 px-2.5 py-1 text-xs shadow-none;
+    background-color: transparent;
+}
+
+.mp-segmented button.mp-is-on {
+    color: var(--text-on-accent);
+    background-color: var(--interactive-accent);
+}
+
+.mp-rubric {
+    @apply w-full text-xs italic;
+    color: var(--text-faint);
+}
+
+.mp-actions {
+    @apply flex items-center justify-end gap-2 pt-1;
+}
+
+.mp-item.mp-is-dimmed {
+    @apply opacity-45;
+}
+
+.mp-bpm-input {
+    @apply w-36;
+}
