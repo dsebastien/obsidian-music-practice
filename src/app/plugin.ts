@@ -17,6 +17,7 @@ import { LogPracticeModal } from './ui/log-practice-modal'
 import type { LogPracticePreset } from './ui/log-practice-modal'
 import type { FieldNames } from './domain/fields'
 import type { PracticeRules } from './domain/rules'
+import { clockTime, formatElapsed, minutesBetween } from './domain/timer'
 
 export class MusicPracticePlugin extends Plugin {
     /**
@@ -107,11 +108,73 @@ export class MusicPracticePlugin extends Plugin {
             callback: () => this.openLogPractice()
         })
 
+        // Practice timer: persisted start, elapsed time in the status bar, stop opens Log practice.
+        this.timerEl = this.addStatusBarItem()
+        this.timerEl.addClass('mp-timer', 'mod-clickable')
+        this.timerEl.setAttr('aria-label', 'Stop the practice timer and log the session')
+        this.timerEl.addEventListener('click', () => this.stopTimer())
+        this.registerInterval(window.setInterval(() => this.renderTimer(), 1000))
+        this.renderTimer()
+        this.addCommand({
+            id: 'start-timer',
+            name: 'Start practice timer',
+            checkCallback: (checking) => {
+                if (this.settings.timerStartedAt) return false
+                if (!checking) void this.startTimer()
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'stop-timer',
+            name: 'Stop practice timer and log the session',
+            checkCallback: (checking) => {
+                if (!this.settings.timerStartedAt) return false
+                if (!checking) this.stopTimer()
+                return true
+            }
+        })
+
         // Add a settings screen for the plugin
         this.addSettingTab(new MusicPracticeSettingTab(this.app, this))
     }
 
     override onunload() {}
+
+    private timerEl: HTMLElement | null = null
+
+    async startTimer(): Promise<void> {
+        await this.updateSettings((draft) => {
+            draft.timerStartedAt = Date.now()
+        })
+        this.renderTimer()
+        new Notice('Practice timer started.')
+    }
+
+    /** Open Log practice with the timer's minutes; the timer clears once the session is logged. */
+    stopTimer(): void {
+        const startedAt = this.settings.timerStartedAt
+        if (!startedAt) return
+        this.openLogPractice({
+            minutes: minutesBetween(startedAt, Date.now()),
+            startTime: clockTime(startedAt),
+            onLogged: () => void this.clearTimer()
+        })
+    }
+
+    async clearTimer(): Promise<void> {
+        await this.updateSettings((draft) => {
+            draft.timerStartedAt = 0
+        })
+        this.renderTimer()
+    }
+
+    private renderTimer(): void {
+        const el = this.timerEl
+        if (!el) return
+        const startedAt = this.settings.timerStartedAt
+        el.toggleClass('mp-is-hidden', !startedAt)
+        if (startedAt) el.setText(`♪ ${formatElapsed(Date.now() - startedAt)}`)
+    }
 
     /** Open Log practice, offering a running Kanban Action Planner timer when there is one. */
     openLogPractice(preset: LogPracticePreset = {}): void {

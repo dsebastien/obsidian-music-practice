@@ -14,6 +14,8 @@ export interface PluginSettings {
     notesHeading: string
     /** Activity a subject's sessions count towards, by name; `{subject}` is the subject ("Learn {subject}"). */
     activityName: string
+    /** Start of the running practice timer (epoch ms); 0 when no timer runs. Survives restarts. */
+    timerStartedAt: number
 }
 
 /**
@@ -32,7 +34,8 @@ export function createDefaultSettings(): PluginSettings {
         fields: createDefaultFieldNames(),
         defaultPlanMinutes: 30,
         notesHeading: 'Notes',
-        activityName: 'Learn {subject}'
+        activityName: 'Learn {subject}',
+        timerStartedAt: 0
     }
 }
 

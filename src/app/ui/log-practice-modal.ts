@@ -14,6 +14,10 @@ import { linkTo, renderBadge, renderMeta } from './item-row'
 
 export interface LogPracticePreset {
     minutes?: number
+    /** HH:MM, from the practice timer. */
+    startTime?: string
+    /** Called after a successful log (the practice timer clears itself). */
+    onLogged?: () => void
     paths?: string[]
     /** A running Kanban Action Planner timer that can be adopted. */
     timer?: { startedAt: number; activityName: string } | null
@@ -276,6 +280,9 @@ export class LogPracticeModal extends Modal {
                 {
                     date: this.date,
                     minutes,
+                    ...(this.preset.startTime && !this.adoptTimer
+                        ? { startTime: this.preset.startTime }
+                        : {}),
                     ...(this.focus ? { focus: this.focus } : {}),
                     ...(this.quality ? { quality: this.quality } : {}),
                     ...(this.note.trim() ? { note: this.note.trim() } : {}),
@@ -284,6 +291,7 @@ export class LogPracticeModal extends Modal {
                 this.adoptTimer
             )
             new Notice(`Logged ${minutes} min: ${session}`)
+            this.preset.onLogged?.()
             this.close()
         } catch (error: unknown) {
             new Notice(error instanceof Error ? error.message : String(error))

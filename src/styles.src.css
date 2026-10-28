@@ -269,3 +269,13 @@
 .mp-bpm-input {
     @apply w-36;
 }
+
+/* Practice timer in the status bar */
+.mp-timer {
+    @apply font-medium tabular-nums;
+    color: var(--text-accent);
+}
+
+.mp-timer.mp-is-hidden {
+    @apply hidden;
+}
