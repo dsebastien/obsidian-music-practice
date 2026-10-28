@@ -52,8 +52,8 @@ The user guide lives at **https://dsebastien.github.io/obsidian-music-practice/*
 
 ## Installation
 
-- From Obsidian: **Settings → Community plugins → Browse**, search for "Music Practice" (once the listing is accepted).
-- Before that, with [BRAT](https://github.com/TfTHacker/obsidian42-brat): add `dsebastien/obsidian-music-practice`.
+- From Obsidian: **Settings → Community plugins → Browse**, search for "Music Practice", then **Install** and **Enable**.
+- Or from the community directory: https://community.obsidian.md/plugins/music-practice
 
 Then follow the [getting started guide](https://dsebastien.github.io/obsidian-music-practice/usage.html).
 

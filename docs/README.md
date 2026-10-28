@@ -24,6 +24,10 @@ Learn an instrument in Obsidian: log practice in under a minute, run a practice 
 
 Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
 
+## Install
+
+In Obsidian, open **Settings → Community plugins → Browse**, search for "Music Practice", then **Install** and **Enable**. The listing is also on the [community directory](https://community.obsidian.md/plugins/music-practice). Then follow [Usage](usage.md).
+
 ## How it works
 
 Each thing you learn (a chord voicing, a scale, a technique, an exercise, an arrangement of a piece) is a note with a mastery level:
