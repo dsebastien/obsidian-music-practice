@@ -40,6 +40,11 @@ export interface SessionType {
     templatePath: string | null
     /** Allowed values of the properties that constrain them (session quality…). */
     allowedValues: Record<string, string[]>
+    /**
+     * Folder and name affixes with tokens ({year}, {Subject}…), for types the plugin defines itself.
+     * Absent for Obsidian Starter Kit types, which resolve their own.
+     */
+    naming?: { folder: string; prefix: string; suffix: string }
 }
 
 export interface NoteModel {

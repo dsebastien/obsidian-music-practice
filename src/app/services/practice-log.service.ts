@@ -18,6 +18,7 @@ import { sessionTypeFor } from '../domain/note-model'
 import type { NoteModel, SessionType } from '../domain/note-model'
 import type { LearningItem } from '../domain/practice'
 import type { PracticeRules } from '../domain/rules'
+import { expandTokens } from '../domain/local-model'
 import { fillSection, renderTemplate } from '../domain/template-render'
 import type { ItemRepository } from './item-repository'
 import { kapActiveTimer, stopKapTimer } from './kanban-action-planner.service'
@@ -152,6 +153,9 @@ export class PracticeLogService {
                 if (session.fields.has(name) && value !== undefined && value !== '')
                     fm[name] = value
             }
+            // The type's tags, when the template didn't bring them (no template in standalone mode).
+            const tags = Array.isArray(fm['tags']) ? (fm['tags'] as unknown[]).map(String) : []
+            fm['tags'] = [...tags, ...session.tags.filter((t) => !tags.includes(t))]
             put(fields.date, date)
             put(
                 fields.startTime,
@@ -253,13 +257,20 @@ export class PracticeLogService {
         request: LogRequest,
         notesHeading: string
     ): Promise<TFile> {
-        const folder = resolveNoteTypeFolder(this.app, session.id, date)
+        const own = session.naming
+        const expand = (pattern: string) =>
+            expandTokens(pattern, date, session.domain, session.subject)
+        const folder = own
+            ? normalizePath(expand(own.folder))
+            : resolveNoteTypeFolder(this.app, session.id, date)
         if (!folder) throw new Error(`${session.name} has no folder.`)
-        const affixes = resolveNoteTypeAffixes(this.app, session.id, date)
-        const naming = {
-            prefix: affixes && !affixes.prefixOptional ? affixes.prefix : '',
-            suffix: affixes && !affixes.suffixOptional ? affixes.suffix : ''
-        }
+        const affixes = own ? null : resolveNoteTypeAffixes(this.app, session.id, date)
+        const naming = own
+            ? { prefix: expand(own.prefix), suffix: expand(own.suffix) }
+            : {
+                  prefix: affixes && !affixes.prefixOptional ? affixes.prefix : '',
+                  suffix: affixes && !affixes.suffixOptional ? affixes.suffix : ''
+              }
         const base = sessionTitle(date, request.focus)
         let path = ''
         for (let n = 1; n < 100 && !path; n++) {
@@ -271,13 +282,20 @@ export class PracticeLogService {
         const template = session.templatePath
             ? this.app.vault.getFileByPath(session.templatePath)
             : null
+        // The H1 is the bare title, without the type's prefix and suffix.
+        const bare =
+            heading.slice(naming.prefix.length, heading.length - naming.suffix.length) || heading
         let content = template
-            ? renderTemplate(
-                  await this.app.vault.read(template),
-                  heading.replace(naming.suffix, '').replace(naming.prefix, '')
-              )
-            : `---\n---\n# ${heading}\n`
-        if (request.note) content = fillSection(content, notesHeading, `- ${request.note}`)
+            ? renderTemplate(await this.app.vault.read(template), bare)
+            : `---\n---\n# ${bare}\n`
+        if (request.note) {
+            const filled = fillSection(content, notesHeading, `- ${request.note}`)
+            // No such section (no template): add it, so the note is never lost.
+            content =
+                filled !== content
+                    ? filled
+                    : `${content.trimEnd()}\n\n## ${notesHeading}\n- ${request.note}\n`
+        }
         if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder)
         return this.app.vault.create(path, content)
     }
