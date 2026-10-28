@@ -52,7 +52,7 @@ This document defines the core business rules. These rules MUST be respected in 
 
 - A session for N minutes split warm-up / focus / review / fun (15/50/20/15 by default, configurable). Focus takes the rounding remainder: the blocks always add up to N.
 - Warm-up: active techniques and exercises, lowest level first. Focus: active items, current focus first, then by score. Review: due items, most overdue first. Fun: items at 40+, least recently played first.
-- Up to three items per block, five minutes each at least. Review and warm-up pick first; an item is planned once. A block with nothing to offer hands its minutes to focus.
+- Up to three items per block, five minutes each at least. Minutes per item are whole minutes adding up to the block (the first items take the remainder: 20 over 3 → 7, 7, 6); a log splits its minutes between items the same way. Review and warm-up pick first; an item is planned once. A block with nothing to offer hands its minutes to focus.
 
 ## Sessions and time
 

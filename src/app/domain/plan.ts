@@ -1,3 +1,4 @@
+import { splitMinutes } from './log'
 import { isActive, isDueForReview, overdueBy } from './practice'
 import type { LearningItem } from './practice'
 import { DEFAULT_RULES } from './rules'
@@ -42,8 +43,8 @@ export function buildPlan(
         )
         const chosen = pool.filter((i) => !used.has(i.path)).slice(0, max)
         chosen.forEach((i) => used.add(i.path))
-        const each = chosen.length ? Math.round(blockMinutes / chosen.length) : 0
-        return chosen.map((item) => ({ item, minutes: each }))
+        const minutes = splitMinutes(blockMinutes, chosen.length)
+        return chosen.map((item, i) => ({ item, minutes: minutes[i]! }))
     }
     // Focus takes the rounding remainder so the blocks always add up to the session.
     const [w = 0, , r = 0, u = 0] = split.map((p) => Math.round((minutes * p) / 100))

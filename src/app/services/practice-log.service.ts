@@ -9,9 +9,9 @@ import {
     itemUpdate,
     levelChange,
     localIso,
-    minutesPerItem,
     sessionFileName,
-    sessionTitle
+    sessionTitle,
+    splitMinutes
 } from '../domain/log'
 import type { LogRequest, TimeEntryResult } from '../domain/log'
 import { sessionTypeFor } from '../domain/note-model'
@@ -117,8 +117,9 @@ export class PracticeLogService {
 
         // 1. The practiced notes.
         const stampDates = !starterKitRunsAutomations(this.app)
-        const share = minutesPerItem(request.minutes, logged.length)
-        for (const { li, item, type } of logged) {
+        const shares = splitMinutes(request.minutes, logged.length)
+        for (const [n, { li, item, type }] of logged.entries()) {
+            const share = shares[n]!
             await this.updateItem(item, (fm) =>
                 applyItemUpdate(
                     fm,

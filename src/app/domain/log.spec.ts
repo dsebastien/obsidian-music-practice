@@ -4,9 +4,9 @@ import {
     addTimeEntry,
     applyItemUpdate,
     itemUpdate,
-    minutesPerItem,
     sessionFileName,
-    sessionTitle
+    sessionTitle,
+    splitMinutes
 } from './log'
 import type { LearningType } from './note-model'
 import { computeItems } from './practice'
@@ -176,8 +176,9 @@ describe('session naming', () => {
         expect(sessionFileName(DATE, 2, affixes)).toBe(`${DATE} 2 (Guitar Practice Session).md`)
     })
 
-    it('splits the minutes between items', () => {
-        expect(minutesPerItem(30, 3)).toBe(10)
-        expect(minutesPerItem(30, 0)).toBe(0)
+    it('splits the minutes between items, adding up to the total', () => {
+        expect(splitMinutes(30, 3)).toEqual([10, 10, 10])
+        expect(splitMinutes(20, 3)).toEqual([7, 7, 6])
+        expect(splitMinutes(30, 0)).toEqual([])
     })
 })

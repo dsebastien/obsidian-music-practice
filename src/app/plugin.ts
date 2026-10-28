@@ -15,6 +15,8 @@ import { PracticeLogService } from './services/practice-log.service'
 import { kapActiveTimer, withKapFieldNames } from './services/kanban-action-planner.service'
 import { LogPracticeModal } from './ui/log-practice-modal'
 import { MasteryModal } from './ui/mastery-modal'
+import { createApi } from './api'
+import type { MusicPracticeApi } from './api'
 import { BpmModal } from './ui/bpm-modal'
 import type { LearningItem } from './domain/practice'
 import type { LearningType } from './domain/note-model'
@@ -34,6 +36,8 @@ export class MusicPracticePlugin extends Plugin {
     noteModel!: NoteModelService
     items!: ItemRepository
     practiceLog!: PracticeLogService
+    /** Public API for scripts and AI skills (see docs/api.md). */
+    api!: MusicPracticeApi
 
     /** The rules and field names in effect (the Kanban Action Planner's time and review names win). */
     effective(): { rules: PracticeRules; fields: FieldNames } {
@@ -68,6 +72,18 @@ export class MusicPracticePlugin extends Plugin {
                 activityName: this.settings.activityName
             })
         )
+
+        this.api = createApi({
+            model: () => this.noteModel.get(),
+            rules: () => this.settings.rules,
+            items: this.items,
+            log: this.practiceLog,
+            timer: {
+                get: () => this.settings.timerStartedAt || null,
+                start: () => this.startTimer(),
+                clear: () => this.clearTimer()
+            }
+        })
 
         // Other plugins (the Obsidian Starter Kit) load after us: build the model once the
         // layout is ready, and again whenever the Starter Kit's note types change.

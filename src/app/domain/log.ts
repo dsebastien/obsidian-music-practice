@@ -119,9 +119,16 @@ export function levelChange(
     return set
 }
 
-/** Minutes per item: the session split evenly. */
-export const minutesPerItem = (minutes: number, count: number): number =>
-    count > 0 ? Math.round(minutes / count) : 0
+/**
+ * Split minutes into whole minutes per item that add up to the total: the first items take the
+ * remainder (20 over 3 → 7, 7, 6).
+ */
+export function splitMinutes(total: number, count: number): number[] {
+    if (count <= 0) return []
+    const base = Math.floor(total / count)
+    const extra = total - base * count
+    return Array.from({ length: count }, (_, i) => base + (i < extra ? 1 : 0))
+}
 
 /**
  * Apply an update to a frontmatter object (as `processFrontMatter` hands it). The last-practiced
