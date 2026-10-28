@@ -164,6 +164,8 @@ export default defineConfig([
             '@typescript-eslint/no-unsafe-member-access': 'error',
             '@typescript-eslint/no-unsafe-assignment': 'error',
             '@typescript-eslint/no-unsafe-enum-comparison': 'error',
+            // The community catalog reviewer reports it as a source-code warning.
+            '@typescript-eslint/no-unnecessary-type-assertion': 'error',
             // The preset switches both off; the core variant stays off only
             // because @typescript-eslint/require-await replaces it.
             '@typescript-eslint/require-await': 'error',

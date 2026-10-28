@@ -23,7 +23,7 @@ function kapSettings(app: App): KapSettingsLike | null {
         | { settings?: unknown }
         | undefined
     const s = plugin?.settings
-    return typeof s === 'object' && s !== null ? (s as KapSettingsLike) : null
+    return typeof s === 'object' && s !== null ? s : null
 }
 
 const text = (value: unknown, fallback: string): string =>
