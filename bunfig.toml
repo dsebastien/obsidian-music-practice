@@ -19,7 +19,8 @@ minimumReleaseAge = 259200
 # These packages will bypass the 3-day minimum age requirement
 # bun-types is @types/bun's transitive payload — excluding one without the
 # other deadlocks installs whenever a fresh Bun ships.
-minimumReleaseAgeExcludes = ["@types/bun", "bun-types", "typescript"]
+# Our own music notation library ships together with this plugin.
+minimumReleaseAgeExcludes = ["@types/bun", "bun-types", "typescript", "@dsebastien/music-notation"]
 
 [run]
 # Scripts with a node shebang (eslint, tsc, prettier, commitlint) run under

@@ -5,6 +5,7 @@
     "": {
       "name": "obsidian-life-tracker-base-view-plugin",
       "dependencies": {
+        "@dsebastien/music-notation": "0.1.0",
         "immer": "11.0.1",
         "zod": "^4.1.13",
       },
@@ -90,6 +91,8 @@
     "@commitlint/types": ["@commitlint/types@20.2.0", "", { "dependencies": { "@types/conventional-commits-parser": "^5.0.0", "chalk": "^5.3.0" } }, "sha512-KTy0OqRDLR5y/zZMnizyx09z/rPlPC/zKhYgH8o/q6PuAjoQAKlRfY4zzv0M64yybQ//6//4H1n14pxaLZfUnA=="],
 
     "@conventional-changelog/git-client": ["@conventional-changelog/git-client@2.7.0", "", { "dependencies": { "@simple-libs/child-process-utils": "^1.0.0", "@simple-libs/stream-utils": "^1.2.0", "semver": "^7.5.2" }, "peerDependencies": { "conventional-commits-filter": "^5.0.0", "conventional-commits-parser": "^6.4.0" }, "optionalPeers": ["conventional-commits-filter", "conventional-commits-parser"] }, "sha512-j7A8/LBEQ+3rugMzPXoKYzyUPpw/0CBQCyvtTR7Lmu4olG4yRC/Tfkq79Mr3yuPs0SUitlO2HwGP3gitMJnRFw=="],
+
+    "@dsebastien/music-notation": ["@dsebastien/music-notation@0.1.0", "", { "dependencies": { "tonal": "6.5.1" } }, "sha512-+gwpyhA4g70w4sh1SKJeEY+ipfzG4a9/nDA3l7JRI3cUqXWfyP533C2Ua13jb74w12nhaDz+nRCE2I5bWPsMRQ=="],
 
     "@eslint-community/eslint-plugin-eslint-comments": ["@eslint-community/eslint-plugin-eslint-comments@4.8.1", "", { "dependencies": { "escape-string-regexp": "^4.0.0", "ignore": "^7.0.5" }, "peerDependencies": { "eslint": "^6.0.0 || ^7.0.0 || ^8.0.0 || ^9.0.0 || ^10.0.0" } }, "sha512-vafrdi15JHBFh1qWOAucyJwlEEuhdoMof28jOdKdgnwZ7bXwd6v4wzHYSmAVLwnx0yc7bqAtfJ0EZQV1WAzV/Q=="],
 
@@ -206,6 +209,62 @@
     "@tailwindcss/oxide-win32-arm64-msvc": ["@tailwindcss/oxide-win32-arm64-msvc@4.1.17", "", { "os": "win32", "cpu": "arm64" }, "sha512-JU5AHr7gKbZlOGvMdb4722/0aYbU+tN6lv1kONx0JK2cGsh7g148zVWLM0IKR3NeKLv+L90chBVYcJ8uJWbC9A=="],
 
     "@tailwindcss/oxide-win32-x64-msvc": ["@tailwindcss/oxide-win32-x64-msvc@4.1.17", "", { "os": "win32", "cpu": "x64" }, "sha512-SKWM4waLuqx0IH+FMDUw6R66Hu4OuTALFgnleKbqhgGU30DY20NORZMZUKgLRjQXNN2TLzKvh48QXTig4h4bGw=="],
+
+    "@tonaljs/abc-notation": ["@tonaljs/abc-notation@4.9.3", "", { "dependencies": { "@tonaljs/pitch-distance": "5.0.7", "@tonaljs/pitch-note": "6.1.2" } }, "sha512-t1mH17qPEDSHqSa4+enqeYPEf/6vLZD8aavsMGY1eiXGUO3lIc6sjkI2skQEmhFlMCTEx6HO/dJQL3Det7U2Kw=="],
+
+    "@tonaljs/array": ["@tonaljs/array@4.8.6", "", { "dependencies": { "@tonaljs/pitch-note": "6.1.2" } }, "sha512-zBLWZVvZEtbekuV1+60cx5LZcT8tMU1fa1OGzxV7Zz0WuanckMw5Wm0v9LUCHnWxvBMWXlIsoWm6W98A6Mj7bg=="],
+
+    "@tonaljs/chord": ["@tonaljs/chord@6.2.1", "", { "dependencies": { "@tonaljs/chord-detect": "4.9.3", "@tonaljs/chord-type": "5.2.1", "@tonaljs/collection": "4.9.1", "@tonaljs/interval": "^5.1.1", "@tonaljs/pcset": "4.10.3", "@tonaljs/pitch-distance": "5.0.7", "@tonaljs/pitch-note": "6.1.2", "@tonaljs/scale-type": "4.9.4" } }, "sha512-7K4J8B6xv8usTkKJ/Fg/r5Ay6Nc0TxWc+jr25ijYPJZstJH8gnWMGxsWjFnqjZViu8lrFxa4F384iJtS+X8w+Q=="],
+
+    "@tonaljs/chord-detect": ["@tonaljs/chord-detect@4.9.3", "", { "dependencies": { "@tonaljs/chord-type": "5.2.1", "@tonaljs/pcset": "4.10.3", "@tonaljs/pitch-note": "6.1.2" } }, "sha512-L6qFtpM2hFXM7Nexq1EPM+6vt5tElYzFftmtH2UbtwmpS2f6+Lx9iPC8hBuu3HLUFld5vOd+7o7hyzabDAmsDg=="],
+
+    "@tonaljs/chord-type": ["@tonaljs/chord-type@5.2.1", "", { "dependencies": { "@tonaljs/pcset": "4.10.3" } }, "sha512-Zr1HApsSLFklR4VFOlxnM+7eCLQ1VZEOSBTuSLa3cd+Y/LLsbOI+xDxraspcAfPP3tgJziQFkzT864eF47cY3w=="],
+
+    "@tonaljs/collection": ["@tonaljs/collection@4.9.1", "", {}, "sha512-xcWRxcX17qwMKEBAcpkp100eFeRbNnt08FEoomAmbfkpg7i33iNwsR8FFHJ9CnkoMcEVKqLVEGW5hdEXMSjjCg=="],
+
+    "@tonaljs/core": ["@tonaljs/core@5.0.4", "", { "dependencies": { "@tonaljs/pitch": "5.0.3", "@tonaljs/pitch-distance": "5.0.7", "@tonaljs/pitch-interval": "6.1.2", "@tonaljs/pitch-note": "6.1.2" } }, "sha512-KQ1EcjgduPkBzduJ0FhezndTQZsupqcdulh9kLcUSH6YY1ehDsJzRm3vdXdcvSn5SqHs2oxveM2TENQColAErw=="],
+
+    "@tonaljs/duration-value": ["@tonaljs/duration-value@4.9.1", "", {}, "sha512-wX3Q3QM0tTC2ZP7RyWxnOcHh47Z3zf93UaKi0W9RnoNpXWxyiYWzGehPe0FzFRhcjEhh2Fl4qN9M6Feo9+etig=="],
+
+    "@tonaljs/interval": ["@tonaljs/interval@5.1.1", "", { "dependencies": { "@tonaljs/pitch": "^5.0.3", "@tonaljs/pitch-distance": "^5.0.7", "@tonaljs/pitch-interval": "^6.1.2" } }, "sha512-Zqowl7yIlSA45ibMWV4Kcb/VMd06L0GXxi6Qf2pk6ERUNbRtx+D+0S2mmIHLO/VcwkenyyUraUriYTmLiPESXA=="],
+
+    "@tonaljs/key": ["@tonaljs/key@4.11.4", "", { "dependencies": { "@tonaljs/note": "4.12.3", "@tonaljs/pitch-note": "6.1.2", "@tonaljs/roman-numeral": "4.9.3" } }, "sha512-Mhd+kNNw3l0kmPf4I5wy3zXIXqPj1/QB1bc78Zb+H5tDAT92Gycpa3vlbiKvVZrq6OsUcF9+2TNXO+P1SSbJ3w=="],
+
+    "@tonaljs/midi": ["@tonaljs/midi@4.10.4", "", { "dependencies": { "@tonaljs/pitch-note": "6.1.2" } }, "sha512-pEIwjTUiJyVlfVJlG0pYLTSCQ4xoWo+NYLChFMIcrq/KUjdrtGOwgbFVfD2jyff5qgDmH05rRrJBJsVE1gwIkg=="],
+
+    "@tonaljs/mode": ["@tonaljs/mode@4.9.4", "", { "dependencies": { "@tonaljs/collection": "4.9.1", "@tonaljs/interval": "5.1.1", "@tonaljs/pcset": "4.10.3", "@tonaljs/pitch-distance": "5.0.7", "@tonaljs/pitch-note": "6.1.2", "@tonaljs/scale-type": "4.9.4" } }, "sha512-99kkIEVxEyfTwLFO/jUJdaHNHzTLe9B+U4bjVcgjGBFaQEYpn9DZO8/3+HbFMfkucx2wtyo1uY/JS2YGT/E/Aw=="],
+
+    "@tonaljs/note": ["@tonaljs/note@4.12.3", "", { "dependencies": { "@tonaljs/midi": "4.10.4", "@tonaljs/pitch": "5.0.3", "@tonaljs/pitch-distance": "5.0.7", "@tonaljs/pitch-interval": "6.1.2", "@tonaljs/pitch-note": "6.1.2" } }, "sha512-UhGXcLgLymnK7ANvdCzi1D1nW+1bj4OhDGe0J82O2V+ofYVdBCKc0w5a79mfGEt01omKARaWeAzf3rgSEopwEQ=="],
+
+    "@tonaljs/pcset": ["@tonaljs/pcset@4.10.3", "", { "dependencies": { "@tonaljs/collection": "4.9.1", "@tonaljs/pitch": "5.0.3", "@tonaljs/pitch-distance": "5.0.7", "@tonaljs/pitch-interval": "6.1.2", "@tonaljs/pitch-note": "6.1.2" } }, "sha512-LhynuFEyjgPJH4T9VENDRx1CSqKR9kJ2txWTqyxwUoCMnNL3I7UdyxFKPijr2V1IEMplJsk/G1TaPMYVVCdqoA=="],
+
+    "@tonaljs/pitch": ["@tonaljs/pitch@5.0.3", "", {}, "sha512-2OpxK/p0NaOymVdlxgJxruFAt2pHfFIkPxkQ3PKQqMXhaza+SXG1Kxpo0jpuAjw946LlQ3KBC+GJRSncjYtoKA=="],
+
+    "@tonaljs/pitch-distance": ["@tonaljs/pitch-distance@5.0.7", "", { "dependencies": { "@tonaljs/pitch": "5.0.3", "@tonaljs/pitch-interval": "6.1.2", "@tonaljs/pitch-note": "6.1.2" } }, "sha512-x+tC1izI1+5dzhHf1JRVVggN4pFEKTkbANSLRYEwW6PmUm3uuPPsDwHyHCWE9iwlIEc9YpG8Kc1ioeXGiCQ9xg=="],
+
+    "@tonaljs/pitch-interval": ["@tonaljs/pitch-interval@6.1.2", "", { "dependencies": { "@tonaljs/pitch": "5.0.3" } }, "sha512-obMQb1Z1rP54BMiJmroCeStHsQyYCuI2MwxadAjvFYl69h2Cv+yBH5/A9Miq25hQi/M2yLjBZtm1nE9opL9Ltg=="],
+
+    "@tonaljs/pitch-note": ["@tonaljs/pitch-note@6.1.2", "", { "dependencies": { "@tonaljs/pitch": "5.0.3" } }, "sha512-xNtUXR6DvFMHyXKgewF0QFv9UIAd8Xxc07HIWOABIGFuKFmgT3znN2TbACSnHJGIKVfSoJhwPen2eok6UdOCwg=="],
+
+    "@tonaljs/progression": ["@tonaljs/progression@4.9.4", "", { "dependencies": { "@tonaljs/chord": "6.2.1", "@tonaljs/pitch-distance": "5.0.7", "@tonaljs/pitch-interval": "6.1.2", "@tonaljs/pitch-note": "6.1.2", "@tonaljs/roman-numeral": "4.9.3" } }, "sha512-AEwXlVztdlKNgHFDscR5cBzbCkGVjLOZ/gNnxTOCbj3vYaqw8+Fek76ZCCwT1eVkcuD+C690AgTEPrMemENI1g=="],
+
+    "@tonaljs/range": ["@tonaljs/range@4.9.4", "", { "dependencies": { "@tonaljs/collection": "4.9.1", "@tonaljs/midi": "4.10.4" } }, "sha512-2ZDAy5HmDGt1rySlkqS+jbWsSwhudJJwVZ7JITdCKz4ZU9S0xbGsKvg/jjRv/sFiaEL3EeCKSAC6C4eWz8Y7Vg=="],
+
+    "@tonaljs/rhythm-pattern": ["@tonaljs/rhythm-pattern@1.0.1", "", {}, "sha512-4nMuBnlL9GDX8SoJneiYlMyNxiKynMAA9jf0ubB04sPqe6ALE+sLCNlqcKoYO9ARZ92bUN4Etj5VWMN7pdevDQ=="],
+
+    "@tonaljs/roman-numeral": ["@tonaljs/roman-numeral@4.9.3", "", { "dependencies": { "@tonaljs/pitch": "5.0.3", "@tonaljs/pitch-interval": "6.1.2", "@tonaljs/pitch-note": "6.1.2" } }, "sha512-MnnVYosos1unepZRQd3fGKV5FQXNXs1ijUEN1pL65GuAlEhKIikDUR8nNgl7IoSEp63TpEhKXZXK7efZt1e95w=="],
+
+    "@tonaljs/scale": ["@tonaljs/scale@4.13.6", "", { "dependencies": { "@tonaljs/chord-type": "5.2.1", "@tonaljs/collection": "4.9.1", "@tonaljs/note": "4.12.3", "@tonaljs/pcset": "4.10.3", "@tonaljs/pitch-distance": "5.0.7", "@tonaljs/pitch-note": "6.1.2", "@tonaljs/scale-type": "4.9.4" } }, "sha512-Yb+gWXj5G4nTZ8jm+RwFvupVkvZ2NhrLNpPv5WW8nFXjYtMdsGR88fg7Fg3bAxjQSoMAdFY59yXNv7NbfQ0rSg=="],
+
+    "@tonaljs/scale-type": ["@tonaljs/scale-type@4.9.4", "", { "dependencies": { "@tonaljs/pcset": "4.10.3" } }, "sha512-yuG4dLCrA9q2X+DpIMrz+4S+8CLCFDBWm+WQh/sJgBaU2ADULjajuYnWPWacBAPpBDVXYYgbvm8Qbs6EzLGvrg=="],
+
+    "@tonaljs/time-signature": ["@tonaljs/time-signature@4.10.1", "", {}, "sha512-ljAA8x1ChYMmYAThAPfUuzLNrFWd+eVuvljUzbgg3Fnmvjnwg4JgTku0kK9wqDZc7NsdngFlS32kzAOS2eUBmw=="],
+
+    "@tonaljs/voice-leading": ["@tonaljs/voice-leading@5.1.4", "", { "dependencies": { "@tonaljs/note": "4.12.3" } }, "sha512-Qn2RkwjL6zfpiklE9hFKsg7IK69aBKgCZXNmDTJPm6cyReXMrSvO/Ufv7YahfbypHTthL05zE27QviB3SaYJKw=="],
+
+    "@tonaljs/voicing": ["@tonaljs/voicing@5.1.5", "", { "dependencies": { "@tonaljs/chord": "6.2.1", "@tonaljs/interval": "5.1.1", "@tonaljs/note": "4.12.3", "@tonaljs/range": "4.9.4", "@tonaljs/voice-leading": "5.1.4", "@tonaljs/voicing-dictionary": "5.1.5" } }, "sha512-iNbXna6aCUdiTbl2bxPeSTiUwthDsvJGFyWF0zlNYFCTAW5aSgXUlVPqHpAsCuQuy5QDUIWuyTxWN7qfvwvMNw=="],
+
+    "@tonaljs/voicing-dictionary": ["@tonaljs/voicing-dictionary@5.1.5", "", { "dependencies": { "@tonaljs/chord": "6.2.1", "@tonaljs/note": "4.12.3", "@tonaljs/voice-leading": "5.1.4" } }, "sha512-XALBmXTeR04Z9+IlHFjspLeHDT9wQ9bkU9OGaETCXOZkO5r6KOoxnv7ZvA9nkWVH7AmOagRM/+xEbLgCYe9xag=="],
 
     "@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
@@ -1012,6 +1071,8 @@
     "to-regex-range": ["to-regex-range@5.0.1", "", { "dependencies": { "is-number": "^7.0.0" } }, "sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ=="],
 
     "toml-eslint-parser": ["toml-eslint-parser@0.9.3", "", { "dependencies": { "eslint-visitor-keys": "^3.0.0" } }, "sha512-moYoCvkNUAPCxSW9jmHmRElhm4tVJpHL8ItC/+uYD0EpPSFXbck7yREz9tNdJVTSpHVod8+HoipcpbQ0oE6gsw=="],
+
+    "tonal": ["tonal@6.5.1", "", { "dependencies": { "@tonaljs/abc-notation": "4.9.3", "@tonaljs/array": "4.8.6", "@tonaljs/chord": "6.2.1", "@tonaljs/chord-type": "5.2.1", "@tonaljs/collection": "4.9.1", "@tonaljs/core": "5.0.4", "@tonaljs/duration-value": "4.9.1", "@tonaljs/interval": "5.1.1", "@tonaljs/key": "4.11.4", "@tonaljs/midi": "4.10.4", "@tonaljs/mode": "4.9.4", "@tonaljs/note": "4.12.3", "@tonaljs/pcset": "4.10.3", "@tonaljs/progression": "4.9.4", "@tonaljs/range": "4.9.4", "@tonaljs/rhythm-pattern": "1.0.1", "@tonaljs/roman-numeral": "4.9.3", "@tonaljs/scale": "4.13.6", "@tonaljs/scale-type": "4.9.4", "@tonaljs/time-signature": "4.10.1", "@tonaljs/voice-leading": "5.1.4", "@tonaljs/voicing": "5.1.5", "@tonaljs/voicing-dictionary": "5.1.5" } }, "sha512-zIg3eBoRooX6f3bSFpPh/qKWMRrWGbNUVgklqCXDKt8eDi9snJt5UBFhwE3/JkupPV5w+JaeU7Lk0f0sFTFM/Q=="],
 
     "ts-api-utils": ["ts-api-utils@2.1.0", "", { "peerDependencies": { "typescript": ">=4.8.4" } }, "sha512-CUgTZL1irw8u29bzrOD/nH85jqyc74D6SshFgujOIA7osm2Rz7dYH77agkx7H4FBNxDq7Cjf+IjaX/8zwFW+ZQ=="],
 
