@@ -56,7 +56,7 @@ export function itemUpdate(
         current: Record<string, unknown>
     }
 ): ItemUpdate {
-    const { date, minutes, fields, rules, current } = context
+    const { date, minutes, fields, rules } = context
     const has = (name: string) => type.fields.has(name)
     const set: Record<string, unknown> = {}
     if (has(fields.lastPracticed)) set[fields.lastPracticed] = date
@@ -76,7 +76,34 @@ export function itemUpdate(
         if (has(fields.reviewInterval)) set[fields.reviewInterval] = outcome.reviewInterval
         if (outcome.level !== undefined && log.level === undefined) level = outcome.level
     }
-    if (level !== null && level !== item.level) {
+    if (level !== null) Object.assign(set, { ...levelChange(item, type, level, context), ...set })
+    return {
+        set,
+        addMinutes: has(fields.timeSpent) ? { field: fields.timeSpent, minutes } : null
+    }
+}
+
+/**
+ * The frontmatter changes of a new mastery level: the type's label for it, the date that status
+ * stamps (only when `stampDates` and still empty), and the first review interval when the level
+ * reaches "slow" without one. Empty when the level doesn't change and needs no interval.
+ */
+export function levelChange(
+    item: LearningItem,
+    type: LearningType,
+    level: number,
+    context: {
+        date: string
+        fields: FieldNames
+        rules: PracticeRules
+        stampDates: boolean
+        current: Record<string, unknown>
+    }
+): Record<string, unknown> {
+    const { date, fields, rules, current } = context
+    const has = (name: string) => type.fields.has(name)
+    const set: Record<string, unknown> = {}
+    if (level !== item.level) {
         const label = labelFor(level, type.statusValues)
         if (!label) throw new Error(`${type.name} has no status value for level ${level}`)
         set[type.statusProperty] = label
@@ -85,14 +112,11 @@ export function itemUpdate(
             if (stamp && has(stamp) && !current[stamp]) set[stamp] = date
         }
     }
-    if (level !== null && has(fields.reviewInterval) && set[fields.reviewInterval] === undefined) {
+    if (has(fields.reviewInterval)) {
         const first = intervalOnLevelChange(level, item.reviewInterval, rules)
         if (first !== null) set[fields.reviewInterval] = first
     }
-    return {
-        set,
-        addMinutes: has(fields.timeSpent) ? { field: fields.timeSpent, minutes } : null
-    }
+    return set
 }
 
 /** Minutes per item: the session split evenly. */

@@ -7,6 +7,7 @@ import {
     addTimeEntry,
     applyItemUpdate,
     itemUpdate,
+    levelChange,
     localIso,
     minutesPerItem,
     sessionFileName,
@@ -194,6 +195,39 @@ export class PracticeLogService {
             activity: activityResult,
             adoptedTimer: adopted !== null
         }
+    }
+
+    /** Change an item's mastery (with the stamp and first review interval that come with it). */
+    async setLevel(item: LearningItem, level: number): Promise<void> {
+        const { rules, fields } = this.context()
+        const type = this.model().learningTypes.find((t) => t.id === item.typeId)
+        if (!type) throw new Error(`Not a learning note: ${item.path}`)
+        const stampDates = !starterKitRunsAutomations(this.app)
+        await this.updateItem(item, (fm) => {
+            Object.assign(
+                fm,
+                levelChange(item, type, level, {
+                    date: isoDate(),
+                    fields,
+                    rules,
+                    stampDates,
+                    current: fm
+                })
+            )
+        })
+    }
+
+    /** Set an item's current and/or target BPM (only the fields its type defines). */
+    async setBpm(item: LearningItem, bpm: { current?: number; target?: number }): Promise<void> {
+        const { fields } = this.context()
+        const type = this.model().learningTypes.find((t) => t.id === item.typeId)
+        if (!type) throw new Error(`Not a learning note: ${item.path}`)
+        await this.updateItem(item, (fm) => {
+            if (bpm.current !== undefined && type.fields.has(fields.bpmCurrent))
+                fm[fields.bpmCurrent] = bpm.current
+            if (bpm.target !== undefined && type.fields.has(fields.bpmTarget))
+                fm[fields.bpmTarget] = bpm.target
+        })
     }
 
     private async updateItem(

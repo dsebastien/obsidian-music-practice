@@ -14,6 +14,10 @@ import { PracticePlanModal } from './ui/practice-plan-modal'
 import { PracticeLogService } from './services/practice-log.service'
 import { kapActiveTimer, withKapFieldNames } from './services/kanban-action-planner.service'
 import { LogPracticeModal } from './ui/log-practice-modal'
+import { MasteryModal } from './ui/mastery-modal'
+import { BpmModal } from './ui/bpm-modal'
+import type { LearningItem } from './domain/practice'
+import type { LearningType } from './domain/note-model'
 import type { LogPracticePreset } from './ui/log-practice-modal'
 import type { FieldNames } from './domain/fields'
 import type { PracticeRules } from './domain/rules'
@@ -108,6 +112,43 @@ export class MusicPracticePlugin extends Plugin {
             callback: () => this.openLogPractice()
         })
 
+        this.addCommand({
+            id: 'change-mastery',
+            name: 'Change mastery of the current note',
+            checkCallback: (checking) => {
+                const current = this.activeItem()
+                if (!current) return false
+                if (!checking)
+                    new MasteryModal(this.app, current.item, current.type, async (level) => {
+                        await this.practiceLog.setLevel(current.item, level)
+                    }).open()
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'set-bpm',
+            name: 'Set BPM of the current note',
+            checkCallback: (checking) => {
+                const current = this.activeItem()
+                if (!current) return false
+                if (!checking)
+                    new BpmModal(
+                        this.app,
+                        current.item,
+                        this.settings.rules.levels.tempo,
+                        async (bpm) => {
+                            await this.practiceLog.setBpm(current.item, bpm)
+                            if (bpm.atTempo)
+                                await this.practiceLog.setLevel(
+                                    current.item,
+                                    this.settings.rules.levels.tempo
+                                )
+                        }
+                    ).open()
+                return true
+            }
+        })
+
         // Practice timer: persisted start, elapsed time in the status bar, stop opens Log practice.
         this.timerEl = this.addStatusBarItem()
         this.timerEl.addClass('mp-timer', 'mod-clickable')
@@ -141,6 +182,15 @@ export class MusicPracticePlugin extends Plugin {
     override onunload() {}
 
     private timerEl: HTMLElement | null = null
+
+    /** The learning item of the active note, or null. */
+    private activeItem(): { item: LearningItem; type: LearningType } | null {
+        const file = this.app.workspace.getActiveFile()
+        if (!file || this.noteModel.get().learningTypes.length === 0) return null
+        const type = this.items.typeOf(file)
+        const item = type ? this.items.items().find((i) => i.path === file.path) : undefined
+        return type && item ? { item, type } : null
+    }
 
     async startTimer(): Promise<void> {
         await this.updateSettings((draft) => {

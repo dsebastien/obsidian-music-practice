@@ -215,7 +215,8 @@ export default defineConfig([
                         'Music Practice',
                         'Obsidian Starter Kit',
                         'Kanban Action Planner',
-                        'Templater'
+                        'Templater',
+                        'BPM'
                     ]
                 }
             ]

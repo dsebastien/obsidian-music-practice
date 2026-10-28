@@ -279,3 +279,16 @@
 .mp-timer.mp-is-hidden {
     @apply hidden;
 }
+
+.mp-field.mp-is-hidden {
+    @apply hidden;
+}
+
+/* A whole card as a button (mastery levels) */
+.mp-item.mp-choice {
+    @apply h-auto w-full cursor-pointer items-stretch text-left font-normal;
+}
+
+.mp-item.mp-choice:hover {
+    border-color: var(--interactive-accent);
+}
