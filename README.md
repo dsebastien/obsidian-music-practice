@@ -6,11 +6,29 @@ Every chord, scale, technique, exercise and piece you learn is a note with a mas
 
 I built this because I'm learning guitar and piano again, and I wanted my practice to live next to the rest of my notes, with a system that tells me what to work on instead of a pile of tabs.
 
-> **Status: in development.** Nothing is released yet. Version 0.1 (the practice engine) is being built; notation (chord diagrams, tabs, scores with playback) comes in 0.2. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones) and [issues](https://github.com/dsebastien/obsidian-music-practice/issues).
+> **Version 0.1** ships the practice engine. Notation (chord diagrams, tabs and scores with playback) comes in 0.2. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones) and [issues](https://github.com/dsebastien/obsidian-music-practice/issues).
 
-## What it will do
+## Screenshots
 
-### 0.1: practice engine
+Plan a session for the time you have:
+
+![Practice plan](docs/images/practice-plan.png)
+
+Log what you practiced, with each item's mastery, BPM and review:
+
+![Log practice](docs/images/log-practice.png)
+
+Change an item's mastery, with what each level means for it:
+
+![Change mastery](docs/images/mastery.png)
+
+Add a chord from its symbol:
+
+![Add a learning note](docs/images/add-note.png)
+
+## Features
+
+### 0.1: practice engine (available)
 
 - **Log practice**: minutes (or the timer), the items you worked on, a quality rating, BPM and review results, an optional note. One session note per practice, no duplicates.
 - **Practice timer** in the status bar, recovered after a restart.
@@ -22,7 +40,7 @@ I built this because I'm learning guitar and piano again, and I wanted my practi
 - **Every rule is a setting**: mastery levels, review intervals, score weights, plan blocks, the rubric, property names. Sensible defaults on install.
 - **Public API** so scripts and AI assistants can log and plan practice with the same rules.
 
-### 0.2: notation
+### 0.2: notation (planned)
 
 - Chord diagrams (guitar) and keyboards (piano), chord charts, tabs and scores (alphaTex, via [alphaTab](https://alphatab.net)) with playback: play, slow down, loop, metronome.
 - Rendering on Obsidian Publish.
@@ -34,7 +52,10 @@ The user guide lives at **https://dsebastien.github.io/obsidian-music-practice/*
 
 ## Installation
 
-Not available yet. Once 0.1 is released it will be installable through [BRAT](https://github.com/TfTHacker/obsidian42-brat) first, then from the Community plugins browser.
+- From Obsidian: **Settings → Community plugins → Browse**, search for "Music Practice" (once the listing is accepted).
+- Before that, with [BRAT](https://github.com/TfTHacker/obsidian42-brat): add `dsebastien/obsidian-music-practice`.
+
+Then follow the [getting started guide](https://dsebastien.github.io/obsidian-music-practice/usage.html).
 
 ## Development
 

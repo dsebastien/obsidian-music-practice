@@ -5,8 +5,6 @@ nav_order: 2
 
 # Usage
 
-> Version 0.1 is in development. This page describes what works in the development build.
-
 ## Requirements
 
 - Either the [Obsidian Starter Kit](https://store.dsebastien.net/), whose note types define your learning notes and practice sessions, or nothing at all: the standalone note model recognizes learning notes by their tag (`type/music/guitar/chord`) and a mastery level. See [Configuration](configuration.md).
@@ -20,6 +18,8 @@ Each learning type pairs with a practice session type of the same instrument (`t
 
 ## Commands
 
+![Practice next](images/practice-next.png)
+
 | Command                                                                | What it does                                                                                                                                                                                                                                                    |
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Practice next**                                                      | Lists what's due for review, what to practice next (ranked by priority, staleness, BPM gap and what it unlocks) and what's ready to learn.                                                                                                                      |
@@ -31,6 +31,8 @@ Each learning type pairs with a practice session type of the same instrument (`t
 | **Log practice**                                                       | Records a session: minutes, date, an optional focus, the items you practiced, their new mastery, BPM, review results, the session quality and a note.                                                                                                           |
 
 ## Log practice
+
+![Log practice](images/log-practice.png)
 
 1. Enter the minutes, the date and an optional focus ("Barre chords"). When a Kanban Action Planner timer is running on the activity of this session, the log takes it over (tick the box: its minutes fill the Minutes field), so the time is counted once.
 2. Tick what you practiced. Items you planned or that are due come first; type to filter. Items of another instrument are dimmed: log them in their own session.
@@ -51,5 +53,7 @@ Everything is checked before anything is written, and one log runs at a time. Mi
 Dates the Obsidian Starter Kit stamps on mastery changes (started, mastered) are left to it.
 
 ## Add a learning note
+
+![Add a learning note](images/add-note.png)
 
 Pick the type (Guitar Chords, Piano Scales…), type a name, or a chord symbol for chord types, and optionally the shape and the starting level. The note is created from the type's template (its prompts are skipped: the dialog already asked), in the type's folder, with the type's name suffix.

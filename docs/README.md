@@ -8,9 +8,9 @@ permalink: /
 
 Learn an instrument in Obsidian: log practice in under a minute, run a practice timer, get a plan for the time you have, and let spaced review tell you what's slipping. Guitar and piano first, any instrument after.
 
-> **In development.** Nothing is released yet. This guide grows with each release; follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones).
+> Version 0.1: the practice engine. Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
 
-## Key features (0.1, in progress)
+## Key features
 
 - Log practice: minutes or the timer, items practiced, quality, BPM, review results.
 - Practice timer in the status bar.
@@ -18,6 +18,9 @@ Learn an instrument in Obsidian: log practice in under a minute, run a practice 
 - Practice next: everything ranked by priority, staleness, BPM gap and unlocks.
 - Mastery levels with a rubric, and a light spaced-review system.
 - Works with the Obsidian Starter Kit, or on its own.
+- Every rule is a setting, with sensible defaults.
+
+![Practice plan](images/practice-plan.png)
 
 Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
 
