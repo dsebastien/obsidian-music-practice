@@ -4,31 +4,41 @@ nav_order: 1
 permalink: /
 ---
 
-# Plugin Name
+# Music Practice
 
-TODO: Add a brief description of what your plugin does.
+Learn an instrument in Obsidian: log practice in under a minute, run a practice timer, get a plan for the time you have, and let spaced review tell you what's slipping. Guitar and piano first, any instrument after.
 
-## Key Features
+> **In development.** Nothing is released yet. This guide grows with each release; follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones).
 
-TODO: List 3-5 key features of your plugin.
+## Key features (0.1, in progress)
 
-- Feature 1
-- Feature 2
-- Feature 3
+- Log practice: minutes or the timer, items practiced, quality, BPM, review results.
+- Practice timer in the status bar.
+- Practice plan for N minutes: warm-up, focus, review, fun.
+- Practice next: everything ranked by priority, staleness, BPM gap and unlocks.
+- Mastery levels with a rubric, and a light spaced-review system.
+- Works with the Obsidian Starter Kit, or on its own.
 
-## Quick Start
+Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
 
-TODO: Add quick start instructions.
+## How it works
 
-1. Install the plugin
-2. Configure settings
-3. Start using
+Each thing you learn (a chord voicing, a scale, a technique, an exercise, an arrangement of a piece) is a note with a mastery level:
+
+| Level | Meaning           |
+| ----- | ----------------- |
+| 10    | Want to learn     |
+| 20    | Learning          |
+| 30    | Can play slowly   |
+| 40    | Can play at tempo |
+| 50    | Rusty             |
+| 60    | Mastered          |
+
+The plugin reads those notes, ranks what to practice, plans sessions, and writes back what you practiced. The exact rules are listed in [Rules](rules.md).
 
 ## About
 
-Created by [Your Name](https://your-website.com).
-
-TODO: Update author information and support links.
+Created by [Sébastien Dubois](https://dsebastien.net).
 
 <!-- support-cta -->
 

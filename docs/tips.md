@@ -3,22 +3,6 @@ title: Tips & best practices
 nav_order: 90
 ---
 
-# Tips and Best Practices
+# Tips & best practices
 
-TODO: Add tips and best practices for using your plugin.
-
-## Common Use Cases
-
-TODO: Document common use cases.
-
-## Troubleshooting
-
-TODO: Add troubleshooting tips.
-
-### Issue 1
-
-TODO: Describe issue and solution.
-
-### Issue 2
-
-TODO: Describe issue and solution.
+Coming with version 0.1. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones).

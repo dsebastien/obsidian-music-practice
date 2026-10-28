@@ -1,60 +1,47 @@
-# Obsidian Plugin Template (Bun)
+# Music Practice
 
-A modern Obsidian plugin template using **Bun** as the package manager and bundler, with TypeScript, Tailwind CSS v4, ESLint, Prettier, and automated release workflows.
+An Obsidian plugin for learning an instrument in your notes: log practice in under a minute, run a practice timer, get a plan for the time you have, and let spaced review tell you what's slipping. Guitar and piano first, any instrument after.
 
-## Features
+Every chord, scale, technique, exercise and piece you learn is a note with a mastery level (Want to learn → Learning → Can play slowly → Can play at tempo → Rusty → Mastered). The plugin reads those notes, ranks what to practice next, plans your session, and writes back what you did: the session note, the items you practiced, your BPM, your review results and the time spent on the activity. Your notes stay plain Markdown with frontmatter; Obsidian Bases can show all of it.
 
-- **Bun** for fast package management and bundling
-- **TypeScript** with strict configuration
-- **Tailwind CSS v4** for styling
-- **ESLint + Prettier** for code quality
-- **Husky + lint-staged** for pre-commit hooks
-- **Commitizen + Conventional Commits** for standardized commit messages
-- **GitHub Actions** for CI/CD and automated releases
-- **Immer** for immutable state management
-- **Zod** for runtime validation
+I built this because I'm learning guitar and piano again, and I wanted my practice to live next to the rest of my notes, with a system that tells me what to work on instead of a pile of tabs.
 
-## Getting Started
+> **Status: in development.** Nothing is released yet. Version 0.1 (the practice engine) is being built; notation (chord diagrams, tabs, scores with playback) comes in 0.2. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones) and [issues](https://github.com/dsebastien/obsidian-music-practice/issues).
 
-See [TEMPLATE_USAGE.md](./TEMPLATE_USAGE.md) for detailed instructions on how to use this template to create your own Obsidian plugin.
+## What it will do
 
-## Quick Start
+### 0.1: practice engine
 
-1. Click "Use this template" on GitHub to create a new repository
-2. Clone your new repository
-3. Follow the setup instructions in [TEMPLATE_USAGE.md](./TEMPLATE_USAGE.md)
-4. Run `bun install` to install dependencies
-5. Run `bun run dev` to start development
+- **Log practice**: minutes (or the timer), the items you worked on, a quality rating, BPM and review results, an optional note. One session note per practice, no duplicates.
+- **Practice timer** in the status bar, recovered after a restart.
+- **Practice plan**: "I have 30 minutes" gives a warm-up, a focus block, due reviews and something fun.
+- **Practice next**: everything ranked by priority, staleness, BPM gap and what it unlocks.
+- **Mastery and spaced review**: a rubric per kind of item, a light SM-2 review that catches what's getting rusty.
+- **Skill tree**: prerequisites between items; see what's ready to learn.
+- **Works with the [Obsidian Starter Kit](https://store.dsebastien.net/)** (note types, folders, templates and statuses come from it) or on its own with a few settings.
+- **Public API** so scripts and AI assistants can log and plan practice with the same rules.
+
+### 0.2: notation
+
+- Chord diagrams (guitar) and keyboards (piano), chord charts, tabs and scores (alphaTex, via [alphaTab](https://alphatab.net)) with playback: play, slow down, loop, metronome.
+- Rendering on Obsidian Publish.
+- Import from Guitar Pro, MusicXML, ChordPro and plain-text tabs.
+
+## Documentation
+
+The user guide lives at **https://dsebastien.github.io/obsidian-music-practice/** and grows with each release.
+
+## Installation
+
+Not available yet. Once 0.1 is released it will be installable through [BRAT](https://github.com/TfTHacker/obsidian42-brat) first, then from the Community plugins browser.
 
 ## Development
 
-See [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed development instructions.
-
-### Prerequisites
-
-- [Bun](https://bun.sh/) (latest version)
-- [Git](https://git-scm.com/)
-- An Obsidian vault for testing
-
-### Commands
-
-| Command             | Description                       |
-| ------------------- | --------------------------------- |
-| `bun install`       | Install dependencies              |
-| `bun run dev`       | Development build with watch mode |
-| `bun run build`     | Production build                  |
-| `bun run tsc:watch` | Type check in watch mode          |
-| `bun run lint`      | Run ESLint                        |
-| `bun run format`    | Format with Prettier              |
-| `bun run test`      | Run tests (isolated)              |
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution guidelines.
+Built with Bun and TypeScript from my [Obsidian plugin template](https://github.com/dsebastien/obsidian-plugin-template). See [DEVELOPMENT.md](./DEVELOPMENT.md) and [CONTRIBUTING.md](./CONTRIBUTING.md); the rules the plugin implements are in [documentation/Business Rules.md](./documentation/Business%20Rules.md).
 
 ## License
 
-MIT License - see [LICENSE](./LICENSE) for details.
+MIT License, see [LICENSE](./LICENSE).
 
 <!-- support-cta -->
 
@@ -74,4 +61,4 @@ If this plugin is useful to you, here are the best ways to support my work ❤�
 - [Subscribe to my YouTube channel](https://youtube.com/@dsebastien)
 - [Check out my products](https://store.dsebastien.net)
 
-Found a bug or have an idea? [Open an issue](https://github.com/dsebastien/obsidian-plugin-template/issues).
+Found a bug or have an idea? [Open an issue](https://github.com/dsebastien/obsidian-music-practice/issues).

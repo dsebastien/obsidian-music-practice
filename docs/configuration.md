@@ -5,16 +5,4 @@ nav_order: 3
 
 # Configuration
 
-TODO: Document all configuration options.
-
-## Settings
-
-TODO: List all settings available in the plugin.
-
-| Setting | Type | Default | Description |
-| ------- | ---- | ------- | ----------- |
-| Example | text | ""      | TODO        |
-
-## Advanced Configuration
-
-TODO: Document any advanced configuration options.
+Coming with version 0.1. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones).

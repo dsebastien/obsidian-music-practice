@@ -5,20 +5,4 @@ nav_order: 2
 
 # Usage
 
-TODO: Document how to use your plugin.
-
-## Getting Started
-
-TODO: Add getting started instructions.
-
-## Commands
-
-TODO: List available commands.
-
-| Command         | Description |
-| --------------- | ----------- |
-| Example command | TODO        |
-
-## Features
-
-TODO: Document each feature in detail.
+Coming with version 0.1. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones).
