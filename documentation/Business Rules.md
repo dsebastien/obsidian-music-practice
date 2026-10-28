@@ -90,3 +90,10 @@ This document defines the core business rules. These rules MUST be respected in 
 - A property name added in a newer version that an older data.json already uses for another property gets an `mp_` prefix.
 - New guitar chord notes: the chosen voicing goes to the frets and fingers properties (text; dashes when a fret has two digits) and a ``chord block with `symbol`, `frets`, `fingers` (and `position` only when it differs from the computed one). The block fills the template's empty ``chord block when there is one, else goes under the title. Piano chords get `symbol` + `instrument: piano`. "No diagram" adds neither.
 - Chord symbols are parsed by the library (one parser for notes and diagrams).
+
+## Layout (v0.3)
+
+- Layout settings (`notationLayout`): left-handed (off), chord diagrams vertical, fretboards and keyboards horizontal. They reach the library as render defaults (`orientation` per language, `hand: left` only when left-handed); a block's own `orientation` / `hand` wins. Piano chords follow the keyboard orientation (the library's rule).
+- An orientation in data.json that isn't `vertical` or `horizontal` falls back to the default; the settings dropdowns refuse anything else.
+- Changing a layout setting redraws open notes in reading view (as the block switches do); it never re-registers processors.
+- Add a learning note, guitar chords: the first 4 voicings are drawn side by side (titled 1 to 4), plus the selected one when it's further down the list; clicking one selects it and updates the dropdown. Previews use the layout settings. The note still gets one diagram (the selected voicing).

@@ -6,7 +6,7 @@ Every chord, scale, technique, exercise and piece you learn is a note with a mas
 
 I built this because I'm learning guitar and piano again, and I wanted my practice to live next to the rest of my notes, with a system that tells me what to work on instead of a pile of tabs.
 
-> **Version 0.1** ships the practice engine. Notation (chord diagrams, tabs and scores with playback) comes in 0.2. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones) and [issues](https://github.com/dsebastien/obsidian-music-practice/issues).
+> **Version 0.3** ships the practice engine and notation blocks (chord diagrams, keyboards, fretboards, chord charts), side by side, in any orientation, left-handed too. Tabs and scores with playback come in 0.4. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones) and [issues](https://github.com/dsebastien/obsidian-music-practice/issues).
 
 ## Screenshots
 
@@ -47,7 +47,15 @@ Add a chord from its symbol:
 
 ![Chord chart](docs/images/notation-chord-chart.png)
 
-### 0.3: tabs, scores and playback (planned)
+### 0.3: layout (available)
+
+- **Several diagrams in one block**, separated by `---`: a song's chords or a scale's positions side by side, or in a grid.
+- **Orientation**: guitar chords sideways, fretboards standing up, keyboards with low notes at the bottom. **Left-handed** diagrams. Defaults for both in the settings.
+- **Add a learning note** shows the top voicings of a guitar chord side by side: click one to pick it.
+
+![Chords side by side](docs/images/notation-row.png)
+
+### 0.4: tabs, scores and playback (planned)
 
 - Tabs and scores (alphaTex, via [alphaTab](https://alphatab.net)) with playback: play, slow down, loop, metronome.
 - Play chords, scales and notes from the notation blocks.

@@ -20,6 +20,15 @@ Every rule the plugin applies is a setting, with defaults that work on install. 
 
 One switch per kind of [notation block](notation.md), all on by default: chord diagrams (` ```chord `), chord charts (` ```chords `), keyboards and fretboards. A block turned off shows as code; reload the plugin to let another plugin draw it. The status line says when another plugin already draws one of them.
 
+| Setting                   | Default    | What it does                                                                                        |
+| ------------------------- | ---------- | --------------------------------------------------------------------------------------------------- |
+| Left-handed               | Off        | Mirrors guitar chord diagrams and fretboards (the low string on the right). Keyboards don't change. |
+| Chord diagram orientation | Vertical   | Vertical: the nut on top. Horizontal: the strings across, the high string on top, as in tabs.       |
+| Fretboard orientation     | Horizontal | Horizontal: the high string on top. Vertical: the nut on top, as a chord diagram.                   |
+| Keyboard orientation      | Horizontal | Horizontal: low notes on the left. Vertical: low notes at the bottom. Piano chords follow it.       |
+
+A block's own `orientation:` or `hand:` wins over these. Open notes redraw when you change them.
+
 ## Rules
 
 | Group          | Settings (defaults)                                                                                                                                             |
