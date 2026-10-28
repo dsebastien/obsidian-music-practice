@@ -1,5 +1,12 @@
 # Release Notes
 
+## 0.1.1 (2026-10-28)
+
+Maintenance release: no change in behavior.
+
+- Security updates of development dependencies flagged by the community directory review (`fast-uri`, `moment`). None of them ship in the plugin.
+- A small code cleanup flagged by the same review.
+
 ## 0.1.0 (2026-10-28)
 
 The first release of Music Practice: learn an instrument in your notes.

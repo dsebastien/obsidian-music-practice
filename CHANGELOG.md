@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1](https://github.com/dsebastien/obsidian-music-practice/compare/0.1.0...0.1.1) (2026-10-28)
+
+Maintenance release: no change in behavior.
+
+- Security updates of development dependencies flagged by the community directory review (`fast-uri`, `moment`). None of them ship in the plugin.
+- A small code cleanup flagged by the same review.
+
 ## 0.1.0 (2026-10-28)
 
 The first release of Music Practice: learn an instrument in your notes.
@@ -24,3 +31,4 @@ The first release of Music Practice: learn an instrument in your notes.
 - A public API lets scripts and AI assistants log and plan practice with the same rules.
 
 Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
+
