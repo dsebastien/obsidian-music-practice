@@ -6,9 +6,9 @@ import { levelOf } from '../domain/mastery'
 import type { LearningType } from '../domain/note-model'
 import type { NewLearningNote } from '../services/note-creator.service'
 import { renderBlock } from '@dsebastien/music-notation'
-import type { FrettedVoicing, RenderResult } from '@dsebastien/music-notation'
+import type { FrettedVoicing, RenderOptions, RenderResult } from '@dsebastien/music-notation'
 import { lookupGuitarVoicing, voicingCount } from '@dsebastien/music-notation/voicings'
-import { blockSource, chordBlock, formatFrets } from '../domain/notation-note'
+import { blockSource, chordBlock, formatFrets, voicingRow } from '../domain/notation-note'
 
 /** Add a learning note: type, name (or chord symbol), shape and starting level. */
 export class AddNoteModal extends Modal {
@@ -19,7 +19,8 @@ export class AddNoteModal extends Modal {
     /** Guitar chords: index of the voicing to prefill; -1 for none. */
     private voicingIndex = 0
     private formEl: HTMLElement | null = null
-    private diagram: RenderResult | null = null
+    /** The previews: one diagram, or a row of voicings to pick from. */
+    private diagrams: RenderResult[] = []
 
     constructor(
         app: App,
@@ -27,7 +28,9 @@ export class AddNoteModal extends Modal {
         private readonly fields: FieldNames,
         /** Whether chord notes get a ```chord block (Music Practice draws them). */
         private readonly chordBlocks: () => boolean,
-        private readonly create: (type: LearningType, spec: NewLearningNote) => Promise<void>
+        private readonly create: (type: LearningType, spec: NewLearningNote) => Promise<void>,
+        /** Orientation and hand, so previews look like the notes will. */
+        private readonly renderOptions: () => RenderOptions = () => ({})
     ) {
         super(app)
         this.type = types[0]!
@@ -198,14 +201,59 @@ export class AddNoteModal extends Modal {
             this.voicingIndex = Number(voicingSelect.value)
             refresh()
         })
+        const options = (): RenderOptions => ({
+            ...this.renderOptions(),
+            voicings: lookupGuitarVoicing
+        })
+        // Guitar chords: the top voicings side by side, the selected one highlighted; a click
+        // picks one. Past the fourth, the dropdown picks it and it joins the row.
+        const refreshVoicingRow = (symbol: string): boolean => {
+            const indexes = voicingRow(voicingCount(symbol), this.voicingIndex)
+            if (!indexes.length) return false
+            const row = diagramEl.createDiv({ cls: 'mp-voicing-row' })
+            for (const i of indexes) {
+                const voicing = lookupGuitarVoicing(symbol, i)
+                const block = voicing ? chordBlock(symbol, 'guitar', voicing) : null
+                if (!voicing || !block) continue
+                const selected = i === this.voicingIndex
+                const button = row.createEl('button', {
+                    cls: selected ? 'mp-voicing is-selected' : 'mp-voicing',
+                    attr: {
+                        'aria-label': `Voicing ${i + 1}: ${formatFrets(voicing.frets)}`,
+                        'aria-pressed': String(selected)
+                    }
+                })
+                this.diagrams.push(
+                    renderBlock(
+                        'chord',
+                        `${blockSource(block)}\ntitle: ${i + 1}`,
+                        button,
+                        options()
+                    )
+                )
+                button.addEventListener('click', () => {
+                    this.voicingIndex = i
+                    if (voicingSelect) voicingSelect.value = String(i)
+                    refresh()
+                })
+            }
+            return true
+        }
         const refreshDiagram = () => {
-            this.diagram?.destroy()
-            this.diagram = null
+            for (const diagram of this.diagrams) diagram.destroy()
+            this.diagrams = []
+            diagramEl.empty()
+            const symbol = this.symbol()
+            if (
+                symbol &&
+                this.instrument() === 'guitar' &&
+                this.chordBlocks() &&
+                refreshVoicingRow(symbol)
+            )
+                return
             const block = this.notation()
             if (!block) return
-            this.diagram = renderBlock('chord', blockSource(block), diagramEl, {
-                voicings: lookupGuitarVoicing
-            })
+            this.diagrams.push(renderBlock('chord', blockSource(block), diagramEl, options()))
         }
         const refresh = () => {
             refreshDiagram()
@@ -246,8 +294,8 @@ export class AddNoteModal extends Modal {
     }
 
     override onClose(): void {
-        this.diagram?.destroy()
-        this.diagram = null
+        for (const diagram of this.diagrams) diagram.destroy()
+        this.diagrams = []
         this.contentEl.empty()
     }
 }

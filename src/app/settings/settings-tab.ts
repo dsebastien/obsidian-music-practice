@@ -54,6 +54,23 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
         }
     }
 
+    /** A default orientation dropdown, keyed `notationLayout.<language>`. */
+    private orientation(
+        language: 'chord' | 'fretboard' | 'keyboard',
+        name: string,
+        desc: string
+    ): SettingDefinition {
+        return {
+            name,
+            desc: `${desc} A block can say otherwise with "orientation:".`,
+            control: {
+                type: 'dropdown',
+                key: `notationLayout.${language}`,
+                options: { vertical: 'Vertical', horizontal: 'Horizontal' }
+            }
+        }
+    }
+
     private text(key: string, name: string, desc: string): SettingDefinition {
         return { name, desc, control: { type: 'text', key, validate: this.validate(key) } }
     }
@@ -113,6 +130,26 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         'fretboard',
                         'Fretboards',
                         'Scales, chords and notes on a guitar neck.'
+                    ),
+                    {
+                        name: 'Left-handed',
+                        desc: 'Mirror guitar chord diagrams and fretboards (the low string on the right). A block can say otherwise with "hand: right".',
+                        control: { type: 'toggle', key: 'notationLayout.leftHanded' }
+                    },
+                    this.orientation(
+                        'chord',
+                        'Chord diagram orientation',
+                        'Vertical: the nut on top. Horizontal: the strings across, high string on top, as in tabs.'
+                    ),
+                    this.orientation(
+                        'fretboard',
+                        'Fretboard orientation',
+                        'Horizontal: the high string on top, as in tabs. Vertical: the nut on top, as a chord diagram.'
+                    ),
+                    this.orientation(
+                        'keyboard',
+                        'Keyboard orientation',
+                        'Horizontal: low notes on the left. Vertical: low notes at the bottom. Piano chords follow it.'
                     ),
                     {
                         name: 'Status',

@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS } from '../types/plugin-settings.intf'
 import type { PluginSettings } from '../types/plugin-settings.intf'
+import { ORIENTATIONS } from '../domain/notation-layout'
 
 /**
  * Settings controls are keyed by their path in the settings ("rules.review.firstInterval"). The
@@ -56,6 +57,13 @@ const MINIMUMS: Record<string, { min: number; integer: boolean }> = {
 const OPTIONAL_TEXT =
     /^(rubric\.|local\.(startedField|masteredField|sessionTemplate|sessionSuffix)$)/
 
+/** Text settings limited to a few values (dropdowns). */
+const CHOICES: Record<string, readonly string[]> = {
+    'notationLayout.chord': ORIENTATIONS,
+    'notationLayout.fretboard': ORIENTATIONS,
+    'notationLayout.keyboard': ORIENTATIONS
+}
+
 /** Parse a control value by the type of the default at its path. */
 export function parseSetting(key: string, raw: unknown): Parsed {
     const def = getPath(DEFAULT_SETTINGS, key)
@@ -77,6 +85,9 @@ export function parseSetting(key: string, raw: unknown): Parsed {
     if (typeof def === 'string') {
         if (typeof raw !== 'string') return { ok: false, error: 'Enter text.' }
         const text = raw.trim()
+        const choices = CHOICES[key]
+        if (choices && !choices.includes(text))
+            return { ok: false, error: `Choose ${choices.join(' or ')}.` }
         if (!text && !OPTIONAL_TEXT.test(key))
             return { ok: false, error: 'This setting needs a value.' }
         return { ok: true, value: text }

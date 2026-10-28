@@ -304,3 +304,42 @@
     max-height: 180px;
     width: auto;
 }
+
+/* Guitar chords: the top voicings side by side, the selected one outlined. */
+.mp-voicing-row {
+    @apply my-2 grid gap-2;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.mp-voicing-row .mp-voicing {
+    height: auto;
+    padding: 0.25rem;
+    background: transparent;
+    box-shadow: none;
+    border: 2px solid transparent;
+    border-radius: var(--radius-m);
+    cursor: pointer;
+    align-items: flex-start;
+}
+
+.mp-voicing-row .mp-voicing:hover {
+    background: var(--background-modifier-hover);
+}
+
+.mp-voicing-row .mp-voicing.is-selected {
+    border-color: var(--interactive-accent);
+}
+
+.mp-voicing-row .mn-block {
+    margin: 0;
+}
+
+.mp-voicing-row .mn-block {
+    width: 100%;
+}
+
+.mp-voicing-row .mn-svg {
+    width: 100%;
+    height: auto;
+    max-height: 160px;
+}

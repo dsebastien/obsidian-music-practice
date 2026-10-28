@@ -64,3 +64,26 @@ describe('settingsFrom: notation and new property names', () => {
         expect(s.fields.frets).toBe('frets')
     })
 })
+
+describe('layout settings from data.json', () => {
+    it('keeps valid orientations and falls back on anything else', () => {
+        const settings = settingsFrom({
+            notationLayout: {
+                leftHanded: true,
+                chord: 'horizontal',
+                fretboard: 'sideways',
+                keyboard: 3
+            }
+        })
+        expect(settings.notationLayout).toEqual({
+            leftHanded: true,
+            chord: 'horizontal',
+            fretboard: 'horizontal',
+            keyboard: 'horizontal'
+        })
+    })
+
+    it('defaults when data.json has none (older versions)', () => {
+        expect(settingsFrom({}).notationLayout.chord).toBe('vertical')
+    })
+})

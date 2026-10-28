@@ -66,3 +66,17 @@ describe('boolean settings', () => {
         expect(readSetting(createDefaultSettings(), 'notation.keyboard')).toBe(true)
     })
 })
+
+describe('layout settings', () => {
+    it('accepts only the two orientations', () => {
+        expect(parseSetting('notationLayout.chord', 'horizontal')).toEqual({
+            ok: true,
+            value: 'horizontal'
+        })
+        expect(parseSetting('notationLayout.keyboard', 'diagonal')).toEqual({
+            ok: false,
+            error: 'Choose vertical or horizontal.'
+        })
+        expect(parseSetting('notationLayout.leftHanded', true)).toEqual({ ok: true, value: true })
+    })
+})

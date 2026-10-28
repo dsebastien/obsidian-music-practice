@@ -46,6 +46,16 @@ export function placeChordBlock(content: string, block: string): string {
         : insertUnderTitle(content, block)
 }
 
+/**
+ * The voicings shown side by side when adding a guitar chord: the first `size`, plus the selected
+ * one when it's further down the list (picked from the dropdown).
+ */
+export function voicingRow(count: number, selected: number, size = 4): number[] {
+    const row = Array.from({ length: Math.min(count, size) }, (_, i) => i)
+    if (selected >= size && selected < count) row.push(selected)
+    return row
+}
+
 /** The source inside a fenced block (without its fences). */
 export const blockSource = (block: string): string => block.split('\n').slice(1, -1).join('\n')
 

@@ -4,7 +4,8 @@ import {
     formatFingers,
     formatFrets,
     insertUnderTitle,
-    placeChordBlock
+    placeChordBlock,
+    voicingRow
 } from './notation-note'
 
 describe('frets and fingers as text', () => {
@@ -81,5 +82,15 @@ describe('CRLF notes and blank lines', () => {
         expect(insertUnderTitle('---\r\na: 1\r\n---\r\n# A\r\ntext', 'X\nY')).toBe(
             '---\r\na: 1\r\n---\r\n# A\r\nX\r\nY\r\ntext'
         )
+    })
+})
+
+describe('voicingRow', () => {
+    it('shows the first four, and the selected one when it is further', () => {
+        expect(voicingRow(10, 0)).toEqual([0, 1, 2, 3])
+        expect(voicingRow(10, 6)).toEqual([0, 1, 2, 3, 6])
+        expect(voicingRow(2, 1)).toEqual([0, 1])
+        expect(voicingRow(10, -1)).toEqual([0, 1, 2, 3])
+        expect(voicingRow(0, 0)).toEqual([])
     })
 })

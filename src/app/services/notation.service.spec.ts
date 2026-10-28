@@ -29,7 +29,7 @@ function fakePlugin(refuse: string[] = []) {
 describe('NotationBlocks', () => {
     it('registers every language turned on, once', () => {
         const { plugin, calls } = fakePlugin()
-        const blocks = new NotationBlocks(plugin, allOn, () => false)
+        const blocks = new NotationBlocks(plugin, allOn, undefined, () => false)
         blocks.sync()
         blocks.sync()
         expect(calls).toEqual(['chord', 'chords', 'keyboard', 'fretboard'])
@@ -42,6 +42,7 @@ describe('NotationBlocks', () => {
         const blocks = new NotationBlocks(
             plugin,
             () => toggles,
+            undefined,
             () => false
         )
         blocks.sync()
@@ -55,7 +56,7 @@ describe('NotationBlocks', () => {
 
     it("leaves another plugin's language alone without trying to register it", () => {
         const { plugin, calls } = fakePlugin()
-        const blocks = new NotationBlocks(plugin, allOn, (l) => l === 'chord')
+        const blocks = new NotationBlocks(plugin, allOn, undefined, (l) => l === 'chord')
         blocks.sync()
         expect(calls).not.toContain('chord')
         expect(blocks.status('chord')).toBe('taken')
@@ -63,7 +64,7 @@ describe('NotationBlocks', () => {
 
     it('tries a refused registration only once when the registry is unreadable', () => {
         const { plugin, calls } = fakePlugin(['keyboard'])
-        const blocks = new NotationBlocks(plugin, allOn, () => null)
+        const blocks = new NotationBlocks(plugin, allOn, undefined, () => null)
         blocks.sync()
         blocks.sync()
         blocks.sync()

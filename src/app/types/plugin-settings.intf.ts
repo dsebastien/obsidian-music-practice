@@ -6,6 +6,8 @@ import type { LocalModelSettings } from '../domain/local-model'
 import { createDefaultRubric } from '../domain/rubric'
 import type { RubricSettings } from '../domain/rubric'
 import type { PracticeRules } from '../domain/rules'
+import { ORIENTATIONS } from '../domain/notation-layout'
+import type { NotationLayout } from '../domain/notation-layout'
 import type { NotationToggles } from '../services/notation.service'
 
 export interface PluginSettings {
@@ -27,6 +29,8 @@ export interface PluginSettings {
     timerStartedAt: number
     /** Notation code blocks drawn by the plugin, per language (#29). */
     notation: NotationToggles
+    /** Default orientation per diagram, and left-handed diagrams (#32). */
+    notationLayout: NotationLayout
 }
 
 /**
@@ -49,7 +53,13 @@ export function createDefaultSettings(): PluginSettings {
         notesHeading: 'Notes',
         activityName: 'Learn {subject}',
         timerStartedAt: 0,
-        notation: { chord: true, chords: true, keyboard: true, fretboard: true }
+        notation: { chord: true, chords: true, keyboard: true, fretboard: true },
+        notationLayout: {
+            leftHanded: false,
+            chord: 'vertical',
+            fretboard: 'horizontal',
+            keyboard: 'horizontal'
+        }
     }
 }
 
@@ -89,6 +99,11 @@ export function overlay<T>(defaults: T, loaded: unknown): T {
 /** Settings from whatever data.json holds, every field checked against the defaults. */
 export function settingsFrom(loaded: unknown): PluginSettings {
     const settings = overlay(createDefaultSettings(), loaded)
+    // Orientations are text: anything but the known values falls back to the default.
+    const layout = settings.notationLayout
+    for (const key of ['chord', 'fretboard', 'keyboard'] as const) {
+        if (!ORIENTATIONS.includes(layout[key])) layout[key] = DEFAULT_SETTINGS.notationLayout[key]
+    }
     // A property name added in a newer version may already be used by another setting in an older
     // data.json: rename the new one ("frets" → "mp_frets") instead of failing the duplicate check.
     const loadedFields = isRecord(loaded) && isRecord(loaded['fields']) ? loaded['fields'] : null

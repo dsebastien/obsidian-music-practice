@@ -1,7 +1,7 @@
 import { MarkdownPreviewRenderer, MarkdownRenderChild, MarkdownView } from 'obsidian'
 import type { Plugin, Workspace } from 'obsidian'
 import { LANGUAGES, renderBlock } from '@dsebastien/music-notation'
-import type { NotationLanguage, RenderResult } from '@dsebastien/music-notation'
+import type { LayoutDefaults, NotationLanguage, RenderResult } from '@dsebastien/music-notation'
 import { lookupGuitarVoicing } from '@dsebastien/music-notation/voicings'
 
 export type NotationToggles = Record<NotationLanguage, boolean>
@@ -55,6 +55,7 @@ export class NotationBlocks {
     constructor(
         private readonly plugin: NotationHost,
         private readonly toggles: () => NotationToggles,
+        private readonly layout: () => LayoutDefaults = () => ({}),
         private readonly exists: (language: string) => boolean | null = processorExists
     ) {}
 
@@ -77,6 +78,7 @@ export class NotationBlocks {
                         return
                     }
                     const result = renderBlock(language, source, el, {
+                        ...this.layout(),
                         voicings: lookupGuitarVoicing
                     })
                     ctx.addChild(new NotationChild(el, result))
@@ -94,7 +96,7 @@ export class NotationBlocks {
         return this.toggles()[language] && this.registered.has(language) ? 'on' : 'off'
     }
 
-    /** Redraw open notes in reading view, after a block was turned on or off. */
+    /** Redraw open notes in reading view, after a block was turned on or off or the layout changed. */
     refreshOpenNotes(): void {
         for (const leaf of this.plugin.app.workspace.getLeavesOfType('markdown')) {
             if (leaf.view instanceof MarkdownView) leaf.view.previewMode.rerender(true)
