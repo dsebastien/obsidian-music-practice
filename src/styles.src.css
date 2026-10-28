@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+/* Notation blocks (chord, chords, keyboard, fretboard): classes prefixed mn-. */
+@import '@dsebastien/music-notation/music-notation.css';
 
 /* ========================================
    SUPPORT & UI SECTIONS
@@ -291,4 +293,14 @@
 
 .mp-item.mp-choice:hover {
     border-color: var(--interactive-accent);
+}
+
+/* Add a learning note: the chord diagram the new note will get. */
+.mp-notation-preview .mn-block {
+    @apply my-2;
+}
+
+.mp-notation-preview .mn-svg {
+    max-height: 180px;
+    width: auto;
 }

@@ -16,6 +16,9 @@ export interface FieldNames {
     chordSymbol: string
     chordRoot: string
     chordQuality: string
+    /** Guitar chords: frets and fingers, lowest string first ("x02220"). */
+    frets: string
+    fingers: string
     /** Spaced review (Kanban Action Planner: reviewed date / interval / count properties). */
     lastReviewed: string
     reviewInterval: string
@@ -45,6 +48,8 @@ export function createDefaultFieldNames(): FieldNames {
         chordSymbol: 'chord_symbol',
         chordRoot: 'chord_root',
         chordQuality: 'chord_quality',
+        frets: 'frets',
+        fingers: 'fingers',
         lastReviewed: 'last_reviewed',
         reviewInterval: 'review_interval',
         reviewCount: 'review_count',

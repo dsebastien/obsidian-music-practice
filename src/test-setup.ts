@@ -21,6 +21,8 @@ void mock.module('obsidian', () => ({
     // renders with MarkdownRenderer.
     ItemView: class ItemView {},
     MarkdownRenderer: { render: async () => {} },
+    // Notation blocks (plugin.ts → notation.service.ts) wrap renders in a render child.
+    MarkdownRenderChild: class MarkdownRenderChild {},
     PluginSettingTab: class PluginSettingTab {},
     Setting: class Setting {},
     MarkdownView: class MarkdownView {},

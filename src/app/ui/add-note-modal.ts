@@ -5,6 +5,10 @@ import type { FieldNames } from '../domain/fields'
 import { levelOf } from '../domain/mastery'
 import type { LearningType } from '../domain/note-model'
 import type { NewLearningNote } from '../services/note-creator.service'
+import { renderBlock } from '@dsebastien/music-notation'
+import type { FrettedVoicing, RenderResult } from '@dsebastien/music-notation'
+import { lookupGuitarVoicing, voicingCount } from '@dsebastien/music-notation/voicings'
+import { chordBlock, formatFrets } from '../domain/notation-note'
 
 /** Add a learning note: type, name (or chord symbol), shape and starting level. */
 export class AddNoteModal extends Modal {
@@ -12,7 +16,10 @@ export class AddNoteModal extends Modal {
     private text = ''
     private shape = ''
     private level: number | undefined
+    /** Guitar chords: index of the voicing to prefill; -1 for none. */
+    private voicingIndex = 0
     private formEl: HTMLElement | null = null
+    private diagram: RenderResult | null = null
 
     constructor(
         app: App,
@@ -22,6 +29,33 @@ export class AddNoteModal extends Modal {
     ) {
         super(app)
         this.type = types[0]!
+    }
+
+    /** The instrument whose notation a chord note of this type gets; null for other kinds. */
+    private instrument(): 'guitar' | 'piano' | null {
+        if (this.type.kind !== 'chord') return null
+        return this.type.subject === 'guitar' || this.type.subject === 'piano'
+            ? this.type.subject
+            : null
+    }
+
+    /** The chord symbol typed, when it is one. */
+    private symbol(): string | null {
+        return this.type.kind === 'chord' ? (parseChord(this.text.trim())?.symbol ?? null) : null
+    }
+
+    private voicing(): FrettedVoicing | null {
+        const symbol = this.symbol()
+        return symbol && this.instrument() === 'guitar' && this.voicingIndex >= 0
+            ? lookupGuitarVoicing(symbol, this.voicingIndex)
+            : null
+    }
+
+    /** The ```chord block the note gets, if any. */
+    private notation(): string | null {
+        const symbol = this.symbol()
+        const instrument = this.instrument()
+        return symbol && instrument ? chordBlock(symbol, instrument, this.voicing()) : null
     }
 
     /** The note's title and chord symbol for the current input. */
@@ -38,7 +72,9 @@ export class AddNoteModal extends Modal {
             title,
             ...(chord ? { chordSymbol: chord.symbol } : {}),
             ...(this.shape ? { shape: this.shape } : {}),
-            ...(this.level !== undefined ? { level: this.level } : {})
+            ...(this.level !== undefined ? { level: this.level } : {}),
+            ...(this.voicing() ? { voicing: this.voicing()! } : {}),
+            ...(this.notation() ? { notation: this.notation()! } : {})
         }
     }
 
@@ -53,6 +89,7 @@ export class AddNoteModal extends Modal {
             this.type = this.types[Number(select.value)]!
             this.shape = ''
             this.level = undefined
+            this.voicingIndex = 0
             this.render()
         })
         this.formEl = this.contentEl.createDiv({ cls: 'mp-modal' })
@@ -112,11 +149,54 @@ export class AddNoteModal extends Modal {
             this.level = levelOf(levelSelect.value) ?? undefined
         })
 
+        // Guitar chords: pick one of the library's voicings; the note gets its frets, fingers and
+        // a diagram. Piano chords get a keyboard diagram from the symbol.
+        const voicingField =
+            this.instrument() === 'guitar'
+                ? el.createEl('label', { cls: 'mp-field', text: 'Voicing' })
+                : null
+        const voicingSelect = voicingField?.createEl('select', { cls: 'dropdown' }) ?? null
+        const diagramEl = el.createDiv({ cls: 'mp-notation-preview' })
+
         const preview = el.createDiv({ cls: 'mp-rubric' })
         const actions = el.createDiv({ cls: 'mp-actions' })
         actions.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close())
         const submit = actions.createEl('button', { cls: 'mod-cta', text: 'Add' })
+        const refreshVoicings = () => {
+            if (!voicingSelect || !voicingField) return
+            const symbol = this.symbol()
+            const count = symbol ? voicingCount(symbol) : 0
+            voicingSelect.empty()
+            voicingField.toggle(count > 0)
+            if (!symbol || count === 0) return
+            if (this.voicingIndex >= count) this.voicingIndex = 0
+            for (let i = 0; i < count; i++) {
+                const v = lookupGuitarVoicing(symbol, i)
+                if (v)
+                    voicingSelect.createEl('option', {
+                        text: `${i + 1}: ${formatFrets(v.frets)}`,
+                        value: String(i)
+                    })
+            }
+            voicingSelect.createEl('option', { text: 'No diagram', value: '-1' })
+            voicingSelect.value = String(this.voicingIndex)
+        }
+        voicingSelect?.addEventListener('change', () => {
+            this.voicingIndex = Number(voicingSelect.value)
+            refresh()
+        })
+        const refreshDiagram = () => {
+            this.diagram?.destroy()
+            this.diagram = null
+            const block = this.notation()
+            if (!block) return
+            const source = block.split('\n').slice(1, -1).join('\n')
+            this.diagram = renderBlock('chord', source, diagramEl, {
+                voicings: lookupGuitarVoicing
+            })
+        }
         const refresh = () => {
+            refreshDiagram()
             const spec = this.spec()
             preview.setText(
                 spec
@@ -129,12 +209,15 @@ export class AddNoteModal extends Modal {
         }
         input.addEventListener('input', () => {
             this.text = input.value
+            this.voicingIndex = 0
+            refreshVoicings()
             refresh()
         })
         input.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') void this.submit()
         })
         submit.addEventListener('click', () => void this.submit())
+        refreshVoicings()
         refresh()
         input.focus()
     }
@@ -151,6 +234,8 @@ export class AddNoteModal extends Modal {
     }
 
     override onClose(): void {
+        this.diagram?.destroy()
+        this.diagram = null
         this.contentEl.empty()
     }
 }

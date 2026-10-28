@@ -5,6 +5,8 @@ import { BUY_ME_A_COFFEE_BADGE_DATA_URL } from '../assets/buy-me-a-coffee'
 import { BUY_ME_A_COFFEE_URL, renderSupportSection } from '../ui/support-links'
 import { createDefaultSettings } from '../types/plugin-settings.intf'
 import { parseSetting, readSetting, validateSetting, writeSetting } from './setting-paths'
+import { LANGUAGES } from '@dsebastien/music-notation'
+import type { NotationLanguage } from '@dsebastien/music-notation'
 
 /**
  * Settings tab, declared rather than rendered (Obsidian 1.13+).
@@ -37,6 +39,19 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
 
     private num(key: string, name: string, desc: string): SettingDefinition {
         return { name, desc, control: { type: 'number', key, validate: this.validate(key) } }
+    }
+
+    /** A notation block toggle, keyed `notation.<language>`. */
+    private notationToggle(
+        language: NotationLanguage,
+        name: string,
+        desc: string
+    ): SettingDefinition {
+        return {
+            name,
+            desc: `${desc} Code blocks: \`\`\`${language}.`,
+            control: { type: 'toggle', key: `notation.${language}` }
+        }
     }
 
     private text(key: string, name: string, desc: string): SettingDefinition {
@@ -75,6 +90,48 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                 'Activity name',
                 'Activity your sessions count towards when no earlier session links one. {subject} is the instrument: "Learn {subject}" finds "Learn Guitar".'
             ),
+            {
+                type: 'group',
+                heading: 'Notation blocks',
+                items: [
+                    this.notationToggle(
+                        'chord',
+                        'Chord diagrams',
+                        'Guitar diagrams and piano chords.'
+                    ),
+                    this.notationToggle(
+                        'chords',
+                        'Chord charts',
+                        'ChordPro: chords over lyrics, transposable.'
+                    ),
+                    this.notationToggle(
+                        'keyboard',
+                        'Keyboards',
+                        'Scales, chords and notes on a piano keyboard.'
+                    ),
+                    this.notationToggle(
+                        'fretboard',
+                        'Fretboards',
+                        'Scales, chords and notes on a guitar neck.'
+                    ),
+                    {
+                        name: 'Status',
+                        desc: '',
+                        searchable: false,
+                        // Read at each opening: registrations change when the plugin reloads.
+                        render: (setting): void => {
+                            const taken = LANGUAGES.filter(
+                                (l) => this.plugin.notationStatus(l) === 'taken'
+                            )
+                            setting.setDesc(
+                                taken.length
+                                    ? `Another plugin already draws ${taken.map((l) => `\`\`\`${l}`).join(', ')} blocks, so Music Practice leaves them alone. Turned-off blocks show as code; reload the plugin to let another plugin draw them.`
+                                    : 'Turned-off blocks show as code; reload the plugin to let another plugin draw them.'
+                            )
+                        }
+                    }
+                ]
+            },
             {
                 type: 'page',
                 name: 'Rules',
@@ -271,6 +328,8 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             this.text('fields.chordSymbol', 'Chord symbol', ''),
                             this.text('fields.chordRoot', 'Chord root', ''),
                             this.text('fields.chordQuality', 'Chord quality', ''),
+                            this.text('fields.frets', 'Frets', 'Guitar chords: "x02220".'),
+                            this.text('fields.fingers', 'Fingers', 'Guitar chords: "x01230".'),
                             this.text('fields.lastReviewed', 'Last reviewed', ''),
                             this.text('fields.reviewInterval', 'Review interval', ''),
                             this.text('fields.reviewCount', 'Review count', '')

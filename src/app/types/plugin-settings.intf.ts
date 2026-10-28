@@ -6,6 +6,7 @@ import type { LocalModelSettings } from '../domain/local-model'
 import { createDefaultRubric } from '../domain/rubric'
 import type { RubricSettings } from '../domain/rubric'
 import type { PracticeRules } from '../domain/rules'
+import type { NotationToggles } from '../services/notation.service'
 
 export interface PluginSettings {
     /** Every number the practice rules use (#27). */
@@ -24,6 +25,8 @@ export interface PluginSettings {
     activityName: string
     /** Start of the running practice timer (epoch ms); 0 when no timer runs. Survives restarts. */
     timerStartedAt: number
+    /** Notation code blocks drawn by the plugin, per language (#29). */
+    notation: NotationToggles
 }
 
 /**
@@ -45,7 +48,8 @@ export function createDefaultSettings(): PluginSettings {
         defaultPlanMinutes: 30,
         notesHeading: 'Notes',
         activityName: 'Learn {subject}',
-        timerStartedAt: 0
+        timerStartedAt: 0,
+        notation: { chord: true, chords: true, keyboard: true, fretboard: true }
     }
 }
 

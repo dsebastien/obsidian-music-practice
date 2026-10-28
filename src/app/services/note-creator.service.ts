@@ -10,6 +10,8 @@ import type { LearningItem } from '../domain/practice'
 import type { LearningType } from '../domain/note-model'
 import type { PracticeRules } from '../domain/rules'
 import { renderTemplate } from '../domain/template-render'
+import { formatFingers, formatFrets, placeChordBlock } from '../domain/notation-note'
+import type { FrettedVoicing } from '@dsebastien/music-notation'
 import {
     resolveNoteTypeAffixes,
     resolveNoteTypeFolder,
@@ -54,6 +56,10 @@ export interface NewLearningNote {
     shape?: string
     /** Initial level; the "want to learn" level by default. */
     level?: number
+    /** Guitar chords: the voicing picked from the notation library, stored as frets and fingers. */
+    voicing?: FrettedVoicing
+    /** A ```chord block placed under the note's title. */
+    notation?: string
 }
 
 /** Creates learning notes in their type's folder, name and template. */
@@ -133,7 +139,13 @@ export class NoteCreatorService {
                     : []
                 if (!aliases.includes(chord.symbol)) fm['aliases'] = [...aliases, chord.symbol]
             }
+            if (spec.voicing) {
+                put(fields.frets, formatFrets(spec.voicing.frets))
+                put(fields.fingers, formatFingers(spec.voicing))
+            }
         })
+        const notation = spec.notation
+        if (notation) await this.app.vault.process(file, (text) => placeChordBlock(text, notation))
         return file
     }
 }

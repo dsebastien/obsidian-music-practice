@@ -30,6 +30,9 @@ import type { FieldNames } from './domain/fields'
 import type { PracticeRules } from './domain/rules'
 import type { LocalModelSettings } from './domain/local-model'
 import { clockTime, formatElapsed, minutesBetween } from './domain/timer'
+import { NotationBlocks } from './services/notation.service'
+import type { NotationStatus } from './services/notation.service'
+import type { NotationLanguage } from '@dsebastien/music-notation'
 
 /** A timer running longer than this is probably forgotten: the log asks to check the minutes. */
 const LONG_TIMER_MS = 4 * 60 * 60_000
@@ -46,6 +49,7 @@ export class MusicPracticePlugin extends Plugin {
     private items!: ItemRepository
     private practiceLog!: PracticeLogService
     private noteCreator!: NoteCreatorService
+    private notation!: NotationBlocks
     private timerEl: HTMLElement | null = null
     private logModal: LogPracticeModal | null = null
     /** Settings found invalid on load and replaced by the defaults, to report once the UI is up. */
@@ -61,6 +65,11 @@ export class MusicPracticePlugin extends Plugin {
             fields: withKapFieldNames(this.app, this.settings.fields),
             local: this.settings.local
         }
+    }
+
+    /** Whether Music Practice draws a notation block language (for the settings tab). */
+    notationStatus(language: NotationLanguage): NotationStatus {
+        return this.notation.status(language)
     }
 
     /** Where the note types come from and what was found (for the settings tab). */
@@ -127,6 +136,10 @@ export class MusicPracticePlugin extends Plugin {
         )
 
         this.registerCommands()
+
+        // Notation code blocks (chord, chords, keyboard, fretboard), drawn by the notation library.
+        this.notation = new NotationBlocks(this, () => this.settings.notation)
+        this.notation.sync()
 
         // Practice timer: persisted start, elapsed time in the status bar, stop opens Log practice.
         this.timerEl = this.addStatusBarItem()
@@ -421,6 +434,7 @@ export class MusicPracticePlugin extends Plugin {
             await this.saveData(next)
             this.settings = next
             this.noteModel?.refresh()
+            this.notation?.sync()
         }
         const p = this.settingsWriteChain.then(run, run)
         this.settingsWriteChain = p.catch(() => {})

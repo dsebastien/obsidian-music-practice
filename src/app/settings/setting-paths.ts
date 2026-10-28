@@ -60,6 +60,11 @@ const OPTIONAL_TEXT =
 export function parseSetting(key: string, raw: unknown): Parsed {
     const def = getPath(DEFAULT_SETTINGS, key)
     if (def === undefined) return { ok: false, error: `Unknown setting "${key}".` }
+    if (typeof def === 'boolean') {
+        return typeof raw === 'boolean'
+            ? { ok: true, value: raw }
+            : { ok: false, error: 'Expected on or off.' }
+    }
     if (typeof def === 'number') {
         const n = typeof raw === 'number' ? raw : Number(raw)
         const bound = MINIMUMS[key] ?? { min: 0, integer: key.startsWith('rules.levels.') }
