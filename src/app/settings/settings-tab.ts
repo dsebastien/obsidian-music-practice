@@ -49,7 +49,7 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
     ): SettingDefinition {
         return {
             name,
-            desc: `${desc} Code blocks: \`\`\`${language}.`,
+            desc: `${desc} Code blocks named "${language}".`,
             control: { type: 'toggle', key: `notation.${language}` }
         }
     }
@@ -511,6 +511,8 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
             throw new Error(error ?? `Setting "${key}" is invalid.`)
         }
         await this.plugin.updateSettings((draft) => writeSetting(draft, key, parsed.value))
+        // The Status row reads the registrations, which a toggle can change.
+        if (key.startsWith('notation.')) this.update()
     }
 
     renderBuyMeACoffeeBadge(contentEl: HTMLElement | DocumentFragment, width = 175) {

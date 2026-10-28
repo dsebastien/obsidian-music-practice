@@ -70,3 +70,16 @@ describe('placeChordBlock', () => {
         expect(placeChordBlock('# A\n```chord\nAm\n```\n', 'B')).toBe('# A\nB\n```chord\nAm\n```\n')
     })
 })
+
+describe('CRLF notes and blank lines', () => {
+    it('fills an empty block with blank lines or CRLF', () => {
+        expect(placeChordBlock('# A\r\n```chord\r\n\r\n```\r\n', 'B')).toBe('# A\r\nB\r\n')
+        expect(placeChordBlock('# A\n```chord\n\n  \n```\n', 'B')).toBe('# A\nB\n')
+    })
+
+    it('keeps CRLF and finds the frontmatter when inserting', () => {
+        expect(insertUnderTitle('---\r\na: 1\r\n---\r\n# A\r\ntext', 'X\nY')).toBe(
+            '---\r\na: 1\r\n---\r\n# A\r\nX\r\nY\r\ntext'
+        )
+    })
+})

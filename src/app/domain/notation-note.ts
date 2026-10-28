@@ -39,15 +39,20 @@ export function chordBlock(
  * else right under the title.
  */
 export function placeChordBlock(content: string, block: string): string {
-    const empty = /^```chord[ \t]*\n[ \t]*```[ \t]*$/m
+    // An empty block, blank lines and CRLF included.
+    const empty = /^```chord[ \t]*\r?\n(?:[ \t]*\r?\n)*[ \t]*```[ \t]*$/m
     return empty.test(content)
         ? content.replace(empty, () => block)
         : insertUnderTitle(content, block)
 }
 
+/** The source inside a fenced block (without its fences). */
+export const blockSource = (block: string): string => block.split('\n').slice(1, -1).join('\n')
+
 /** Insert a block right under the note's H1 (or after the frontmatter when there is none). */
 export function insertUnderTitle(content: string, block: string): string {
-    const lines = content.split('\n')
+    const eol = content.includes('\r\n') ? '\r\n' : '\n'
+    const lines = content.split(/\r?\n/)
     let start = 0
     if (lines[0] === '---') {
         const end = lines.indexOf('---', 1)
@@ -55,6 +60,6 @@ export function insertUnderTitle(content: string, block: string): string {
     }
     const h1 = lines.findIndex((line, i) => i >= start && /^# /.test(line))
     const at = h1 >= 0 ? h1 + 1 : start
-    lines.splice(at, 0, block)
-    return lines.join('\n')
+    lines.splice(at, 0, ...block.split('\n'))
+    return lines.join(eol)
 }

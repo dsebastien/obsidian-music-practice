@@ -58,3 +58,11 @@ describe('setting bounds', () => {
         )
     })
 })
+
+describe('boolean settings', () => {
+    it('parses switches and refuses anything else', () => {
+        expect(parseSetting('notation.chord', false)).toEqual({ ok: true, value: false })
+        expect(parseSetting('notation.chord', 'false').ok).toBe(false)
+        expect(readSetting(createDefaultSettings(), 'notation.keyboard')).toBe(true)
+    })
+})

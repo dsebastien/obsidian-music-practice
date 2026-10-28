@@ -88,5 +88,18 @@ export function overlay<T>(defaults: T, loaded: unknown): T {
 
 /** Settings from whatever data.json holds, every field checked against the defaults. */
 export function settingsFrom(loaded: unknown): PluginSettings {
-    return overlay(createDefaultSettings(), loaded)
+    const settings = overlay(createDefaultSettings(), loaded)
+    // A property name added in a newer version may already be used by another setting in an older
+    // data.json: rename the new one ("frets" → "mp_frets") instead of failing the duplicate check.
+    const loadedFields = isRecord(loaded) && isRecord(loaded['fields']) ? loaded['fields'] : null
+    if (loadedFields) {
+        const fields = settings.fields
+        const keys = Object.keys(fields) as (keyof FieldNames)[]
+        for (const key of keys) {
+            if (key in loadedFields) continue
+            if (keys.some((other) => other !== key && fields[other] === fields[key]))
+                fields[key] = `mp_${fields[key]}`
+        }
+    }
+    return settings
 }

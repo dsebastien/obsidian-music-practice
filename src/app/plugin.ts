@@ -67,6 +67,11 @@ export class MusicPracticePlugin extends Plugin {
         }
     }
 
+    /** Whether new chord notes get a ```chord block: only when Music Practice draws them. */
+    chordBlocksOn(): boolean {
+        return this.notation?.status('chord') === 'on'
+    }
+
     /** Whether Music Practice draws a notation block language (for the settings tab). */
     notationStatus(language: NotationLanguage): NotationStatus {
         return this.notation.status(language)
@@ -138,8 +143,10 @@ export class MusicPracticePlugin extends Plugin {
         this.registerCommands()
 
         // Notation code blocks (chord, chords, keyboard, fretboard), drawn by the notation library.
+        // Registered once the layout is ready: plugins enabled at startup register theirs first, so
+        // a block language another plugin uses stays theirs (Obsidian refuses a second processor).
         this.notation = new NotationBlocks(this, () => this.settings.notation)
-        this.notation.sync()
+        this.app.workspace.onLayoutReady(() => this.notation.sync())
 
         // Practice timer: persisted start, elapsed time in the status bar, stop opens Log practice.
         this.timerEl = this.addStatusBarItem()
@@ -157,9 +164,12 @@ export class MusicPracticePlugin extends Plugin {
 
     /** Another device (sync) changed data.json: reload, so a save here never wipes its changes. */
     override async onExternalSettingsChange(): Promise<void> {
+        const notation = JSON.stringify(this.settings.notation)
         await this.loadSettings()
         this.noteModel?.refresh()
         this.renderTimer()
+        this.notation?.sync()
+        if (JSON.stringify(this.settings.notation) !== notation) this.notation?.refreshOpenNotes()
     }
 
     private registerCommands(): void {
@@ -206,6 +216,7 @@ export class MusicPracticePlugin extends Plugin {
                     this.app,
                     model.learningTypes,
                     this.effective().fields,
+                    () => this.chordBlocksOn(),
                     async (type, spec) => {
                         const file = await this.noteCreator.create(type, spec)
                         await this.app.workspace.getLeaf(false).openFile(file)
@@ -432,9 +443,13 @@ export class MusicPracticePlugin extends Plugin {
         const run = async (): Promise<void> => {
             const next = produce(this.settings, mutator)
             await this.saveData(next)
+            const notationChanged = next.notation !== this.settings.notation
             this.settings = next
             this.noteModel?.refresh()
-            this.notation?.sync()
+            if (notationChanged) {
+                this.notation?.sync()
+                this.notation?.refreshOpenNotes()
+            }
         }
         const p = this.settingsWriteChain.then(run, run)
         this.settingsWriteChain = p.catch(() => {})

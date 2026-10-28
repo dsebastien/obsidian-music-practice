@@ -28,7 +28,7 @@ fingers: x-1-3-4-2-1
 ````
 
 - A finger on the same fret across several strings draws a barre. The chord's root notes are drawn in a second color.
-- With a symbol only (` ```chord ` then `Am`), the diagram uses the most common voicing from about 2,000 built in; `voicing: 2` picks the next one.
+- With a symbol only (` ```chord ` then `Am`), the diagram uses the most common voicing from the built-in database (about 1,800 voicings); `voicing: 2` picks the next one.
 - `name: A` works like `symbol: A`, so chord notes written that way keep working.
 - `tuning: DADGAD`, `Drop D` or any notes for other tunings and instruments.
 
@@ -93,11 +93,13 @@ A block with a mistake shows what's wrong and what to write instead. The note it
 
 ## New chord notes
 
-**Add a learning note** fills a new chord note: for guitar chords, pick one of the voicings found for the symbol (a preview shows it); the note gets its `frets` and `fingers` properties and a ` ```chord ` block. Piano chords get a keyboard block. See [Usage](usage.md#add-a-learning-note).
+**Add a learning note** fills a new chord note: for guitar chords, pick one of the voicings found for the symbol (a preview shows it); the note gets its `frets` and `fingers` properties and a ` ```chord ` block. Piano chords get a ` ```chord ` block with `instrument: piano`. An empty ` ```chord ` block (as templates scaffold) draws nothing. See [Usage](usage.md#add-a-learning-note).
 
 ## Turning blocks off
 
 **Settings → Music Practice → Notation blocks** has one switch per kind of block. A block turned off shows as code. When another plugin already draws one of these code blocks, Music Practice leaves it alone and says so there.
+
+Music Practice claims its blocks once Obsidian has started, so plugins enabled at startup keep theirs. If you enable another plugin later that draws `chord`, `chords`, `keyboard` or `fretboard` blocks, it can't register them while Music Practice holds them: turn that block off here, reload Music Practice, then enable the other plugin.
 
 ## Obsidian Publish
 

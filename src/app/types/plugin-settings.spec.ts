@@ -39,3 +39,28 @@ describe('settingsFrom', () => {
         ).toEqual(['scale'])
     })
 })
+
+describe('settingsFrom: notation and new property names', () => {
+    it('keeps stored notation switches and falls back for wrong values', () => {
+        expect(settingsFrom({ notation: { chords: false } }).notation).toEqual({
+            chord: true,
+            chords: false,
+            keyboard: true,
+            fretboard: true
+        })
+        expect(settingsFrom({ notation: 'off' }).notation.chord).toBe(true)
+        expect(settingsFrom({ notation: { chord: 'no' } }).notation.chord).toBe(true)
+    })
+
+    it('renames a new property name an older data.json already uses', () => {
+        const s = settingsFrom({ fields: { shape: 'frets' } })
+        expect(s.fields.shape).toBe('frets')
+        expect(s.fields.frets).toBe('mp_frets')
+        expect(s.fields.fingers).toBe('fingers')
+    })
+
+    it('leaves property names alone when the stored settings set them', () => {
+        const s = settingsFrom({ fields: { frets: 'frets', fingers: 'fingers' } })
+        expect(s.fields.frets).toBe('frets')
+    })
+})

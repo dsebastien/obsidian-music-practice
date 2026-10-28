@@ -43,7 +43,7 @@ Add a chord from its symbol:
 ### 0.2: notation (available)
 
 - **Notation blocks**: ` ```chord ` (guitar diagrams, piano chords), ` ```keyboard `, ` ```fretboard ` and ` ```chords ` (ChordPro charts, transposable), drawn by the [Music Notation](https://github.com/dsebastien/music-notation) library. On Obsidian Publish through the library's loader.
-- **New chord notes** get a voicing (frets, fingers and a diagram) picked from about 2,000.
+- **New chord notes** get a voicing (frets, fingers and a diagram) picked from the built-in database (about 1,800 voicings).
 
 ![Chord chart](docs/images/notation-chord-chart.png)
 

@@ -84,7 +84,9 @@ This document defines the core business rules. These rules MUST be respected in 
 ## Notation (v0.2)
 
 - Notation blocks (`chord`, `chords`, `keyboard`, `fretboard`) are drawn by `@dsebastien/music-notation`; the plugin adds no syntax of its own, so a vault renders the same in Obsidian and on Publish (library loader).
-- One switch per language, on by default. A language another plugin registered first stays theirs (Obsidian refuses a second processor); a language turned off renders as code until the plugin reloads, which frees it.
+- One switch per language, on by default. Registered once the layout is ready, so plugins enabled at startup register theirs first. A language another plugin registered first stays theirs: checked in Obsidian's registry before registering (a refused registration leaks a post-processor), and never retried. A language turned off renders as code until the plugin reloads, which frees it.
 - A rendering is destroyed with its section (`MarkdownRenderChild`). Mistakes render inline; the note is never changed.
+- New chord notes get a `chord block only when Music Practice draws `chord blocks and the block draws without an error.
+- A property name added in a newer version that an older data.json already uses for another property gets an `mp_` prefix.
 - New guitar chord notes: the chosen voicing goes to the frets and fingers properties (text; dashes when a fret has two digits) and a ``chord block with `symbol`, `frets`, `fingers` (and `position` only when it differs from the computed one). The block fills the template's empty ``chord block when there is one, else goes under the title. Piano chords get `symbol` + `instrument: piano`. "No diagram" adds neither.
 - Chord symbols are parsed by the library (one parser for notes and diagrams).

@@ -8,7 +8,7 @@ import type { NewLearningNote } from '../services/note-creator.service'
 import { renderBlock } from '@dsebastien/music-notation'
 import type { FrettedVoicing, RenderResult } from '@dsebastien/music-notation'
 import { lookupGuitarVoicing, voicingCount } from '@dsebastien/music-notation/voicings'
-import { chordBlock, formatFrets } from '../domain/notation-note'
+import { blockSource, chordBlock, formatFrets } from '../domain/notation-note'
 
 /** Add a learning note: type, name (or chord symbol), shape and starting level. */
 export class AddNoteModal extends Modal {
@@ -25,6 +25,8 @@ export class AddNoteModal extends Modal {
         app: App,
         private readonly types: LearningType[],
         private readonly fields: FieldNames,
+        /** Whether chord notes get a ```chord block (Music Practice draws them). */
+        private readonly chordBlocks: () => boolean,
         private readonly create: (type: LearningType, spec: NewLearningNote) => Promise<void>
     ) {
         super(app)
@@ -51,11 +53,16 @@ export class AddNoteModal extends Modal {
             : null
     }
 
-    /** The ```chord block the note gets, if any. */
+    /** The ```chord block the note gets: only one that draws, and only when Music Practice draws them. */
     private notation(): string | null {
         const symbol = this.symbol()
         const instrument = this.instrument()
-        return symbol && instrument ? chordBlock(symbol, instrument, this.voicing()) : null
+        if (!symbol || !instrument || !this.chordBlocks()) return null
+        const block = chordBlock(symbol, instrument, this.voicing())
+        if (!block) return null
+        const probe = renderBlock('chord', blockSource(block), createDiv())
+        probe.destroy()
+        return probe.ok ? block : null
     }
 
     /** The note's title and chord symbol for the current input. */
@@ -167,8 +174,14 @@ export class AddNoteModal extends Modal {
             const symbol = this.symbol()
             const count = symbol ? voicingCount(symbol) : 0
             voicingSelect.empty()
-            voicingField.toggle(count > 0)
-            if (!symbol || count === 0) return
+            voicingField.toggle(Boolean(symbol) && this.chordBlocks())
+            if (!symbol) return
+            if (count === 0) {
+                voicingSelect.createEl('option', { text: 'None found: no diagram', value: '-1' })
+                voicingSelect.disabled = true
+                return
+            }
+            voicingSelect.disabled = false
             if (this.voicingIndex >= count) this.voicingIndex = 0
             for (let i = 0; i < count; i++) {
                 const v = lookupGuitarVoicing(symbol, i)
@@ -190,8 +203,7 @@ export class AddNoteModal extends Modal {
             this.diagram = null
             const block = this.notation()
             if (!block) return
-            const source = block.split('\n').slice(1, -1).join('\n')
-            this.diagram = renderBlock('chord', source, diagramEl, {
+            this.diagram = renderBlock('chord', blockSource(block), diagramEl, {
                 voicings: lookupGuitarVoicing
             })
         }
