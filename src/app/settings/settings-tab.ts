@@ -263,6 +263,14 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             this.text('fields.priority', 'Priority', ''),
                             this.text('fields.prerequisites', 'Prerequisites', ''),
                             this.text('fields.theory', 'Theory', ''),
+                            this.text(
+                                'fields.shape',
+                                'Shape',
+                                'Chords and scales: open, barre, CAGED…'
+                            ),
+                            this.text('fields.chordSymbol', 'Chord symbol', ''),
+                            this.text('fields.chordRoot', 'Chord root', ''),
+                            this.text('fields.chordQuality', 'Chord quality', ''),
                             this.text('fields.lastReviewed', 'Last reviewed', ''),
                             this.text('fields.reviewInterval', 'Review interval', ''),
                             this.text('fields.reviewCount', 'Review count', '')

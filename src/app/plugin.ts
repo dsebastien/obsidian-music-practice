@@ -15,6 +15,8 @@ import { PracticeLogService } from './services/practice-log.service'
 import { kapActiveTimer, withKapFieldNames } from './services/kanban-action-planner.service'
 import { LogPracticeModal } from './ui/log-practice-modal'
 import { MasteryModal } from './ui/mastery-modal'
+import { AddNoteModal } from './ui/add-note-modal'
+import { NoteCreatorService } from './services/note-creator.service'
 import { createApi } from './api'
 import type { MusicPracticeApi } from './api'
 import { BpmModal } from './ui/bpm-modal'
@@ -37,6 +39,7 @@ export class MusicPracticePlugin extends Plugin {
     noteModel!: NoteModelService
     items!: ItemRepository
     practiceLog!: PracticeLogService
+    noteCreator!: NoteCreatorService
     /** Public API for scripts and AI skills (see docs/api.md). */
     api!: MusicPracticeApi
 
@@ -75,6 +78,7 @@ export class MusicPracticePlugin extends Plugin {
             })
         )
 
+        this.noteCreator = new NoteCreatorService(this.app, this.items, () => this.effective())
         this.api = createApi({
             model: () => this.noteModel.get(),
             rules: () => this.settings.rules,
@@ -130,6 +134,23 @@ export class MusicPracticePlugin extends Plugin {
             callback: () => this.openLogPractice()
         })
 
+        this.addCommand({
+            id: 'add-learning-note',
+            name: 'Add a learning note',
+            callback: () => {
+                const model = this.ensureModel()
+                if (model.learningTypes.length === 0) return
+                new AddNoteModal(
+                    this.app,
+                    model.learningTypes,
+                    this.effective().fields,
+                    async (type, spec) => {
+                        const file = await this.noteCreator.create(type, spec)
+                        await this.app.workspace.getLeaf(false).openFile(file)
+                    }
+                ).open()
+            }
+        })
         this.addCommand({
             id: 'change-mastery',
             name: 'Change mastery of the current note',

@@ -11,6 +11,11 @@ export interface FieldNames {
     priority: string
     prerequisites: string
     theory: string
+    /** Chords and other voicings. */
+    shape: string
+    chordSymbol: string
+    chordRoot: string
+    chordQuality: string
     /** Spaced review (Kanban Action Planner: reviewed date / interval / count properties). */
     lastReviewed: string
     reviewInterval: string
@@ -36,6 +41,10 @@ export function createDefaultFieldNames(): FieldNames {
         priority: 'priority',
         prerequisites: 'prerequisites',
         theory: 'theory',
+        shape: 'shape',
+        chordSymbol: 'chord_symbol',
+        chordRoot: 'chord_root',
+        chordQuality: 'chord_quality',
         lastReviewed: 'last_reviewed',
         reviewInterval: 'review_interval',
         reviewCount: 'review_count',

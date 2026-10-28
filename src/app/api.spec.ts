@@ -19,7 +19,9 @@ describe('summarize', () => {
                 statusValues: ['10 - Want to learn', '20 - Learning'],
                 stamps: {},
                 fields: new Set(),
-                topPriority: 10
+                topPriority: 10,
+                templatePath: null,
+                allowedValues: {}
             }
         ],
         sessionTypes: []

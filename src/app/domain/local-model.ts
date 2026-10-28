@@ -139,7 +139,9 @@ export function buildLocalModel(
             statusValues,
             stamps,
             fields: learningFields,
-            topPriority: settings.topPriority
+            topPriority: settings.topPriority,
+            templatePath: null,
+            allowedValues: {}
         }
     })
     const subjects = new Map<string, { domain: string; subject: string }>()

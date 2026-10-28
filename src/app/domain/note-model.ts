@@ -24,6 +24,10 @@ export interface LearningType {
     fields: Set<string>
     /** The type's highest priority number (current focus), or null without a priority field. */
     topPriority: number | null
+    /** The type's template (vault path), for new notes. */
+    templatePath: string | null
+    /** Allowed values of the properties that constrain them (shape, chord quality…). */
+    allowedValues: Record<string, string[]>
 }
 
 /** A note type whose notes record practice sessions of a subject. */
@@ -62,6 +66,13 @@ export interface TypeDescriptor {
     status: { property: string; values: string[]; stamps?: Record<string, string> } | null
     templatePath?: string | null
 }
+
+const allowedValuesOf = (properties: TypeDescriptor['properties']): Record<string, string[]> =>
+    Object.fromEntries(
+        properties
+            .map((p) => [p.name, toStrings(p.allowedValues)] as const)
+            .filter(([, v]) => v.length > 0)
+    )
 
 const toStrings = (raw: unknown): string[] =>
     Array.isArray(raw) ? raw.filter((v): v is string => typeof v === 'string') : []
@@ -127,7 +138,9 @@ export function buildNoteModel(
             statusValues: [...t.status.values],
             stamps: { ...(t.status.stamps ?? {}) },
             fields: props,
-            topPriority: priorities.length ? Math.min(...priorities) : null
+            topPriority: priorities.length ? Math.min(...priorities) : null,
+            templatePath: t.templatePath ?? null,
+            allowedValues: allowedValuesOf(t.properties)
         })
     }
     return { learningTypes, sessionTypes }

@@ -46,7 +46,9 @@ const type: LearningType = {
         'date_started',
         'date_mastered'
     ]),
-    topPriority: 10
+    topPriority: 10,
+    templatePath: null,
+    allowedValues: {}
 }
 const DATE = '2026-10-28'
 const ctx = (over = {}) => ({
