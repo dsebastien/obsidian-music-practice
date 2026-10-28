@@ -9,7 +9,7 @@ nav_order: 2
 
 ## Requirements
 
-- The [Obsidian Starter Kit](https://store.dsebastien.net/) plugin, whose note types define your learning notes and practice sessions. A standalone mode (the plugin's own note model) is planned.
+- Either the [Obsidian Starter Kit](https://store.dsebastien.net/), whose note types define your learning notes and practice sessions, or nothing at all: the standalone note model recognizes learning notes by their tag (`type/music/guitar/chord`) and a mastery level. See [Configuration](configuration.md).
 - Optional: the Kanban Action Planner. When it's installed, Music Practice writes time entries and review fields with the same property names, and can take over its running timer.
 
 ## Learning notes

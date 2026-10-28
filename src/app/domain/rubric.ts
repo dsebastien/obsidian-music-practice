@@ -1,33 +1,63 @@
+import type { PracticeRules } from './rules'
+
 /**
- * What each mastery level means, per kind of item. Shown when changing an item's mastery. Default
- * texts; configurable with the other rules (#27).
+ * What each mastery level means, per kind of item, shown when changing an item's mastery. Texts are
+ * settings (#27), keyed by role so they follow the configured level numbers.
  */
-export type Rubric = Record<number, string>
-
-const CHORD: Rubric = {
-    20: 'Shape known',
-    30: 'Every string rings',
-    40: 'Switches in time at the target BPM',
-    60: 'From memory, with any transition'
+export interface RubricTexts {
+    learning: string
+    slow: string
+    tempo: string
+    mastered: string
 }
 
-const PIECE: Rubric = {
-    20: 'Sections practiced separately',
-    30: 'Full run-through, slowly',
-    40: 'Full song at tempo, small mistakes',
-    60: 'From memory, at tempo, in context'
+export interface RubricSettings {
+    /** Chords. */
+    chord: RubricTexts
+    /** Arrangements, pieces, works. */
+    piece: RubricTexts
+    /** Scales, techniques, exercises and every other kind. */
+    pattern: RubricTexts
 }
 
-const PATTERN: Rubric = {
-    20: 'Pattern known',
-    30: 'Clean at a slow BPM',
-    40: 'Clean at the target BPM',
-    60: 'From memory, in any position'
+export function createDefaultRubric(): RubricSettings {
+    return {
+        chord: {
+            learning: 'Shape known',
+            slow: 'Every string rings',
+            tempo: 'Switches in time at the target BPM',
+            mastered: 'From memory, with any transition'
+        },
+        piece: {
+            learning: 'Sections practiced separately',
+            slow: 'Full run-through, slowly',
+            tempo: 'Full song at tempo, small mistakes',
+            mastered: 'From memory, at tempo, in context'
+        },
+        pattern: {
+            learning: 'Pattern known',
+            slow: 'Clean at a slow BPM',
+            tempo: 'Clean at the target BPM',
+            mastered: 'From memory, in any position'
+        }
+    }
 }
 
-/** The rubric for a kind: chords, pieces (arrangements, works), patterns (scales, techniques, exercises). */
-export function rubricFor(kind: string): Rubric {
-    if (kind === 'chord') return CHORD
-    if (kind === 'arrangement' || kind === 'piece' || kind === 'work') return PIECE
-    return PATTERN
+const PIECE_KINDS = new Set(['arrangement', 'piece', 'work'])
+
+/** The rubric of a kind, by level number. */
+export function rubricFor(
+    kind: string,
+    rubric: RubricSettings,
+    rules: PracticeRules
+): Record<number, string> {
+    const texts =
+        kind === 'chord' ? rubric.chord : PIECE_KINDS.has(kind) ? rubric.piece : rubric.pattern
+    const { levels } = rules
+    return {
+        [levels.learning]: texts.learning,
+        [levels.slow]: texts.slow,
+        [levels.tempo]: texts.tempo,
+        [levels.mastered]: texts.mastered
+    }
 }

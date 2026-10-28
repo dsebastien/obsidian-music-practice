@@ -10,6 +10,7 @@ import type { LearningItem } from '../domain/practice'
 import type { ReviewResult } from '../domain/review'
 import type { PracticeRules } from '../domain/rules'
 import { rubricFor } from '../domain/rubric'
+import type { RubricSettings } from '../domain/rubric'
 import { linkTo, renderBadge, renderMeta } from './item-row'
 
 export interface LogPracticePreset {
@@ -28,6 +29,7 @@ export interface LogPracticeDeps {
     items: LearningItem[]
     rules: PracticeRules
     fields: FieldNames
+    rubric: RubricSettings
     sessionTypeFor: (items: LearningItem[]) => SessionType | null
     submit: (request: LogRequest, adoptTimer: boolean) => Promise<string>
 }
@@ -193,7 +195,10 @@ export class LogPracticeModal extends Modal {
         const rubric = card.createDiv({ cls: 'mp-rubric' })
         const showRubric = () => {
             const level = log.level ?? item.level
-            const text = level !== null ? rubricFor(type.kind)[level] : undefined
+            const text =
+                level !== null
+                    ? rubricFor(type.kind, this.deps.rubric, this.deps.rules)[level]
+                    : undefined
             rubric.setText(text ? `${text}.` : '')
         }
         mastery.addEventListener('change', () => {

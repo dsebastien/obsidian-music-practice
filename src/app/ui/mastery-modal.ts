@@ -4,6 +4,8 @@ import { levelOf } from '../domain/mastery'
 import type { LearningType } from '../domain/note-model'
 import type { LearningItem } from '../domain/practice'
 import { rubricFor } from '../domain/rubric'
+import type { RubricSettings } from '../domain/rubric'
+import type { PracticeRules } from '../domain/rules'
 
 /** Pick an item's mastery level; each level shows what it means for this kind of item. */
 export class MasteryModal extends Modal {
@@ -11,6 +13,8 @@ export class MasteryModal extends Modal {
         app: App,
         private readonly item: LearningItem,
         private readonly type: LearningType,
+        private readonly rubricSettings: RubricSettings,
+        private readonly rules: PracticeRules,
         private readonly save: (level: number) => Promise<void>
     ) {
         super(app)
@@ -20,7 +24,7 @@ export class MasteryModal extends Modal {
         this.setTitle(`Mastery: ${this.item.name}`)
         const { contentEl } = this
         contentEl.addClass('mp-modal')
-        const rubric = rubricFor(this.type.kind)
+        const rubric = rubricFor(this.type.kind, this.rubricSettings, this.rules)
         const list = contentEl.createDiv({ cls: 'mp-list' })
         for (const value of this.type.statusValues) {
             const level = levelOf(value)

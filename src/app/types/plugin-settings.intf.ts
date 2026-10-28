@@ -1,6 +1,10 @@
 import { createDefaultFieldNames } from '../domain/fields'
 import type { FieldNames } from '../domain/fields'
 import { createDefaultRules } from '../domain/rules'
+import { createDefaultLocalModel } from '../domain/local-model'
+import type { LocalModelSettings } from '../domain/local-model'
+import { createDefaultRubric } from '../domain/rubric'
+import type { RubricSettings } from '../domain/rubric'
 import type { PracticeRules } from '../domain/rules'
 
 export interface PluginSettings {
@@ -8,6 +12,10 @@ export interface PluginSettings {
     rules: PracticeRules
     /** Frontmatter property names. */
     fields: FieldNames
+    /** What each mastery level means, per kind of item. */
+    rubric: RubricSettings
+    /** The note model used when the Obsidian Starter Kit isn't available (#4). */
+    local: LocalModelSettings
     /** Minutes offered by default for a practice plan. */
     defaultPlanMinutes: number
     /** Heading of the session note section that receives a log's note. */
@@ -32,6 +40,8 @@ export function createDefaultSettings(): PluginSettings {
     return {
         rules: createDefaultRules(),
         fields: createDefaultFieldNames(),
+        rubric: createDefaultRubric(),
+        local: createDefaultLocalModel(),
         defaultPlanMinutes: 30,
         notesHeading: 'Notes',
         activityName: 'Learn {subject}',

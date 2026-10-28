@@ -23,6 +23,7 @@ import type { LearningType } from './domain/note-model'
 import type { LogPracticePreset } from './ui/log-practice-modal'
 import type { FieldNames } from './domain/fields'
 import type { PracticeRules } from './domain/rules'
+import type { LocalModelSettings } from './domain/local-model'
 import { clockTime, formatElapsed, minutesBetween } from './domain/timer'
 
 export class MusicPracticePlugin extends Plugin {
@@ -40,10 +41,11 @@ export class MusicPracticePlugin extends Plugin {
     api!: MusicPracticeApi
 
     /** The rules and field names in effect (the Kanban Action Planner's time and review names win). */
-    effective(): { rules: PracticeRules; fields: FieldNames } {
+    effective(): { rules: PracticeRules; fields: FieldNames; local: LocalModelSettings } {
         return {
             rules: this.settings.rules,
-            fields: withKapFieldNames(this.app, this.settings.fields)
+            fields: withKapFieldNames(this.app, this.settings.fields),
+            local: this.settings.local
         }
     }
 
@@ -135,9 +137,16 @@ export class MusicPracticePlugin extends Plugin {
                 const current = this.activeItem()
                 if (!current) return false
                 if (!checking)
-                    new MasteryModal(this.app, current.item, current.type, async (level) => {
-                        await this.practiceLog.setLevel(current.item, level)
-                    }).open()
+                    new MasteryModal(
+                        this.app,
+                        current.item,
+                        current.type,
+                        this.settings.rubric,
+                        this.settings.rules,
+                        async (level) => {
+                            await this.practiceLog.setLevel(current.item, level)
+                        }
+                    ).open()
                 return true
             }
         })
@@ -255,6 +264,7 @@ export class MusicPracticePlugin extends Plugin {
                 items: this.items.items(),
                 rules: this.settings.rules,
                 fields: this.effective().fields,
+                rubric: this.settings.rubric,
                 sessionTypeFor: (items) => this.practiceLog.sessionTypeFor(items),
                 submit: async (request, adoptTimer) => {
                     const result = await this.practiceLog.log(request, { adoptTimer })
@@ -275,15 +285,13 @@ export class MusicPracticePlugin extends Plugin {
 
     /** The current note model, rebuilt when empty; null (with a notice) when there is no source. */
     private ensureModel() {
-        const model = this.noteModel.get().learningTypes.length
-            ? this.noteModel.get()
-            : this.noteModel.refresh()
-        if (this.noteModel.source === 'none') {
+        const model = this.noteModel.refresh()
+        if (model.learningTypes.length === 0)
             new Notice(
-                'Music Practice needs the Obsidian Starter Kit for now: its note types define the learning notes.'
+                this.noteModel.source === 'starter-kit'
+                    ? 'No learning note types in the Obsidian Starter Kit: a learning type has a status on the mastery scale and a "last practiced" property.'
+                    : 'No learning notes yet. Tag a note type/<domain>/<subject>/<kind> (for example type/music/guitar/chord) and give it a mastery level.'
             )
-            return null
-        }
         return model
     }
 

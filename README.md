@@ -18,7 +18,8 @@ I built this because I'm learning guitar and piano again, and I wanted my practi
 - **Practice next**: everything ranked by priority, staleness, BPM gap and what it unlocks.
 - **Mastery and spaced review**: a rubric per kind of item, a light SM-2 review that catches what's getting rusty.
 - **Skill tree**: prerequisites between items; see what's ready to learn.
-- **Works with the [Obsidian Starter Kit](https://store.dsebastien.net/)** (note types, folders, templates and statuses come from it) or on its own with a few settings.
+- **Works with the [Obsidian Starter Kit](https://store.dsebastien.net/)** (note types, folders, templates and statuses come from it) or on its own: tag your notes `type/music/guitar/chord` and give them a mastery level.
+- **Every rule is a setting**: mastery levels, review intervals, score weights, plan blocks, the rubric, property names. Sensible defaults on install.
 - **Public API** so scripts and AI assistants can log and plan practice with the same rules.
 
 ### 0.2: notation
