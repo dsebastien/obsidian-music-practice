@@ -57,3 +57,7 @@ Dates the Obsidian Starter Kit stamps on mastery changes (started, mastered) are
 ![Add a learning note](images/add-note.png)
 
 Pick the type (Guitar Chords, Piano Scales…), type a name, or a chord symbol for chord types, and optionally the shape and the starting level. The note is created from the type's template (its prompts are skipped: the dialog already asked), in the type's folder, with the type's name suffix.
+
+![Add a guitar chord with its voicing](images/add-note-chord.png)
+
+For guitar chords, pick a **voicing** among those found for the symbol (the preview shows it, or choose "No diagram"): the note gets its `frets` and `fingers` and a ` ```chord ` block, in the template's empty chord block when it has one. Piano chords get a keyboard block. See [Notation](notation.md).

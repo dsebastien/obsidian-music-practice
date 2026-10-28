@@ -9,7 +9,8 @@
     - `note-model.service.ts`: learning and session types from OSK, or the standalone model inferred from the notes; keeps the same model object while nothing changes.
     - `item-repository.ts`: learning notes → `LearningItemInput`, from the metadata cache, cached until the vault or the model changes.
     - `practice-log.service.ts`: the log writer (checks everything first, then session note, practiced notes, activity), mastery and BPM writes, activity lookup, timer guard.
-    - `note-creator.service.ts`: new learning notes from the type's template (rendered without its prompts).
+    - `note-creator.service.ts`: new learning notes from the type's template (rendered without its prompts), with a chord's voicing and diagram.
+    - `notation.service.ts`: registers the notation code block processors (one per enabled language, skipping languages another plugin owns) and renders through `@dsebastien/music-notation` (voicings included); the library's CSS is imported into `styles.css` at build time.
 - `src/app/ui/`: modals (practice next, plan, log, mastery, BPM, add) and the item card renderer.
 - `src/app/settings/`: the declarative settings tab and `setting-paths.ts` (read, parse, validate settings by path).
 - `src/app/api.ts`: the public API (plain JSON, version 1).

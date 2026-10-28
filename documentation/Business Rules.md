@@ -80,3 +80,11 @@ This document defines the core business rules. These rules MUST be respected in 
 - Frontmatter changes go through `processFrontMatter`, one transaction per note; number-like text (frets `022100`, codes) stays text.
 - Never lose information: existing values are only replaced by the fields the action is about. Minutes are never added to a value that isn't a number; existing time entries are kept as they are; the last-practiced and last-reviewed dates never move back (an older review leaves the review counters alone).
 - Creating a learning note applies its level like a change: the first review interval from "slow" up, and date stamps when the Obsidian Starter Kit doesn't stamp them.
+
+## Notation (v0.2)
+
+- Notation blocks (`chord`, `chords`, `keyboard`, `fretboard`) are drawn by `@dsebastien/music-notation`; the plugin adds no syntax of its own, so a vault renders the same in Obsidian and on Publish (library loader).
+- One switch per language, on by default. A language another plugin registered first stays theirs (Obsidian refuses a second processor); a language turned off renders as code until the plugin reloads, which frees it.
+- A rendering is destroyed with its section (`MarkdownRenderChild`). Mistakes render inline; the note is never changed.
+- New guitar chord notes: the chosen voicing goes to the frets and fingers properties (text; dashes when a fret has two digits) and a ``chord block with `symbol`, `frets`, `fingers` (and `position` only when it differs from the computed one). The block fills the template's empty ``chord block when there is one, else goes under the title. Piano chords get `symbol` + `instrument: piano`. "No diagram" adds neither.
+- Chord symbols are parsed by the library (one parser for notes and diagrams).

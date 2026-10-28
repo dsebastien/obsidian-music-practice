@@ -1,6 +1,6 @@
 ---
 title: Configuration
-nav_order: 3
+nav_order: 4
 ---
 
 # Configuration
@@ -15,6 +15,10 @@ Every rule the plugin applies is a setting, with defaults that work on install. 
 | Default practice plan length | 30              | Minutes offered when you plan a session.                                                |
 | Session notes heading        | Notes           | Section of the session note that receives a log's note.                                 |
 | Activity name                | Learn {subject} | Activity your sessions count towards when no earlier session links one.                 |
+
+## Notation blocks
+
+One switch per kind of [notation block](notation.md), all on by default: chord diagrams (` ```chord `), chord charts (` ```chords `), keyboards and fretboards. A block turned off shows as code; reload the plugin to let another plugin draw it. The status line says when another plugin already draws one of them.
 
 ## Rules
 
@@ -31,7 +35,7 @@ What each level means, for chords, for arrangements and pieces, and for scales, 
 
 ## Property names
 
-The frontmatter properties the plugin reads and writes (last practiced, BPMs, priority, prerequisites, review fields, minutes, session fields, time entries…). When the Kanban Action Planner is installed, its time-tracking and review property names are used, so both plugins write the same properties.
+The frontmatter properties the plugin reads and writes (last practiced, BPMs, priority, prerequisites, review fields, a guitar chord's frets and fingers, minutes, session fields, time entries…). When the Kanban Action Planner is installed, its time-tracking and review property names are used, so both plugins write the same properties.
 
 ## With or without the Obsidian Starter Kit
 

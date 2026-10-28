@@ -40,11 +40,18 @@ Add a chord from its symbol:
 - **Every rule is a setting**: mastery levels, review intervals, score weights, plan blocks, the rubric, property names. Sensible defaults on install.
 - **Public API** so scripts and AI assistants can log and plan practice with the same rules.
 
-### 0.2: notation (planned)
+### 0.2: notation (available)
 
-- Chord diagrams (guitar) and keyboards (piano), chord charts, tabs and scores (alphaTex, via [alphaTab](https://alphatab.net)) with playback: play, slow down, loop, metronome.
-- Rendering on Obsidian Publish.
-- Import from Guitar Pro, MusicXML, ChordPro and plain-text tabs.
+- **Notation blocks**: ` ```chord ` (guitar diagrams, piano chords), ` ```keyboard `, ` ```fretboard ` and ` ```chords ` (ChordPro charts, transposable), drawn by the [Music Notation](https://github.com/dsebastien/music-notation) library. On Obsidian Publish through the library's loader.
+- **New chord notes** get a voicing (frets, fingers and a diagram) picked from about 2,000.
+
+![Chord chart](docs/images/notation-chord-chart.png)
+
+### 0.3: tabs, scores and playback (planned)
+
+- Tabs and scores (alphaTex, via [alphaTab](https://alphatab.net)) with playback: play, slow down, loop, metronome.
+- Play chords, scales and notes from the notation blocks.
+- Import from Guitar Pro, MusicXML and plain-text tabs.
 
 ## Documentation
 
