@@ -1,8 +1,8 @@
 {
-    "id": "my-plugin",
-    "name": "My Plugin",
-    "description": "TODO: describe what your plugin does (must end with a period, must not contain the word \"Obsidian\", must not start with the plugin name).",
-    "version": "3.0.0",
+    "id": "music-practice",
+    "name": "Music Practice",
+    "description": "Learn an instrument in Obsidian: practice logging with a timer, spaced review, practice plans and mastery tracking for guitar, piano and any instrument.",
+    "version": "0.0.0",
     "minAppVersion": "1.13.0",
     "isDesktopOnly": false,
     "author": "Sébastien Dubois",

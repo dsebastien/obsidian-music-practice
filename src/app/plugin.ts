@@ -1,14 +1,13 @@
 import { Plugin } from 'obsidian'
 import { createDefaultSettings } from './types/plugin-settings.intf'
 import type { PluginSettings } from './types/plugin-settings.intf'
-import { TemplatePluginSettingTab } from './settings/settings-tab'
+import { MusicPracticeSettingTab } from './settings/settings-tab'
 import { log } from '../utils/log'
 import { registerWhatsNewView } from './whats-new'
 import { produce } from 'immer'
 import type { Draft } from 'immer'
 
-// TODO: Rename this class to match your plugin name (e.g., MyAwesomePlugin)
-export class TemplatePlugin extends Plugin {
+export class MusicPracticePlugin extends Plugin {
     /**
      * The plugin settings are immutable
      */
@@ -28,7 +27,7 @@ export class TemplatePlugin extends Plugin {
         // TODO
 
         // Add a settings screen for the plugin
-        this.addSettingTab(new TemplatePluginSettingTab(this.app, this))
+        this.addSettingTab(new MusicPracticeSettingTab(this.app, this))
     }
 
     override onunload() {}

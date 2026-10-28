@@ -1,6 +1,6 @@
 import { Notice, PluginSettingTab } from 'obsidian'
 import type { App, SettingDefinitionItem } from 'obsidian'
-import type TemplatePlugin from '../../main'
+import type MusicPracticePlugin from '../../main'
 import { BUY_ME_A_COFFEE_BADGE_DATA_URL } from '../assets/buy-me-a-coffee'
 import { BUY_ME_A_COFFEE_URL, renderSupportSection } from '../ui/support-links'
 
@@ -34,11 +34,10 @@ import { BUY_ME_A_COFFEE_URL, renderSupportSection } from '../ui/support-links'
  * - `setControlValue` MUST reject on failure. Resolving tells the framework
  *   the write landed, so the pane keeps showing a value that was never stored.
  */
-// TODO: Rename this class to match your plugin name (e.g., MyAwesomePluginSettingTab)
-export class TemplatePluginSettingTab extends PluginSettingTab {
-    plugin: TemplatePlugin
+export class MusicPracticeSettingTab extends PluginSettingTab {
+    plugin: MusicPracticePlugin
 
-    constructor(app: App, plugin: TemplatePlugin) {
+    constructor(app: App, plugin: MusicPracticePlugin) {
         super(app, plugin)
         this.plugin = plugin
     }

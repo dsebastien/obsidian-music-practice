@@ -1,11 +1,11 @@
 {
-    "name": "obsidian-my-plugin",
-    "version": "3.0.0",
-    "description": "TODO: describe what your plugin does (must end with a period, must not contain the word \"Obsidian\", must not start with the plugin name).",
+    "name": "music-practice",
+    "version": "0.0.0",
+    "description": "Learn an instrument in Obsidian: practice logging with a timer, spaced review, practice plans and mastery tracking for guitar, piano and any instrument.",
     "author": {
-        "name": "Your Name",
-        "email": "your-email@example.com",
-        "url": "https://your-website.com"
+        "name": "Sébastien Dubois",
+        "email": "developassion.sprl@gmail.com",
+        "url": "https://dsebastien.net"
     },
     "keywords": [
         "obsidian",
@@ -15,12 +15,12 @@
     "private": true,
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/your-username/obsidian-my-plugin.git"
+        "url": "git+https://github.com/dsebastien/obsidian-music-practice.git"
     },
     "bugs": {
-        "url": "https://github.com/your-username/obsidian-my-plugin/issues"
+        "url": "https://github.com/dsebastien/obsidian-music-practice/issues"
     },
-    "homepage": "https://github.com/your-username/obsidian-my-plugin",
+    "homepage": "https://github.com/dsebastien/obsidian-music-practice",
     "engines": {
         "node": ">=20.0.0",
         "npm": ">=10.1.0"
@@ -51,7 +51,6 @@
         "commit": "cz",
         "cm": "cz",
         "commit:lint": "commitlint --edit",
-        "init": "bun scripts/init-from-template.ts",
         "release:update-version": "bun scripts/update-version.ts",
         "release:version-bump": "bun scripts/version-bump.ts",
         "release:changelog": "bun scripts/generate-changelog.ts",

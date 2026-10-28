@@ -1,7 +1,7 @@
-title: Plugin template
-description: Documentation for the Plugin template Obsidian plugin.
+title: Music Practice
+description: Documentation for the Music Practice Obsidian plugin.
 url: https://dsebastien.github.io
-baseurl: /obsidian-plugin-template
+baseurl: /obsidian-music-practice
 
 remote_theme: just-the-docs/just-the-docs
 
@@ -9,7 +9,7 @@ plugins:
     - jekyll-remote-theme
 
 aux_links:
-    GitHub: https://github.com/dsebastien/obsidian-plugin-template
+    GitHub: https://github.com/dsebastien/obsidian-music-practice
 
 search_enabled: true
 search:
