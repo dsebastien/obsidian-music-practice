@@ -21,4 +21,7 @@ Code: `src/app/domain/`. Pure TypeScript, no Obsidian imports; rules in `Busines
 - **Drill** (`drill.ts`): chord pairs, pair titles, best and last counts.
 - **Undo** (`undo.ts`): the record a log keeps (keys before and after, the session note) and what undoing restores or refuses.
 - **Voicings** (`voicings.ts`): the voicings modal's filters → the library's options, shape values for a note type, `shapeConflict` (a note only takes voicings of its own shape), free titles for new voicing notes, frets read from a property.
+- **Triads** (`triads.ts`): string sets, triad note titles.
+- **Progression** (`progression.ts`): the chords of a note's chord charts, in order.
+- **Playback** (`playback.ts`): engines and defaults, the library's `play` option.
 - **Timer** (`timer.ts`), **Dates** (`dates.ts`): formatting and date helpers (the timer counts paused time out).

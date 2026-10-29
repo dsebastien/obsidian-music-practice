@@ -124,6 +124,7 @@ The blocks accept chords in words and recognize chords from their frets, and dra
 - ` ```chord ` with `F Sharp Minor 7`, or only `frets: x02220` (named A).
 - Modes mark their characteristic note in a third color; `compare: major` shows what changes from the major scale.
 - Fretboards draw one position (`position: 2`, `shape: E`, `shape: 3nps`) or all of them in a row (`positions: all`); `modes: C major` draws every mode of a key.
+- ` ```chord ` with `triads: 1-3` draws a chord's triads on a string set (or `key: G major` a key's), with R, 3, 5 in the dots; `from: C x32010` with `to: Am` the easiest ways from one chord to the next, fingers that stay or slide marked; `progression: G D Em C` the smoothest voicings of a progression.
 - ` ```chord ` with `voicings: all` (or `voicings: 6`) draws every playable voicing of the chord, the easiest first; `area: 5-9`, `root-string: 5`, `strings: 1-3`, `inversion: any` narrow them down (see the [guide](https://dsebastien.github.io/music-notation/blocks.html#all-the-ways-to-play-a-chord)). The **Voicings of this chord** command does the same for a chord note, and adds the one you pick as its own note.
 
 ## Notes draw their own diagram
@@ -134,11 +135,39 @@ An empty ` ```chord ` block in a chord note, or an empty ` ```fretboard ` / ` ``
 
 **Identify this chord** names a chord note from its frets or pitches when it has no chord symbol yet. See [Usage](usage.md#add-a-learning-note).
 
+## Hear the diagrams
+
+Hover a chord, keyboard or fretboard diagram (tap it on a phone or tablet): a bar at its bottom plays it. Chords strum from the low string up and ring; scales go up and down. Loop, speed (when several notes play), volume and sound (guitar or piano) are there too, and a click on a dot or a key plays that note. The sound is a soundfont of recorded instruments, bundled with the plugin, so it works offline; **Settings → Playback** switches to a lighter synthesizer or turns the bar off.
+
+**Play this chord or scale** plays the current chord or scale note.
+
+## Tabs and scores
+
+` ```tab ` and ` ```score ` blocks are written in [alphaTex](https://alphatab.net/docs/alphatex/introduction) and drawn by [alphaTab](https://alphatab.net), bundled with the plugin (offline, nothing downloaded):
+
+````markdown
+```tab
+\title "Riff"
+\tempo 100
+.
+:8 0.6 3.6 5.6 0.6 3.6 6.6 5.6 r | 0.6 3.6 5.6 3.6 0.6 r r r
+```
+````
+
+![A tab with its player](images/tab.png)
+
+- `staves: tab | score | both` on the first line; `tab` blocks show tablature, `score` blocks notation.
+- `file: [[Song.gp]]` draws a Guitar Pro (3–8), MusicXML or Capella file from your vault instead; `tracks: 1 2` picks tracks.
+- Hover the music: play / pause, stop, loop, metronome, count-in, speed, volume, and **Export** (Guitar Pro 7 or MIDI, saved in your attachments folder, or print).
+- **Insert a tab block** starts one at the cursor; the [imports](usage.md#imports) turn files and pasted tabs into blocks.
+
+The full syntax, with triads, chord transitions and every option, is in the [library's guide](https://dsebastien.github.io/music-notation/blocks.html).
+
 ## Turning blocks off
 
 **Settings → Music Practice → Notation blocks** has one switch per kind of block. A block turned off shows as code. When another plugin already draws one of these code blocks, Music Practice leaves it alone and says so there.
 
-Music Practice claims its blocks once Obsidian has started, so plugins enabled at startup keep theirs. If you enable another plugin later that draws `chord`, `chords`, `keyboard` or `fretboard` blocks, it can't register them while Music Practice holds them: turn that block off here, reload Music Practice, then enable the other plugin.
+Music Practice claims its blocks once Obsidian has started, so plugins enabled at startup keep theirs. If you enable another plugin later that draws `chord`, `chords`, `keyboard`, `fretboard`, `tab` or `score` blocks, it can't register them while Music Practice holds them: turn that block off here, reload Music Practice, then enable the other plugin.
 
 ## Obsidian Publish
 

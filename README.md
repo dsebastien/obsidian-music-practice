@@ -6,7 +6,7 @@ Every chord, scale, technique, exercise and piece you learn is a note with a mas
 
 I built this because I'm learning guitar and piano again, and I wanted my practice to live next to the rest of my notes, with a system that tells me what to work on instead of a pile of tabs.
 
-> **Version 0.6** shows every way to play a chord, on top of the practice panel, metronome, chord change drills, the practice engine and notation blocks (chord diagrams, keyboards, fretboards, chord charts) that chord and scale notes draw from their own properties. Tabs and scores with playback come in 0.7. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones) and [issues](https://github.com/dsebastien/obsidian-music-practice/issues).
+> **Version 0.7** adds tabs and scores with playback, triads, chord transitions, imports, and a play button on every diagram, on top of every way to play a chord, the practice panel, metronome, chord change drills, the practice engine and notation blocks that chord and scale notes draw from their own properties. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones) and [issues](https://github.com/dsebastien/obsidian-music-practice/issues).
 
 ## Screenshots
 
@@ -79,11 +79,15 @@ Add a chord from its symbol:
 
 ![Every voicing of A](docs/images/voicings.png)
 
-### 0.7: tabs, scores and playback (planned)
+### 0.7: tabs, scores, triads, transitions (available)
 
-- Tabs and scores (alphaTex, via [alphaTab](https://alphatab.net)) with playback: play, slow down, loop, metronome.
-- Play chords, scales and notes from the notation blocks.
-- Import from Guitar Pro, MusicXML and plain-text tabs.
+- **Tabs and scores** with playback: play, slow down, loop, metronome, count-in; from alphaTex or a Guitar Pro / MusicXML file; export to Guitar Pro 7 or MIDI, or print. Everything is bundled: it works offline.
+- **Hear the diagrams**: a play bar on every chord, keyboard and fretboard diagram (on hover); chords strum, scales go up and down, a click plays a note.
+- **Triads** on string sets, as learning notes (titled with their string set and inversion, after their root position).
+- **Chord transitions**: the easiest way from one chord to the next, fingers that stay or slide marked, with tips; the smoothest voicings for a whole progression.
+- **Imports**: Guitar Pro, MusicXML, Capella and ChordPro files, pasted text tabs and chord sheets.
+
+![Tabs with a player](docs/images/tab.png)
 
 ## Documentation
 
