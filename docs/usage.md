@@ -87,6 +87,8 @@ Pick one, then:
 
 **Voicings of a chord** does the same for any chord you type. In **Add a learning note**, **More voicings…** picks one for the new note (its shape comes along).
 
+![More voicings in Add a learning note](images/add-note-voicings.png)
+
 The shapes are matched to your chord note type's shape values (Open, E-shape barre, A-shape barre, CAGED C…); a shape the type doesn't list stays empty.
 
 ## Undo

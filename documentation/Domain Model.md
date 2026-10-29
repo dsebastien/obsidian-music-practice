@@ -15,4 +15,10 @@ Code: `src/app/domain/`. Pure TypeScript, no Obsidian imports; rules in `Busines
 - **Rubric** (`rubric.ts`): rubric texts per kind group, by role; `rubricFor(kind, rubric, rules)`.
 - **Chord** (`chord.ts`): `parseChord` (symbol → ASCII name, root, quality), `chordTitle`, `safeTitle`.
 - **Template render** (`template-render.ts`): `renderTemplate` (a Templater template without its scripts), `fillSection`.
-- **Timer** (`timer.ts`), **Dates** (`dates.ts`): formatting and date helpers.
+- **Notation notes** (`notation-note.ts`): what chord and scale notes get from the notation library (frets and fingers text, the empty block, property names), `chordFromNotes`; **Notation layout** (`notation-layout.ts`): the default orientation and hand.
+- **Panel** (`panel.ts`): the practice panel's list and what Log this session sends.
+- **Metronome** (`metronome.ts`): tempo bounds, click kinds, the speed trainer's BPM, tap tempo.
+- **Drill** (`drill.ts`): chord pairs, pair titles, best and last counts.
+- **Undo** (`undo.ts`): the record a log keeps (keys before and after, the session note) and what undoing restores or refuses.
+- **Voicings** (`voicings.ts`): the voicings modal's filters → the library's options, shape values for a note type, `shapeConflict` (a note only takes voicings of its own shape), free titles for new voicing notes, frets read from a property.
+- **Timer** (`timer.ts`), **Dates** (`dates.ts`): formatting and date helpers (the timer counts paused time out).

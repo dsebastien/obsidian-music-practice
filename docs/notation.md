@@ -124,6 +124,7 @@ The blocks accept chords in words and recognize chords from their frets, and dra
 - ` ```chord ` with `F Sharp Minor 7`, or only `frets: x02220` (named A).
 - Modes mark their characteristic note in a third color; `compare: major` shows what changes from the major scale.
 - Fretboards draw one position (`position: 2`, `shape: E`, `shape: 3nps`) or all of them in a row (`positions: all`); `modes: C major` draws every mode of a key.
+- ` ```chord ` with `voicings: all` (or `voicings: 6`) draws every playable voicing of the chord, the easiest first; `area: 5-9`, `root-string: 5`, `strings: 1-3`, `inversion: any` narrow them down (see the [guide](https://dsebastien.github.io/music-notation/blocks.html#all-the-ways-to-play-a-chord)). The **Voicings of this chord** command does the same for a chord note, and adds the one you pick as its own note.
 
 ## Notes draw their own diagram
 
