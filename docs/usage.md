@@ -30,6 +30,48 @@ Each learning type pairs with a practice session type of the same instrument (`t
 | **Set BPM of the current note**                                        | Current and target BPM; reaching the target offers "Can play at tempo".                                                                                                                                                                                                                                                                                                               |
 | **Start practice timer** / **Stop practice timer and log the session** | The elapsed time shows in the status bar on desktop (click it to stop). Stopping opens Log practice with the minutes, the start time and the day the timer started.                                                                                                                                                                                                                   |
 | **Log practice**                                                       | Records a session: minutes, date, an optional focus, the items you practiced, their new mastery, BPM, review results, the session quality and a note.                                                                                                                                                                                                                                 |
+| **Open practice panel**                                                | The practice panel in the right sidebar (a tab on mobile): the timer, your session list, the metronome. Also the ribbon's music icon. See [Practice panel](#practice-panel).                                                                                                                                                                                                          |
+| **Pause or resume practice timer**                                     | Paused time isn't counted as practice.                                                                                                                                                                                                                                                                                                                                                |
+| **Start metronome** / **Stop metronome**                               | In the practice panel when it's open, else in a small window; it keeps playing when you close it (the status bar shows it).                                                                                                                                                                                                                                                           |
+| **Speed trainer for the current note**                                 | The metronome at the note's current BPM, stepping up toward its target.                                                                                                                                                                                                                                                                                                               |
+| **Save metronome BPM to its note**                                     | Opens Set BPM with the tempo you reached.                                                                                                                                                                                                                                                                                                                                             |
+| **Chord change drill** / **Chord change drill for the current note**   | Count the changes between two chords in a minute. See [Chord change drills](#chord-change-drills).                                                                                                                                                                                                                                                                                    |
+| **Undo last practice log**                                             | Puts the notes back as they were before the last log and trashes its session note. Also the Undo button in the notice after logging.                                                                                                                                                                                                                                                  |
+
+## Practice panel
+
+![The practice panel](images/practice-panel.png)
+
+Open it with **Open practice panel** or the ribbon's music icon. It keeps what you practice now in one place:
+
+- **Timer**: start, pause and resume; paused time isn't counted.
+- **Session**: the items you're working on. **Plan** fills it from a practice plan (or use **Use in panel** in Plan a practice session), **Add** finds any item. Tick items off as you go; −/+ sets the BPM you reached; ♩ gives the item to the metronome; × removes it.
+- **Log this session**: Log practice with the ticked items (all of them when none is ticked), their BPMs and the timer's minutes. Logged items leave the list; the rest stay for next time. The list survives restarts.
+- **Drill**: a chord change drill.
+- **Metronome**: below.
+
+## Metronome
+
+![The metronome](images/metronome.png)
+
+Tempo (type it, −5 −1 +1 +5, or **Tap**), beats per bar with the first accented, clicks per beat (quarter notes, eighths, triplets, sixteenths), volume. The **speed trainer** starts from the tempo and adds a few BPM every few bars (both in the settings) up to the note's target BPM; **+** steps up at once, after a clean repetition. **Save BPM to the note** opens Set BPM with the tempo reached (reaching the target offers "Can play at tempo").
+
+## Chord change drills
+
+![A chord change drill](images/chord-change-drill.png)
+
+Clean, quick changes between two chords make songs playable. A drill: switch between two chords for a minute and count the changes.
+
+1. Pick a pair: those among your current-focus chords come first, the slowest first (never drilled, then the lowest best). Or **Pick two chords**.
+2. **Start**, then press **+1** (or the space bar) at each change. Both chords are drawn side by side.
+3. **Save**: the pair's exercise note ("A Major - Open ↔ D Major - Open") keeps the best and the last count (`changes_best`, `changes_last`). The note is created on the first drill and links both chords through `trains`, so it's an exercise like any other: mastery, review, practice next.
+4. **Log this drill** logs the minute with the result as the session's note.
+
+The drill's length is a setting (60 seconds by default).
+
+## Undo
+
+The notice after a log has an **Undo** button, and **Undo last practice log** does the same later: the practiced notes and the activity get back what the log changed, and its session note goes to the trash. If any of them changed since, nothing is undone and the notice says which. A Kanban Action Planner timer's own time entry stays (it's real time).
 
 ## Log practice
 

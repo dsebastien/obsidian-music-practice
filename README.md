@@ -6,7 +6,7 @@ Every chord, scale, technique, exercise and piece you learn is a note with a mas
 
 I built this because I'm learning guitar and piano again, and I wanted my practice to live next to the rest of my notes, with a system that tells me what to work on instead of a pile of tabs.
 
-> **Version 0.4** ships the practice engine and notation blocks (chord diagrams, keyboards, fretboards, chord charts) that chord and scale notes draw from their own properties. Tabs and scores with playback come in 0.5. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones) and [issues](https://github.com/dsebastien/obsidian-music-practice/issues).
+> **Version 0.5** ships the practice panel, a metronome, chord change drills and undo, on top of the practice engine and notation blocks (chord diagrams, keyboards, fretboards, chord charts) that chord and scale notes draw from their own properties. Practice tools (a panel, a metronome, chord change drills, undo) in 0.5. Tabs and scores with playback come in 0.6. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones) and [issues](https://github.com/dsebastien/obsidian-music-practice/issues).
 
 ## Screenshots
 
@@ -63,7 +63,16 @@ Add a chord from its symbol:
 
 ![A scale note drawing its fretboard](docs/images/notation-from-properties.png)
 
-### 0.5: tabs, scores and playback (planned)
+### 0.5: practice (available)
+
+- **Practice panel**: the timer (with pause), your session list from a plan, BPM nudges, the metronome, Log this session.
+- **Metronome and speed trainer**: accents, subdivisions, tap tempo; steps up to the note's target BPM; Save BPM.
+- **Chord change drills**: count the changes between two chords in a minute; best and last on the pair's note.
+- **Undo the last log**, from the notice or a command.
+
+![The practice panel](docs/images/practice-panel.png)
+
+### 0.6: tabs, scores and playback (planned)
 
 - Tabs and scores (alphaTex, via [alphaTab](https://alphatab.net)) with playback: play, slow down, loop, metronome.
 - Play chords, scales and notes from the notation blocks.

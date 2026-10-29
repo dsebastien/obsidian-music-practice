@@ -29,6 +29,17 @@ One switch per kind of [notation block](notation.md), all on by default: chord d
 
 A block's own `orientation:` or `hand:` wins over these. Diagrams on screen redraw when you change them (reading view, live preview, embeds). On Obsidian Publish, see [Notation](notation.md#obsidian-publish).
 
+## Metronome
+
+| Setting                   | Default       | What it does                                            |
+| ------------------------- | ------------- | ------------------------------------------------------- |
+| Beats per bar             | 4             | From 2 to 12; the first is accented.                    |
+| Clicks                    | Quarter notes | Per beat: quarter notes, eighths, triplets, sixteenths. |
+| Volume                    | 0.7           | From 0 to 1.                                            |
+| Speed trainer step        | 2             | BPM added at each step.                                 |
+| Speed trainer bars        | 4             | Bars between two steps.                                 |
+| Chord change drill length | 60            | Seconds, from 10 to 600.                                |
+
 ## Rules
 
 | Group          | Settings (defaults)                                                                                                                                             |
@@ -44,7 +55,7 @@ What each level means, for chords, for arrangements and pieces, and for scales, 
 
 ## Property names
 
-The frontmatter properties the plugin reads and writes (last practiced, BPMs, priority, prerequisites, review fields, a guitar chord's frets, fingers and position, a piano chord's pitches and fingering, a scale's root, type and fingering, minutes, session fields, time entries…). When the Kanban Action Planner is installed, its time-tracking and review property names are used, so both plugins write the same properties. Empty notation blocks in chord and scale notes draw from these names ([Notation](notation.md#notes-draw-their-own-diagram)).
+The frontmatter properties the plugin reads and writes (last practiced, BPMs, priority, prerequisites, review fields, a guitar chord's frets, fingers and position, a piano chord's pitches and fingering, a scale's root, type and fingering, what an exercise trains and a chord change drill's best and last counts, minutes, session fields, time entries…). When the Kanban Action Planner is installed, its time-tracking and review property names are used, so both plugins write the same properties. Empty notation blocks in chord and scale notes draw from these names ([Notation](notation.md#notes-draw-their-own-diagram)).
 
 ## With or without the Obsidian Starter Kit
 
