@@ -23,7 +23,7 @@ export interface VoicingNotesHost {
 }
 
 /** What the service needs to create notes. */
-export type VoicingNoteCreator = Pick<NoteCreatorService, 'exists' | 'create'>
+export type VoicingNoteCreator = Pick<NoteCreatorService, 'exists' | 'create' | 'pathFor'>
 
 /** What adding a voicing as a note did: a new note, or the note that already plays it. */
 export interface AddedVoicing {
@@ -46,6 +46,20 @@ export class VoicingNotesService {
         const name = this.fields().shape
         if (!type.fields.has(name)) return null
         return shapeValue(voicing.shape, type.allowedValues[name] ?? [])
+    }
+
+    /** The type's value for a shape name the library uses ("Triad"); null when it has none. */
+    shapeNamed(type: LearningType, name: string): string | null {
+        const field = this.fields().shape
+        if (!type.fields.has(field)) return null
+        return shapeValue(name as GeneratedVoicing['shape'], type.allowedValues[field] ?? [])
+    }
+
+    /** A note's name (its file's) for a title of this type, when that note exists. */
+    existingName(type: LearningType, title: string): string | null {
+        if (!this.creator.exists(type, title)) return null
+        const path = this.creator.pathFor(type, title)
+        return path.slice(path.lastIndexOf('/') + 1).replace(/\.md$/, '')
     }
 
     /** Whether notes of this type can hold a voicing (they have a frets property). */
@@ -84,7 +98,9 @@ export class VoicingNotesService {
         type: LearningType,
         voicing: GeneratedVoicing,
         symbol: string,
-        drawsBlock: boolean
+        drawsBlock: boolean,
+        /** A triad's own title and shape, and the note it builds on (root position). */
+        as?: { title: string; shape: string | null; prerequisite: string | null }
     ): Promise<AddedVoicing> {
         const chord = readChord(symbol)
         if (!chord) throw new Error(`Unknown chord "${symbol}".`)
@@ -92,9 +108,9 @@ export class VoicingNotesService {
             throw new Error(`${type.name} notes have no "${this.fields().frets}" property.`)
         const existing = this.noteWith(type, voicing, chord.symbol)
         if (existing) return { file: existing, existed: true }
-        const shape = this.shapeFor(type, voicing)
+        const shape = as ? as.shape : this.shapeFor(type, voicing)
         const title = voicingNoteTitle(
-            safeTitle(chordTitle(chord, shape ?? undefined)),
+            safeTitle(as?.title ?? chordTitle(chord, shape ?? undefined)),
             voicing,
             (t) => this.creator.exists(type, t)
         )
@@ -105,7 +121,10 @@ export class VoicingNotesService {
             chordSymbol: chord.symbol,
             ...(shape ? { shape } : {}),
             voicing,
-            ...(drawsBlock ? { block: 'chord' } : {})
+            ...(drawsBlock ? { block: 'chord' } : {}),
+            ...(as?.prerequisite
+                ? { properties: { [this.fields().prerequisites]: [`[[${as.prerequisite}]]`] } }
+                : {})
         })
         return { file, existed: false }
     }

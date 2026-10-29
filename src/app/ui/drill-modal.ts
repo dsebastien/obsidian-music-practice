@@ -21,6 +21,8 @@ export interface DrillDeps {
     ) => Promise<{ path: string; best: number; improved: boolean }>
     /** Open Log practice for the drill. */
     log: (path: string, minutes: number, note: string) => void
+    /** Show the easiest way between the pair's chords (#57). */
+    easiestWay?: (pair: DrillPair) => void
 }
 
 /** One chord change drill: pick a pair, count the changes in a minute, save, log (#40). */
@@ -153,6 +155,10 @@ export class DrillModal extends Modal {
         })
         const actions = el.createDiv({ cls: 'mp-actions' })
         const start = actions.createEl('button', { text: 'Start' })
+        if (this.deps.easiestWay)
+            actions
+                .createEl('button', { text: 'Easiest way' })
+                .addEventListener('click', () => this.deps.easiestWay?.(pair))
         const result = el.createDiv({ cls: 'mp-drill-result' })
         const show = () => {
             clock.setText(`${this.remaining} s`)

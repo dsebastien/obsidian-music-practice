@@ -97,6 +97,35 @@ export function sourcemapFor(prod: boolean): 'none' | 'inline' {
     return prod ? 'none' : 'inline'
 }
 
+/**
+ * alphaTab, embedded so tabs, scores and the soundfont play offline from the first use (#15):
+ * its UMD script as text (run from a blob URL, in workers too), the Bravura music font as a data
+ * URL and the sonivox soundfont as base64. Virtual modules, since alphaTab's package doesn't
+ * export these files.
+ */
+const ALPHATAB_DIST = 'node_modules/@coderline/alphatab/dist'
+const alphaTabAssets: import('bun').BunPlugin = {
+    name: 'alphatab-assets',
+    setup(build) {
+        build.onResolve({ filter: /^virtual:alphatab-/ }, (args) => ({
+            path: args.path,
+            namespace: 'alphatab'
+        }))
+        build.onLoad({ filter: /.*/, namespace: 'alphatab' }, async (args) => {
+            const file = (name: string) => Bun.file(`${ALPHATAB_DIST}/${name}`)
+            const value =
+                args.path === 'virtual:alphatab-script'
+                    ? await file('alphaTab.min.js').text()
+                    : args.path === 'virtual:alphatab-font'
+                      ? `data:font/woff2;base64,${Buffer.from(await file('font/Bravura.woff2').arrayBuffer()).toString('base64')}`
+                      : Buffer.from(await file('soundfont/sonivox.sf3').arrayBuffer()).toString(
+                            'base64'
+                        )
+            return { contents: `export default ${JSON.stringify(value)}`, loader: 'js' }
+        })
+    }
+}
+
 async function buildJs(): Promise<void> {
     console.log(`Building plugin in ${isProd ? 'production' : 'development'} mode...`)
     const { success, logs } = await Bun.build({
@@ -104,6 +133,7 @@ async function buildJs(): Promise<void> {
         entrypoints: [`${SRC}/main.ts`],
         outdir: DIST,
         external: EXTERNAL_MODULES,
+        plugins: [alphaTabAssets],
         format: 'cjs',
         target: 'node',
         define: await readChangelogDefine(),

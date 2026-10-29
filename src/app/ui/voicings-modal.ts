@@ -3,6 +3,7 @@ import type { App } from 'obsidian'
 import { generateVoicings, readChord, renderBlock } from '@dsebastien/music-notation'
 import type { GeneratedVoicing, RenderOptions, RenderResult } from '@dsebastien/music-notation'
 import { formatFingers, formatFrets } from '../domain/notation-note'
+import { selectCell, voicingCell } from './voicing-cell'
 import {
     DEFAULT_VOICING_FILTER,
     VOICING_AREAS,
@@ -149,13 +150,17 @@ export class VoicingsModal extends Modal {
             const isSelected =
                 this.selected !== null && sameFrets(voicing.frets, this.selected.frets)
             const label = voicingLabel(voicing, i + 1)
-            const button = list.createEl('button', {
-                cls: `mp-voicing${isSelected ? ' is-selected' : ''}${isCurrent ? ' is-current' : ''}`,
-                attr: {
-                    'aria-label': `${label}${isCurrent ? ' (this note)' : ''}: ${formatFrets(voicing.frets)}`,
-                    'aria-pressed': String(isSelected)
+            const button = voicingCell(
+                list,
+                isCurrent ? 'is-current' : '',
+                `${label}${isCurrent ? ' (this note)' : ''}: ${formatFrets(voicing.frets)}`,
+                isSelected,
+                (cell) => {
+                    this.selected = voicing
+                    selectCell(list, cell)
+                    this.renderActions()
                 }
-            })
+            )
             const source = [
                 `symbol: ${symbol}`,
                 `frets: ${formatFrets(voicing.frets)}`,
@@ -163,15 +168,6 @@ export class VoicingsModal extends Modal {
                 `title: ${label}`
             ].join('\n')
             this.diagrams.push(renderBlock('chord', source, button, this.options.renderOptions()))
-            button.addEventListener('click', () => {
-                this.selected = voicing
-                list.querySelectorAll('.mp-voicing').forEach((b) => {
-                    const on = b === button
-                    b.toggleClass('is-selected', on)
-                    b.setAttr('aria-pressed', String(on))
-                })
-                this.renderActions()
-            })
             // Picking from Add a learning note: a double click is enough.
             if (this.options.pick)
                 button.addEventListener('dblclick', () => {

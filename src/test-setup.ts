@@ -107,3 +107,8 @@ void mock.module('obsidian', () => ({
             .replace(/^\/|\/$/g, ''),
     setIcon: () => {}
 }))
+
+// alphaTab's embedded files are virtual modules made by the build (scripts/build.ts).
+void mock.module('virtual:alphatab-script', () => ({ default: '' }))
+void mock.module('virtual:alphatab-font', () => ({ default: 'data:font/woff2;base64,' }))
+void mock.module('virtual:alphatab-soundfont', () => ({ default: '' }))

@@ -54,6 +54,7 @@ function setup(notes: Record<string, Record<string, unknown>>) {
     }
     const creator: VoicingNoteCreator = {
         exists: (_t: LearningType, title: string) => Boolean(notes[`${title}.md`]),
+        pathFor: (_t: LearningType, title: string) => `${title}.md`,
         create: (_t: LearningType, spec: NewLearningNote) => {
             created.push(spec)
             notes[`${spec.title}.md`] = {}
@@ -142,5 +143,28 @@ describe('VoicingNotesService', () => {
         expect(
             await failure(() => service.use(file('A.md'), type(undefined, false), open))
         ).toContain('frets')
+    })
+
+    it('adds a triad with its own title and shape, after its root position', async () => {
+        const { service, created } = setup({
+            'G Major - Triad (strings 1-3, root position).md': { frets: 'x-x-x-12-12-10' }
+        })
+        const triad = generateVoicings('G', {
+            strings: [1, 2, 3],
+            minStrings: 3,
+            inversion: 'any'
+        }).find((v) => v.inversion === 1)!
+        const root = service.existingName(type(), 'G Major - Triad (strings 1-3, root position)')
+        expect(root).toBe('G Major - Triad (strings 1-3, root position)')
+        await service.add(type(['Triad']), triad, 'G', true, {
+            title: 'G Major - Triad (strings 1-3, 1st inversion)',
+            shape: service.shapeNamed(type(['Triad']), 'Triad'),
+            prerequisite: root
+        })
+        expect(created[0]).toMatchObject({
+            title: 'G Major - Triad (strings 1-3, 1st inversion)',
+            shape: 'Triad',
+            properties: { prerequisites: ['[[G Major - Triad (strings 1-3, root position)]]'] }
+        })
     })
 })

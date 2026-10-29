@@ -218,7 +218,15 @@ export default defineConfig([
                         'Obsidian Starter Kit',
                         'Kanban Action Planner',
                         'Templater',
-                        'BPM'
+                        'BPM',
+                        // File formats and tools named in the import and export commands.
+                        'Guitar Pro',
+                        'MIDI',
+                        'MusicXML',
+                        'Capella',
+                        'ChordPro',
+                        'alphaTex',
+                        'alphaTab'
                     ]
                 }
             ]

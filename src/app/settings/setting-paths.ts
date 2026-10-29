@@ -1,6 +1,7 @@
 import { DEFAULT_SETTINGS } from '../types/plugin-settings.intf'
 import type { PluginSettings } from '../types/plugin-settings.intf'
 import { ORIENTATIONS } from '../domain/notation-layout'
+import { PLAYBACK_ENGINES } from '../domain/playback'
 
 /**
  * Settings controls are keyed by their path in the settings ("rules.review.firstInterval"). The
@@ -56,7 +57,10 @@ const MINIMUMS: Record<string, { min: number; integer: boolean }> = {
     'metronome.volume': { min: 0, integer: false },
     'metronome.trainerStep': { min: 1, integer: true },
     'metronome.trainerBars': { min: 1, integer: true },
-    'drillSeconds': { min: 10, integer: true }
+    'drillSeconds': { min: 10, integer: true },
+    'playback.volume': { min: 0, integer: true },
+    'playback.bpm': { min: 20, integer: true },
+    'playback.strum': { min: 0, integer: true }
 }
 
 /** Upper bounds, for the settings that have one. */
@@ -66,7 +70,10 @@ const MAXIMUMS: Record<string, number> = {
     'metronome.volume': 1,
     'metronome.trainerStep': 50,
     'metronome.trainerBars': 64,
-    'drillSeconds': 600
+    'drillSeconds': 600,
+    'playback.volume': 100,
+    'playback.bpm': 400,
+    'playback.strum': 500
 }
 
 /** Text settings that may be left empty; every other text setting needs a value. */
@@ -77,7 +84,8 @@ const OPTIONAL_TEXT =
 const CHOICES: Record<string, readonly string[]> = {
     'notationLayout.chord': ORIENTATIONS,
     'notationLayout.fretboard': ORIENTATIONS,
-    'notationLayout.keyboard': ORIENTATIONS
+    'notationLayout.keyboard': ORIENTATIONS,
+    'playback.engine': PLAYBACK_ENGINES
 }
 
 /** Parse a control value by the type of the default at its path. */

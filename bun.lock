@@ -5,6 +5,7 @@
     "": {
       "name": "obsidian-life-tracker-base-view-plugin",
       "dependencies": {
+        "@coderline/alphatab": "1.8.4",
         "@dsebastien/music-notation": "0.4.0",
         "immer": "11.0.1",
         "zod": "^4.1.13",
@@ -55,6 +56,8 @@
     "@codemirror/state": ["@codemirror/state@6.5.0", "", { "dependencies": { "@marijn/find-cluster-break": "^1.0.0" } }, "sha512-MwBHVK60IiIHDcoMet78lxt6iw5gJOGSbNbOIVBHWVXIH4/Nq1+GQgLLGgI1KlnN86WDXsPudVaqYHKBIx7Eyw=="],
 
     "@codemirror/view": ["@codemirror/view@6.38.6", "", { "dependencies": { "@codemirror/state": "^6.5.0", "crelt": "^1.0.6", "style-mod": "^4.1.0", "w3c-keyname": "^2.2.4" } }, "sha512-qiS0z1bKs5WOvHIAC0Cybmv4AJSkAXgX5aD6Mqd2epSLlVJsQl8NG23jCVouIgkh4All/mrbdsf2UOLFnJw0tw=="],
+
+    "@coderline/alphatab": ["@coderline/alphatab@1.8.4", "", {}, "sha512-VN5rfTZZWgA63Ny1aDKCp02k3Qm9CHhg4Q9AnK0kHm7G+fNDNZo36TeToPDFoJ6VpB9+AHcCrHwHFUP1tKqdsw=="],
 
     "@commitlint/cli": ["@commitlint/cli@20.2.0", "", { "dependencies": { "@commitlint/format": "^20.2.0", "@commitlint/lint": "^20.2.0", "@commitlint/load": "^20.2.0", "@commitlint/read": "^20.2.0", "@commitlint/types": "^20.2.0", "tinyexec": "^1.0.0", "yargs": "^17.0.0" }, "bin": { "commitlint": "./cli.js" } }, "sha512-l37HkrPZ2DZy26rKiTUvdq/LZtlMcxz+PeLv9dzK9NzoFGuJdOQyYU7IEkEQj0pO++uYue89wzOpZ0hcTtoqUA=="],
 

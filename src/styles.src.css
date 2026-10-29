@@ -377,6 +377,39 @@
     align-self: flex-end;
 }
 
+/* Transitions (#57): the tips under each voicing. */
+.mp-tips {
+    margin: 4px 0 0;
+    padding-left: 14px;
+    text-align: left;
+    font-size: var(--font-ui-smaller);
+    color: var(--text-muted);
+}
+
+.mp-tip-note {
+    margin-top: 4px;
+    font-size: var(--font-ui-smaller);
+    text-align: center;
+}
+
+/* Imports (#19): the pasted text and what it becomes. */
+.mp-import-text {
+    width: 100%;
+    font-family: var(--font-monospace);
+    font-size: var(--font-ui-smaller);
+}
+
+.mp-import-preview {
+    max-height: 160px;
+    overflow: auto;
+    font-size: var(--font-ui-smaller);
+}
+
+.mn-tab-loading {
+    color: var(--text-muted);
+    font-size: var(--font-ui-smaller);
+}
+
 /* Metronome (#39): tempo, beat dots, controls. */
 .mp-metronome {
     @apply flex flex-col gap-3;

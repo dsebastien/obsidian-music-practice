@@ -1,4 +1,4 @@
-import { Notice, Platform, Plugin, debounce } from 'obsidian'
+import { Menu, Notice, Platform, Plugin, debounce, setIcon } from 'obsidian'
 import type { TFile } from 'obsidian'
 import { createDefaultSettings, settingsFrom } from './types/plugin-settings.intf'
 import type { PluginSettings } from './types/plugin-settings.intf'
@@ -32,6 +32,14 @@ import type { LocalModelSettings } from './domain/local-model'
 import { clockTime, formatElapsed, timerElapsed, timerMinutes } from './domain/timer'
 import type { TimerState } from './domain/timer'
 import { NotationBlocks } from './services/notation.service'
+import type { BlockLanguage } from './services/notation.service'
+import { AlphaTabRuntime } from './services/alphatab.service'
+import { ImportService, fenced } from './services/import.service'
+import { PasteImportModal, ScoreImportModeModal } from './ui/import-modals'
+import { chordSheetToChordPro, textTabToAlphaTex } from '@dsebastien/music-notation/tab'
+import { playOptions } from './domain/playback'
+import type { PlayOptions, RenderOptions } from '@dsebastien/music-notation'
+import type { TabResult } from '@dsebastien/music-notation/tab'
 import type { NoteContext } from './services/notation.service'
 import type { UndoResult } from './services/practice-log.service'
 import type { UndoRecord } from './domain/undo'
@@ -44,21 +52,38 @@ import { DrillModal } from './ui/drill-modal'
 import { DrillService } from './services/drill.service'
 import { VoicingNotesService } from './services/voicing-notes.service'
 import { VoicingsModal } from './ui/voicings-modal'
+import { TriadsModal } from './ui/triads-modal'
+import { ProgressionModal, TransitionModal } from './ui/transitions-modal'
+import type { HeldChord } from './ui/transitions-modal'
+import { progressionOf } from './domain/progression'
+import type { TriadPick } from './ui/triads-modal'
+import { triadTitle } from './domain/triads'
 import { fretsOfProperty } from './domain/voicings'
 import type { DrillPair } from './domain/drill'
-import { blockFromProperties } from '@dsebastien/music-notation'
+import {
+    blockFromProperties,
+    lightPlayer,
+    renderBlock,
+    sequenceOf
+} from '@dsebastien/music-notation'
 import { lookupGuitarVoicing } from '@dsebastien/music-notation/voicings'
 import type { PracticePanelDeps } from './ui/practice-panel-view'
 import { toLog, withPaths } from './domain/panel'
 import type { PanelItem } from './domain/panel'
 import { learningTypeOf } from './domain/item-reader'
-import { propertyNamesOf, chordFromNotes, formatFrets, withAlias } from './domain/notation-note'
+import { safeTitle } from './domain/chord'
+import {
+    propertyNamesOf,
+    chordFromNotes,
+    formatFrets,
+    insertUnderTitle,
+    withAlias
+} from './domain/notation-note'
 import { ChooseChordModal } from './ui/choose-chord-modal'
 import { parseChord, readChord } from '@dsebastien/music-notation'
 import type { GeneratedVoicing } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
 import type { NotationStatus } from './services/notation.service'
-import type { NotationLanguage } from '@dsebastien/music-notation'
 
 /** A timer running longer than this is probably forgotten: the log asks to check the minutes. */
 const LONG_TIMER_MS = 4 * 60 * 60_000
@@ -76,6 +101,8 @@ export class MusicPracticePlugin extends Plugin {
     private practiceLog!: PracticeLogService
     private noteCreator!: NoteCreatorService
     private notation!: NotationBlocks
+    private alphaTab!: AlphaTabRuntime
+    private imports!: ImportService
     private timerEl: HTMLElement | null = null
     private metronomeEl: HTMLElement | null = null
     private drills!: DrillService
@@ -187,7 +214,7 @@ export class MusicPracticePlugin extends Plugin {
     }
 
     /** Whether Music Practice draws a notation block language (for the settings tab). */
-    notationStatus(language: NotationLanguage): NotationStatus {
+    notationStatus(language: BlockLanguage): NotationStatus {
         return this.notation.status(language)
     }
 
@@ -287,13 +314,21 @@ export class MusicPracticePlugin extends Plugin {
         // Notation code blocks (chord, chords, keyboard, fretboard), drawn by the notation library.
         // Registered once the layout is ready: plugins enabled at startup register theirs first, so
         // a block language another plugin uses stays theirs (Obsidian refuses a second processor).
+        this.alphaTab = new AlphaTabRuntime()
+        this.imports = new ImportService(this.app, this.alphaTab, () => this.effective().fields)
         this.notation = new NotationBlocks(
             this,
             () => this.settings.notation,
             () => layoutDefaults(this.settings.notationLayout),
             undefined,
             undefined,
-            (path) => this.noteContext(path)
+            (path) => this.noteContext(path),
+            () => this.playOptions(),
+            {
+                runtime: this.alphaTab,
+                resolveFile: (link, sourcePath) => this.readLinkedFile(link, sourcePath),
+                decorate: (result, sourcePath) => this.decorateScore(result, sourcePath)
+            }
         )
         // Empty blocks in chord and scale notes draw from the note's properties: redraw them when
         // the properties change.
@@ -347,18 +382,172 @@ export class MusicPracticePlugin extends Plugin {
 
     override onunload() {
         this.metronome?.destroy()
+        this.alphaTab?.unload()
+    }
+
+    /** The diagrams' playback options (#31): the soundfont of this window, or the light synth. */
+    playOptions(): PlayOptions | false {
+        return playOptions(this.settings.playback, () => this.alphaTab.player(activeWindow))
+    }
+
+    /** A score's export menu in its player bar (#20): Guitar Pro 7, MIDI, print. */
+    private decorateScore(result: TabResult, sourcePath: string): void {
+        const bar = result.el.querySelector('.mn-tab-bar')
+        if (!(bar instanceof HTMLElement) || !result.api) return
+        const button = bar.createEl('button', {
+            cls: 'mp-score-export',
+            attr: { 'type': 'button', 'aria-label': 'Export', 'title': 'Export' }
+        })
+        setIcon(button, 'download')
+        button.addEventListener('click', (event) => {
+            const menu = new Menu()
+            menu.addItem((item) =>
+                item
+                    .setTitle('Guitar Pro 7 file')
+                    .setIcon('file-music')
+                    .onClick(() => void this.exportScore(result, sourcePath, 'gp'))
+            )
+            menu.addItem((item) =>
+                item
+                    .setTitle('MIDI file')
+                    .setIcon('file-audio')
+                    .onClick(() => void this.exportScore(result, sourcePath, 'mid'))
+            )
+            menu.addItem((item) =>
+                item
+                    .setTitle('Print')
+                    .setIcon('printer')
+                    .onClick(() => result.api?.print())
+            )
+            menu.showAtMouseEvent(event)
+        })
+    }
+
+    /** Saves a score as Guitar Pro 7 or MIDI next to its note (the attachments folder). */
+    private async exportScore(
+        result: TabResult,
+        sourcePath: string,
+        ext: 'gp' | 'mid'
+    ): Promise<void> {
+        const api = result.api
+        const score = api?.score
+        if (!api || !score) return
+        try {
+            const alphaTab = await this.alphaTab.module(activeWindow)
+            let bytes: Uint8Array
+            if (ext === 'gp') {
+                bytes = new alphaTab.exporter.Gp7Exporter().export(score, api.settings)
+            } else {
+                const midi = new alphaTab.midi.MidiFile()
+                new alphaTab.midi.MidiFileGenerator(
+                    score,
+                    api.settings,
+                    new alphaTab.midi.AlphaSynthMidiFileHandler(midi, true)
+                ).generate()
+                bytes = midi.toBinary()
+            }
+            const note = sourcePath.split('/').pop()?.replace(/\.md$/, '') ?? 'Score'
+            const name = safeTitle(score.title || note) || 'Score'
+            const path = await this.app.fileManager.getAvailablePathForAttachment(
+                `${name}.${ext}`,
+                sourcePath
+            )
+            const copy = new Uint8Array(bytes)
+            await this.app.vault.createBinary(path, copy.buffer)
+            new Notice(`Saved ${path}.`)
+        } catch (error: unknown) {
+            new Notice(
+                `Couldn't export the score: ${error instanceof Error ? error.message : String(error)}`
+            )
+        }
+    }
+
+    /** Layout and playback, for diagrams drawn in modals. */
+    private modalRenderOptions(): RenderOptions {
+        const play = this.playOptions()
+        return { ...layoutDefaults(this.settings.notationLayout), ...(play ? { play } : {}) }
+    }
+
+    /** The first guitar chord type, for chord notes added from a typed chord. */
+    private guitarChordType(): LearningType | null {
+        return (
+            this.ensureModel().learningTypes.find(
+                (t) => t.kind === 'chord' && t.subject === 'guitar'
+            ) ?? null
+        )
+    }
+
+    /**
+     * Triads on string sets (#55): a chord's or a key's, to add as notes (titled with the string
+     * set and inversion, after the root position when that note exists) or to pick for Add a
+     * learning note.
+     */
+    openTriads(target: { symbol?: string; pick?: (pick: TriadPick) => void }): void {
+        const type = this.guitarChordType()
+        const holds = type !== null && this.voicingNotes.holdsVoicings(type)
+        new TriadsModal(this.app, {
+            symbol: target.symbol ?? null,
+            renderOptions: () => this.modalRenderOptions(),
+            metronome: () => this.openMetronome(),
+            ...(target.pick ? { pick: target.pick } : {}),
+            ...(type && holds && !target.pick
+                ? {
+                      add: async (pick: TriadPick) => {
+                          const chord = readChord(pick.symbol)
+                          if (!chord) return
+                          const shape = this.voicingNotes.shapeNamed(type, 'Triad')
+                          const title = (inversion: number) =>
+                              safeTitle(
+                                  triadTitle(chord.name, shape ?? 'Triad', pick.set, inversion)
+                              )
+                          const prerequisite =
+                              pick.triad.inversion > 0
+                                  ? this.voicingNotes.existingName(type, title(0))
+                                  : null
+                          try {
+                              const added = await this.voicingNotes.add(
+                                  type,
+                                  pick.triad,
+                                  chord.symbol,
+                                  this.notation?.status('chord') === 'on',
+                                  { title: title(pick.triad.inversion), shape, prerequisite }
+                              )
+                              new Notice(
+                                  added.existed
+                                      ? `${added.file.basename} already plays this triad.`
+                                      : `Added ${added.file.basename}.`
+                              )
+                              await this.app.workspace.getLeaf(false).openFile(added.file)
+                          } catch (error: unknown) {
+                              new Notice(
+                                  `Couldn't add the note: ${error instanceof Error ? error.message : String(error)}`
+                              )
+                              throw error
+                          }
+                      }
+                  }
+                : {})
+        }).open()
+    }
+
+    /** The bytes of a file a block links to, resolved from its note; null when missing. */
+    private async readLinkedFile(link: string, sourcePath: string): Promise<Uint8Array | null> {
+        const file = this.app.metadataCache.getFirstLinkpathDest(link, sourcePath)
+        if (!file) return null
+        return new Uint8Array(await this.app.vault.readBinary(file))
     }
 
     /** Another device (sync) changed data.json: reload, so a save here never wipes its changes. */
     override async onExternalSettingsChange(): Promise<void> {
         const notation = JSON.stringify(this.settings.notation)
-        const layout = JSON.stringify(this.settings.notationLayout)
+        const layout = JSON.stringify([this.settings.notationLayout, this.settings.playback])
         await this.loadSettings()
         this.noteModel?.refresh()
         this.renderTimer()
         this.notation?.sync()
         if (JSON.stringify(this.settings.notation) !== notation) this.notation?.refreshOpenNotes()
-        if (JSON.stringify(this.settings.notationLayout) !== layout) this.notation?.redrawLayout()
+        if (JSON.stringify([this.settings.notationLayout, this.settings.playback]) !== layout)
+            this.notation?.redrawLayout()
         this.refreshPanels()
         this.renderTimer()
     }
@@ -417,7 +606,8 @@ export class MusicPracticePlugin extends Plugin {
                         await this.app.workspace.getLeaf(false).openFile(file)
                     },
                     () => layoutDefaults(this.settings.notationLayout),
-                    (symbol, pick) => this.openVoicings({ symbol, pick })
+                    (symbol, pick) => this.openVoicings({ symbol, pick }),
+                    (symbol, pick) => this.openTriads({ symbol, pick })
                 ).open()
             }
         })
@@ -436,6 +626,97 @@ export class MusicPracticePlugin extends Plugin {
             id: 'voicings-of-a-chord',
             name: 'Voicings of a chord',
             callback: () => this.openVoicings({})
+        })
+        this.addCommand({
+            id: 'insert-tab-block',
+            name: 'Insert a tab block',
+            editorCallback: (editor) => {
+                editor.replaceSelection(
+                    `${fenced('tab', '\\title "Title"\n\\tempo 90\n.\n:4 0.6 2.5 2.4 1.3 | 3.6 2.5 0.4 0.3')}\n`
+                )
+            }
+        })
+        this.addCommand({
+            id: 'import-score-file',
+            name: 'Import a score or chord file',
+            callback: () => void this.importFile()
+        })
+        this.addCommand({
+            id: 'import-text-tab',
+            name: 'Import a text tab',
+            callback: () =>
+                new PasteImportModal(
+                    this.app,
+                    'tab',
+                    (text) => {
+                        const tex = textTabToAlphaTex(text)
+                        return tex ? fenced('tab', tex) : null
+                    },
+                    (block) => this.placeImported(block, 'Imported tab')
+                ).open()
+        })
+        this.addCommand({
+            id: 'import-chord-sheet',
+            name: 'Import a chord sheet',
+            callback: () =>
+                new PasteImportModal(
+                    this.app,
+                    'chords',
+                    (text) => {
+                        const chordPro = chordSheetToChordPro(text)
+                        return chordPro.trim() ? fenced('chords', chordPro) : null
+                    },
+                    (block) => this.placeImported(block, 'Imported chord sheet')
+                ).open()
+        })
+        this.addCommand({
+            id: 'play-this-note',
+            name: 'Play this chord or scale',
+            checkCallback: (checking) => {
+                const active = this.activeLearningNote()
+                if (!active || (active.type.kind !== 'chord' && active.type.kind !== 'scale'))
+                    return false
+                if (!checking) this.playNote(active.file, active.type)
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'easiest-way',
+            name: 'Easiest way between these chords',
+            checkCallback: (checking) => {
+                const file = this.app.workspace.getActiveFile()
+                const pair = file ? this.drills.pairOfNote(file.path) : null
+                if (!pair) return false
+                if (!checking) this.openEasiestWay(pair.a, pair.b)
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'smooth-progression',
+            name: 'Smooth this progression',
+            checkCallback: (checking) => {
+                const file = this.app.workspace.getActiveFile()
+                if (!file || file.extension !== 'md') return false
+                if (!checking) void this.smoothProgression(file)
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'triads',
+            name: 'Triads of a chord or key',
+            callback: () => this.openTriads({})
+        })
+        this.addCommand({
+            id: 'triads-of-this-chord',
+            name: 'Triads of this chord',
+            checkCallback: (checking) => {
+                const active = this.activeLearningNote()
+                if (active?.type.kind !== 'chord' || active.type.subject !== 'guitar') return false
+                const symbol = this.chordSymbolOf(active.file)
+                if (!symbol) return false
+                if (!checking) this.openTriads({ symbol })
+                return true
+            }
         })
         this.addCommand({
             id: 'change-mastery',
@@ -712,10 +993,181 @@ export class MusicPracticePlugin extends Plugin {
                 }),
                 seconds: () => this.settings.drillSeconds,
                 save: (p, count) => this.drills.save(p, count),
-                log: (path, minutes, note) => this.openLogPractice({ minutes, paths: [path], note })
+                log: (path, minutes, note) =>
+                    this.openLogPractice({ minutes, paths: [path], note }),
+                easiestWay: (p) => this.openEasiestWay(p.a, p.b)
             },
             pair
         ).open()
+    }
+
+    /** A new arrangement note for an import, when no note is being edited. */
+    private async newArrangementNote(title: string): Promise<TFile> {
+        const types = this.ensureModel().learningTypes
+        const type =
+            types.find((t) => t.kind === 'arrangement' && t.subject === 'guitar') ??
+            types.find((t) => t.kind === 'arrangement') ??
+            null
+        if (!type)
+            throw new Error('Open a note in editing view: there is no arrangement note type.')
+        const base = safeTitle(title) || 'Imported'
+        let name = base
+        for (let n = 2; this.noteCreator.exists(type, name); n++) name = `${base} ${n}`
+        const file = await this.noteCreator.create(type, { title: name })
+        await this.app.workspace.getLeaf(false).openFile(file)
+        return file
+    }
+
+    /** Puts an imported block at the cursor, else in a new arrangement note. */
+    private async placeImported(block: string, title: string): Promise<void> {
+        try {
+            const file = await this.imports.place(block, () => this.newArrangementNote(title))
+            new Notice(`Imported into ${file.basename}.`)
+        } catch (error: unknown) {
+            new Notice(`Couldn't import: ${error instanceof Error ? error.message : String(error)}`)
+            throw error
+        }
+    }
+
+    /** Import a score file (link or inline alphaTex) or a ChordPro file (#19). */
+    private async importFile(): Promise<void> {
+        const file = await this.imports.pickFile()
+        if (!file) return
+        const title = file.name.replace(/\.[^.]+$/, '')
+        if (this.imports.isChordPro(file)) {
+            await this.placeImported(await this.imports.chordProBlock(file), title).catch(() => {})
+            return
+        }
+        new ScoreImportModeModal(this.app, (mode) => {
+            void (async () => {
+                try {
+                    const editing = this.imports.editing()
+                    const note = editing?.file ?? (await this.newArrangementNote(title))
+                    const block = await this.imports.scoreBlock(file, mode, note)
+                    if (editing) editing.insert(block)
+                    else await this.app.vault.process(note, (text) => insertUnderTitle(text, block))
+                    new Notice(`Imported ${file.name} into ${note.basename}.`)
+                } catch (error: unknown) {
+                    new Notice(
+                        `Couldn't import ${file.name}: ${error instanceof Error ? error.message : String(error)}`
+                    )
+                }
+            })()
+        }).open()
+    }
+
+    /** Play this chord or scale (#31): what the note's diagram shows, with the playback settings. */
+    private playNote(file: TFile, type: LearningType): void {
+        const fm = this.app.metadataCache.getFileCache(file)?.frontmatter
+        if (!fm) return
+        const piano = type.subject === 'piano'
+        const language = type.kind === 'chord' ? 'chord' : piano ? 'keyboard' : 'fretboard'
+        const source = blockFromProperties(language, fm, {
+            names: propertyNamesOf(this.effective().fields),
+            instrument: piano ? 'piano' : 'guitar'
+        })
+        if (!source) {
+            new Notice('This note has nothing to play yet: add its chord and frets, or its scale.')
+            return
+        }
+        const holder = createDiv()
+        const result = renderBlock(language, source, holder, { voicings: lookupGuitarVoicing })
+        const diagram = result.el.querySelector('svg[data-mn-pitches]')
+        const pitches = (diagram?.getAttribute('data-mn-pitches') ?? '')
+            .split(' ')
+            .filter(Boolean)
+            .map(Number)
+        const kind = diagram?.getAttribute('data-mn-play') === 'chord' ? 'chord' : 'scale'
+        const sound = diagram?.getAttribute('data-mn-sound') === 'piano' ? 'piano' : 'guitar'
+        result.destroy()
+        if (!pitches.length) {
+            new Notice('Nothing to play in this note.')
+            return
+        }
+        const settings = this.settings.playback
+        const player =
+            settings.engine === 'soundfont'
+                ? this.alphaTab.player(activeWindow)
+                : lightPlayer(activeWindow)
+        player.play(sequenceOf(kind, pitches, { bpm: settings.bpm, strum: settings.strum }), {
+            sound,
+            volume: settings.volume / 100
+        })
+    }
+
+    /** A chord note as a transition sees it; null without a chord symbol. */
+    private heldChord(path: string): HeldChord | null {
+        const file = this.app.vault.getFileByPath(path)
+        const symbol = file ? this.chordSymbolOf(file) : null
+        if (!file || !symbol) return null
+        const fm = this.app.metadataCache.getFileCache(file)?.frontmatter
+        return {
+            name: this.drills.nameOf(path),
+            symbol,
+            frets: fretsOfProperty(fm?.[this.effective().fields.frets])
+        }
+    }
+
+    /** Adds a voicing of a chord as its own note (of the note's type, else the guitar chord type). */
+    private async addVoicingNote(
+        voicing: GeneratedVoicing,
+        symbol: string,
+        typeOf: string | null
+    ): Promise<void> {
+        const file = typeOf ? this.app.vault.getFileByPath(typeOf) : null
+        const type = (file ? this.items.typeOf(file) : null) ?? this.guitarChordType()
+        if (!type) throw new Error('No guitar chord note type.')
+        try {
+            const added = await this.voicingNotes.add(
+                type,
+                voicing,
+                symbol,
+                this.notation?.status('chord') === 'on'
+            )
+            new Notice(
+                added.existed
+                    ? `${added.file.basename} already plays this voicing.`
+                    : `Added ${added.file.basename}.`
+            )
+        } catch (error: unknown) {
+            new Notice(
+                `Couldn't add the note: ${error instanceof Error ? error.message : String(error)}`
+            )
+            throw error
+        }
+    }
+
+    /** The easiest way between two chord notes (#57). */
+    openEasiestWay(a: string, b: string): void {
+        const from = this.heldChord(a)
+        const to = this.heldChord(b)
+        if (!from || !to) {
+            new Notice('Both chord notes need a chord symbol.')
+            return
+        }
+        new TransitionModal(this.app, from, to, {
+            renderOptions: () => this.modalRenderOptions(),
+            add: (voicing, symbol) =>
+                this.addVoicingNote(voicing, symbol, symbol === to.symbol ? b : a)
+        }).open()
+    }
+
+    /** Smooth this progression (#57): the chords of the note's chord charts. */
+    private async smoothProgression(file: TFile): Promise<void> {
+        const chords = progressionOf(await this.app.vault.cachedRead(file))
+        if (chords.length < 2) {
+            new Notice('This note has no chord chart (```chords) with two chords or more.')
+            return
+        }
+        const type = this.guitarChordType()
+        new ProgressionModal(this.app, chords, {
+            renderOptions: () => this.modalRenderOptions(),
+            existing: (voicing, symbol) =>
+                type ? (this.voicingNotes.noteWith(type, voicing, symbol)?.basename ?? null) : null,
+            ...(type && this.voicingNotes.holdsVoicings(type)
+                ? { add: (voicing, symbol) => this.addVoicingNote(voicing, symbol, null) }
+                : {})
+        }).open()
     }
 
     /** The metronome's item for a learning note. */
@@ -822,7 +1274,7 @@ export class MusicPracticePlugin extends Plugin {
         new VoicingsModal(this.app, {
             symbol,
             current,
-            renderOptions: () => layoutDefaults(this.settings.notationLayout),
+            renderOptions: () => this.modalRenderOptions(),
             ...(target.pick ? { pick: (voicing) => target.pick!(voicing) } : {}),
             ...(type && holds && !target.pick
                 ? {
@@ -1093,10 +1545,12 @@ export class MusicPracticePlugin extends Plugin {
             const next = produce(this.settings, mutator)
             await this.saveData(next)
             const notationChanged = next.notation !== this.settings.notation
-            // Property names change what empty blocks draw from, like the layout changes how.
+            // Property names change what empty blocks draw from, like the layout changes how;
+            // playback settings change the diagrams' bars.
             const layoutChanged =
                 next.notationLayout !== this.settings.notationLayout ||
-                next.fields !== this.settings.fields
+                next.fields !== this.settings.fields ||
+                next.playback !== this.settings.playback
             this.settings = next
             this.refreshPanels()
             this.noteModel?.refresh()

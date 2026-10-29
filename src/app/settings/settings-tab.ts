@@ -5,9 +5,9 @@ import { BUY_ME_A_COFFEE_BADGE_DATA_URL } from '../assets/buy-me-a-coffee'
 import { BUY_ME_A_COFFEE_URL, renderSupportSection } from '../ui/support-links'
 import { createDefaultSettings } from '../types/plugin-settings.intf'
 import { parseSetting, readSetting, validateSetting, writeSetting } from './setting-paths'
-import { LANGUAGES } from '@dsebastien/music-notation'
+import { BLOCK_LANGUAGES } from '../services/notation.service'
+import type { BlockLanguage } from '../services/notation.service'
 import { ORIENTATIONS } from '../domain/notation-layout'
-import type { NotationLanguage } from '@dsebastien/music-notation'
 
 /**
  * Settings tab, declared rather than rendered (Obsidian 1.13+).
@@ -43,11 +43,7 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
     }
 
     /** A notation block toggle, keyed `notation.<language>`. */
-    private notationToggle(
-        language: NotationLanguage,
-        name: string,
-        desc: string
-    ): SettingDefinition {
+    private notationToggle(language: BlockLanguage, name: string, desc: string): SettingDefinition {
         return {
             name,
             desc: `${desc} Code blocks named "${language}".`,
@@ -134,6 +130,16 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         'Fretboards',
                         'Scales, chords and notes on a guitar neck.'
                     ),
+                    this.notationToggle(
+                        'tab',
+                        'Tabs',
+                        'Tablature in alphaTex (or a Guitar Pro or MusicXML file), with playback.'
+                    ),
+                    this.notationToggle(
+                        'score',
+                        'Scores',
+                        'Standard notation in alphaTex (or a score file), with playback.'
+                    ),
                     {
                         name: 'Left-handed',
                         desc: 'Mirror guitar chord diagrams and fretboards (the low string on the right). A block can say otherwise with "hand: right".',
@@ -160,7 +166,7 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         searchable: false,
                         // Read at each opening: registrations change when the plugin reloads.
                         render: (setting): void => {
-                            const taken = LANGUAGES.filter(
+                            const taken = BLOCK_LANGUAGES.filter(
                                 (l) => this.plugin.notationStatus(l) === 'taken'
                             )
                             setting.setDesc(
@@ -170,6 +176,37 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             )
                         }
                     }
+                ]
+            },
+            {
+                type: 'group',
+                heading: 'Playback',
+                items: [
+                    {
+                        name: 'Play the diagrams',
+                        desc: 'A playback bar at the bottom of chord, keyboard and fretboard diagrams, shown when the mouse is over them (a tap on touch screens). A click on a dot or a key plays that note.',
+                        control: { type: 'toggle', key: 'playback.enabled' }
+                    },
+                    {
+                        name: 'Sound',
+                        desc: 'Soundfont: recorded instruments, the same as tabs and scores (realistic). Light: a small computed synthesizer, as on Obsidian Publish.',
+                        control: {
+                            type: 'dropdown',
+                            key: 'playback.engine',
+                            options: { soundfont: 'Soundfont', light: 'Light synthesizer' }
+                        }
+                    },
+                    this.num('playback.volume', 'Volume', 'From 0 to 100.'),
+                    this.num(
+                        'playback.bpm',
+                        'Scale tempo',
+                        'Notes per minute when a scale plays, from 20 to 400. The bar can change it for one diagram.'
+                    ),
+                    this.num(
+                        'playback.strum',
+                        'Strum',
+                        'Milliseconds between two strings when a chord is strummed, from 0 to 500.'
+                    )
                 ]
             },
             {
@@ -401,6 +438,11 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             this.text('fields.priority', 'Priority', ''),
                             this.text('fields.prerequisites', 'Prerequisites', ''),
                             this.text('fields.theory', 'Theory', ''),
+                            this.text(
+                                'fields.sources',
+                                'Sources',
+                                'Pieces: links to where they come from; imported score files are added here.'
+                            ),
                             this.text(
                                 'fields.shape',
                                 'Shape',

@@ -8,8 +8,76 @@ import type {
     RenderResult
 } from '@dsebastien/music-notation'
 import { lookupGuitarVoicing } from '@dsebastien/music-notation/voicings'
+import { renderTab } from '@dsebastien/music-notation/tab'
+import type { TabResult } from '@dsebastien/music-notation/tab'
+import type { PlayOptions } from '@dsebastien/music-notation'
+import type { AlphaTabRuntime, AlphaTabWindow } from './alphatab.service'
 
-export type NotationToggles = Record<NotationLanguage, boolean>
+/** Tabs and scores, drawn by alphaTab through the library's tab entry (#15). */
+export const TAB_LANGUAGES = ['tab', 'score'] as const
+export type TabLanguage = (typeof TAB_LANGUAGES)[number]
+
+/** Every block language the plugin can draw. */
+export type BlockLanguage = NotationLanguage | TabLanguage
+export const BLOCK_LANGUAGES: readonly BlockLanguage[] = [...LANGUAGES, ...TAB_LANGUAGES]
+
+export type NotationToggles = Record<BlockLanguage, boolean>
+
+/** What tab blocks need: alphaTab, the files they name, and extras on the drawn score. */
+export interface TabHost {
+    runtime: AlphaTabRuntime
+    /** The bytes of a file a block names, from the note it's in; null when not found. */
+    resolveFile: (link: string, sourcePath: string) => Promise<Uint8Array | null>
+    /** Adds the plugin's own controls (export) once a score is drawn. */
+    decorate?: (result: TabResult, sourcePath: string) => void
+}
+
+/** A tab or score block: alphaTab is loaded on the first one, then the score draws and plays. */
+class TabChild extends MarkdownRenderChild {
+    private result: TabResult | null = null
+    private gone = false
+
+    constructor(
+        el: HTMLElement,
+        private readonly language: TabLanguage,
+        private readonly source: string,
+        private readonly host: TabHost,
+        private readonly sourcePath: string
+    ) {
+        super(el)
+    }
+
+    override onload(): void {
+        const win = (this.containerEl.ownerDocument.defaultView ?? window) as AlphaTabWindow
+        const loading = this.containerEl.createDiv({ cls: 'mn-tab-loading', text: 'Loading…' })
+        this.host.runtime
+            .module(win)
+            .then((alphaTab) => {
+                loading.remove()
+                if (this.gone) return
+                this.result = renderTab(this.language, this.source, this.containerEl, {
+                    alphaTab,
+                    assets: this.host.runtime.assets(win),
+                    resolveFile: (link) => this.host.resolveFile(link, this.sourcePath)
+                })
+                const result = this.result
+                void result.ready.then(({ ok }) => {
+                    if (ok && !this.gone) this.host.decorate?.(result, this.sourcePath)
+                })
+            })
+            .catch((error: unknown) => {
+                loading.setText(
+                    `${this.language}: ${error instanceof Error ? error.message : String(error)}`
+                )
+                loading.addClass('mn-error-message')
+            })
+    }
+
+    override onunload(): void {
+        this.gone = true
+        this.result?.destroy()
+    }
+}
 
 /** What the notation blocks need from the plugin. */
 export type NotationHost = Pick<Plugin, 'registerMarkdownCodeBlockProcessor'> & {
@@ -87,8 +155,8 @@ export function processorExists(language: string): boolean | null {
  * (Obsidian can't unregister a processor), which frees it for another plugin.
  */
 export class NotationBlocks {
-    private readonly registered = new Set<NotationLanguage>()
-    private readonly taken = new Set<NotationLanguage>()
+    private readonly registered = new Set<BlockLanguage>()
+    private readonly taken = new Set<BlockLanguage>()
     private readonly live = new Set<NotationChild>()
 
     constructor(
@@ -97,13 +165,21 @@ export class NotationBlocks {
         private readonly layout: () => LayoutDefaults = () => ({}),
         private readonly exists: (language: string) => boolean | null = processorExists,
         private readonly render: typeof renderBlock = renderBlock,
-        private readonly note: (sourcePath: string) => NoteContext | null = () => null
+        private readonly note: (sourcePath: string) => NoteContext | null = () => null,
+        /** Playback on diagrams (#31): its options, or false when it's off. */
+        private readonly play: () => PlayOptions | false = () => false,
+        /** Tabs and scores; null leaves those languages alone. */
+        private readonly tabs: TabHost | null = null
     ) {}
 
     /** Register every language turned on, not registered yet and not taken. */
     sync(): void {
-        for (const language of LANGUAGES) {
+        for (const language of BLOCK_LANGUAGES) {
             if (!this.toggles()[language]) continue
+            if (language === 'tab' || language === 'score') {
+                this.syncTab(language)
+                continue
+            }
             if (this.registered.has(language) || this.taken.has(language)) continue
             if (this.exists(language) === true) {
                 this.taken.add(language)
@@ -124,7 +200,8 @@ export class NotationBlocks {
                         this.render(language, source, el, {
                             ...this.layout(),
                             ...(empty ? this.note(path) : null),
-                            voicings: lookupGuitarVoicing
+                            voicings: lookupGuitarVoicing,
+                            ...playOf(this.play())
                         })
                     const key = (path: string) => {
                         const note = this.note(path)
@@ -145,7 +222,32 @@ export class NotationBlocks {
         }
     }
 
-    status(language: NotationLanguage): NotationStatus {
+    /** Registers a tab language (alphaTab draws it), unless another plugin has it. */
+    private syncTab(language: TabLanguage): void {
+        const tabs = this.tabs
+        if (!tabs || this.registered.has(language) || this.taken.has(language)) return
+        if (this.exists(language) === true) {
+            this.taken.add(language)
+            return
+        }
+        try {
+            this.plugin.registerMarkdownCodeBlockProcessor(language, (source, el, ctx) => {
+                if (!this.toggles()[language]) {
+                    el.createEl('pre').createEl('code', {
+                        cls: `language-${language}`,
+                        text: source
+                    })
+                    return
+                }
+                ctx.addChild(new TabChild(el, language, source, tabs, ctx.sourcePath))
+            })
+            this.registered.add(language)
+        } catch {
+            this.taken.add(language)
+        }
+    }
+
+    status(language: BlockLanguage): NotationStatus {
         if (this.taken.has(language)) return 'taken'
         return this.toggles()[language] && this.registered.has(language) ? 'on' : 'off'
     }
@@ -181,3 +283,6 @@ export class NotationBlocks {
         }
     }
 }
+
+/** The `play` render option, when playback is on. */
+const playOf = (play: PlayOptions | false): { play?: PlayOptions } => (play ? { play } : {})

@@ -46,7 +46,9 @@ describe('settingsFrom: notation and new property names', () => {
             chord: true,
             chords: false,
             keyboard: true,
-            fretboard: true
+            fretboard: true,
+            tab: true,
+            score: true
         })
         expect(settingsFrom({ notation: 'off' }).notation.chord).toBe(true)
         expect(settingsFrom({ notation: { chord: 'no' } }).notation.chord).toBe(true)

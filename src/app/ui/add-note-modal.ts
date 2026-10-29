@@ -24,6 +24,8 @@ import type {
 import { lookupGuitarVoicing, voicingCount } from '@dsebastien/music-notation/voicings'
 import { blockSource, chordBlock, formatFrets, voicingRow } from '../domain/notation-note'
 import { shapeValue } from '../domain/voicings'
+import { triadDetail } from '../domain/triads'
+import type { TriadPick } from './triads-modal'
 
 /** voicingIndex of a voicing picked from every way to play the chord (#54). */
 const PICKED = -2
@@ -61,6 +63,8 @@ export class AddNoteModal extends Modal {
     private voicingIndex = 0
     /** A voicing picked from every way to play the chord. */
     private picked: GeneratedVoicing | null = null
+    /** A picked triad's string set and inversion, for its title: "(strings 1-3, root position)". */
+    private triadDetail: string | null = null
     /** The shape came with the picked voicing (and goes when the chord changes). */
     private shapeFromPick = false
     /** The shape field, to update it in place. */
@@ -82,7 +86,9 @@ export class AddNoteModal extends Modal {
         private readonly moreVoicings?: (
             symbol: string,
             pick: (voicing: GeneratedVoicing) => void
-        ) => void
+        ) => void,
+        /** The chord's triads on string sets, to pick one from (#55). */
+        private readonly triads?: (symbol: string, pick: (pick: TriadPick) => void) => void
     ) {
         super(app)
         this.type = types[0]!
@@ -189,7 +195,9 @@ export class AddNoteModal extends Modal {
         if (this.typedFrets() && !chord) return null
         const title = safeTitle(
             chord
-                ? chordTitle(chord, shape || undefined)
+                ? this.triadDetail && this.voicingIndex === PICKED
+                    ? `${chordTitle(chord, shape || 'Triad')} ${this.triadDetail}`
+                    : chordTitle(chord, shape || undefined)
                 : scale
                   ? scaleTitle(this.scaleRoot, this.scaleType, shape || undefined)
                   : shape
@@ -222,6 +230,7 @@ export class AddNoteModal extends Modal {
             this.level = undefined
             this.voicingIndex = 0
             this.picked = null
+            this.triadDetail = null
             this.shapeFromPick = false
             this.scaleRoot = ''
             this.scaleType = ''
@@ -354,12 +363,35 @@ export class AddNoteModal extends Modal {
             if (!symbol) return
             this.moreVoicings?.(symbol, (voicing) => {
                 this.picked = voicing
+                this.triadDetail = null
                 this.voicingIndex = PICKED
                 // The shape is the voicing's (one chosen before described another voicing).
                 const name = this.fields.shape
                 if (this.type.fields.has(name))
                     this.setShape(
                         shapeValue(voicing.shape, this.type.allowedValues[name] ?? []) ?? '',
+                        true
+                    )
+                this.render()
+            })
+        })
+        const triadsButton =
+            voicingField && this.triads
+                ? voicingField.createEl('button', { text: 'Triads…' })
+                : null
+        triadsButton?.addEventListener('click', (event) => {
+            event.preventDefault()
+            const symbol = this.symbol()
+            if (!symbol) return
+            this.triads?.(symbol, (pick) => {
+                this.picked = pick.triad
+                this.triadDetail = triadDetail(pick.set, pick.triad.inversion)
+                this.voicingIndex = PICKED
+                // A triad note's shape is the type's "Triad".
+                const name = this.fields.shape
+                if (this.type.fields.has(name))
+                    this.setShape(
+                        shapeValue('Triad', this.type.allowedValues[name] ?? []) ?? '',
                         true
                     )
                 this.render()
@@ -526,6 +558,7 @@ export class AddNoteModal extends Modal {
             if (this.symbol() !== before) {
                 this.voicingIndex = 0
                 this.picked = null
+                this.triadDetail = null
                 this.dropPickedShape()
             }
             refreshVoicings()

@@ -13,7 +13,9 @@ const allOn = (): NotationToggles => ({
     chord: true,
     chords: true,
     keyboard: true,
-    fretboard: true
+    fretboard: true,
+    tab: true,
+    score: true
 })
 
 /** A plugin whose registrations are recorded; `refuse` languages throw like Obsidian does. */

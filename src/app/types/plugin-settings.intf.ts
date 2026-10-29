@@ -9,6 +9,8 @@ import type { PracticeRules } from '../domain/rules'
 import { ORIENTATIONS } from '../domain/notation-layout'
 import type { NotationLayout } from '../domain/notation-layout'
 import type { NotationToggles } from '../services/notation.service'
+import { createDefaultPlayback } from '../domain/playback'
+import type { PlaybackSettings } from '../domain/playback'
 import { isUndoRecord } from '../domain/undo'
 import { createDefaultMetronomeSettings } from '../domain/metronome'
 import { panelItemsFrom } from '../domain/panel'
@@ -41,6 +43,8 @@ export interface PluginSettings {
     notation: NotationToggles
     /** Default orientation per diagram, and left-handed diagrams (#32). */
     notationLayout: NotationLayout
+    /** Playing chords, scales and notes from the diagrams (#31). */
+    playback: PlaybackSettings
     /** What the last practice log changed, to undo it (#36); null when there's nothing to undo. */
     lastLog: UndoRecord | null
     /** Metronome and speed trainer defaults (#39). */
@@ -73,7 +77,15 @@ export function createDefaultSettings(): PluginSettings {
         timerStartedAt: 0,
         timerPausedAt: 0,
         timerPausedMs: 0,
-        notation: { chord: true, chords: true, keyboard: true, fretboard: true },
+        notation: {
+            chord: true,
+            chords: true,
+            keyboard: true,
+            fretboard: true,
+            tab: true,
+            score: true
+        },
+        playback: createDefaultPlayback(),
         notationLayout: {
             leftHanded: false,
             chord: 'vertical',

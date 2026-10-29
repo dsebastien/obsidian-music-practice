@@ -27,6 +27,8 @@ export interface FieldNames {
     trains: string
     changesBest: string
     changesLast: string
+    /** Pieces: where they come from (links); imported score files are added here (#19). */
+    sources: string
     /** Scales: root ("A"), type ("Minor pentatonic"), right-hand fingering (piano). */
     scaleRoot: string
     scaleType: string
@@ -68,6 +70,7 @@ export function createDefaultFieldNames(): FieldNames {
         trains: 'trains',
         changesBest: 'changes_best',
         changesLast: 'changes_last',
+        sources: 'sources',
         scaleRoot: 'scale_root',
         scaleType: 'scale_type',
         fingeringRight: 'fingering_rh',
