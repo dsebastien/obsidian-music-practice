@@ -2,7 +2,7 @@
     "id": "music-practice",
     "name": "Music Practice",
     "description": "Log practice with a timer, plan sessions, track mastery and catch what is slipping with spaced review, for guitar, piano and any instrument.",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "minAppVersion": "1.13.0",
     "isDesktopOnly": false,
     "author": "Sébastien Dubois",
