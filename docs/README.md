@@ -8,7 +8,7 @@ permalink: /
 
 Learn an instrument in Obsidian: log practice in under a minute, run a practice timer, get a plan for the time you have, and let spaced review tell you what's slipping. Guitar and piano first, any instrument after.
 
-> Version 0.5: the practice engine, a practice panel, a metronome, chord change drills, and notation blocks (chord diagrams, keyboards, fretboards, chord charts); chord and scale notes draw their own diagram from their properties. Tabs and scores with playback come in 0.6.
+> Version 0.6: the practice engine, a practice panel, a metronome, chord change drills, every way to play a chord, and notation blocks (chord diagrams, keyboards, fretboards, chord charts); chord and scale notes draw their own diagram from their properties. Tabs and scores with playback come in 0.7.
 
 ## Key features
 
@@ -19,11 +19,12 @@ Learn an instrument in Obsidian: log practice in under a minute, run a practice 
 - Mastery levels with a rubric, and a light spaced-review system.
 - Works with the Obsidian Starter Kit, or on its own.
 - Every rule is a setting, with sensible defaults.
+- [All the ways to play a chord](usage.md#all-the-ways-to-play-a-chord), easiest first, by neck area and root string.
 - [Notation blocks](notation.md): chord diagrams, keyboards, fretboards and chord charts from plain text, side by side, vertical or horizontal, left-handed.
 
 ![Practice plan](images/practice-plan.png)
 
-Tabs and scores with playback come in 0.6.
+Tabs and scores with playback come in 0.7.
 
 ## Install
 

@@ -351,6 +351,32 @@
     max-height: 160px;
 }
 
+/* All the ways to play a chord (#54): a wide modal, a grid of voicings, this note's marked. */
+.mp-voicings-modal {
+    width: min(960px, 95vw);
+}
+
+.mp-voicing-row.mp-voicing-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.mp-voicing-row .mp-voicing.is-current {
+    border-style: dashed;
+    border-color: var(--text-muted);
+}
+
+.mp-voicing-row .mp-voicing.is-current.is-selected {
+    border-style: solid;
+    border-color: var(--interactive-accent);
+}
+
+.mp-check {
+    @apply flex items-center gap-1;
+    align-self: flex-end;
+}
+
 /* Metronome (#39): tempo, beat dots, controls. */
 .mp-metronome {
     @apply flex flex-col gap-3;

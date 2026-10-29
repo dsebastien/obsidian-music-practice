@@ -7,6 +7,7 @@ import type { LearningType } from '../domain/note-model'
 import type { NewLearningNote } from '../services/note-creator.service'
 import {
     detectChordFromFrets,
+    fingerVoicing,
     parseChord,
     parseFrets,
     readChord,
@@ -14,6 +15,7 @@ import {
 } from '@dsebastien/music-notation'
 import type {
     FrettedVoicing,
+    GeneratedVoicing,
     NotationLanguage,
     ParsedChord,
     RenderOptions,
@@ -21,6 +23,10 @@ import type {
 } from '@dsebastien/music-notation'
 import { lookupGuitarVoicing, voicingCount } from '@dsebastien/music-notation/voicings'
 import { blockSource, chordBlock, formatFrets, voicingRow } from '../domain/notation-note'
+import { shapeValue } from '../domain/voicings'
+
+/** voicingIndex of a voicing picked from every way to play the chord (#54). */
+const PICKED = -2
 
 /** Scale roots and types offered when the note type doesn't list its own. */
 const ROOTS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
@@ -51,8 +57,12 @@ export class AddNoteModal extends Modal {
     private scaleType = ''
     private shape = ''
     private level: number | undefined
-    /** Guitar chords: index of the voicing to prefill; -1 for none. */
+    /** Guitar chords: index of the voicing to prefill; -1 for none; PICKED for `picked`. */
     private voicingIndex = 0
+    /** A voicing picked from every way to play the chord. */
+    private picked: GeneratedVoicing | null = null
+    /** The shape came with the picked voicing (and goes when the chord changes). */
+    private shapeFromPick = false
     private formEl: HTMLElement | null = null
     /** The previews: one diagram, or a row of voicings to pick from. */
     private diagrams: RenderResult[] = []
@@ -65,7 +75,12 @@ export class AddNoteModal extends Modal {
         private readonly blocksOn: (language: NotationLanguage) => boolean,
         private readonly create: (type: LearningType, spec: NewLearningNote) => Promise<void>,
         /** Orientation and hand, so previews look like the notes will. */
-        private readonly renderOptions: () => RenderOptions = () => ({})
+        private readonly renderOptions: () => RenderOptions = () => ({}),
+        /** Every way to play a chord, to pick one from (#54). */
+        private readonly moreVoicings?: (
+            symbol: string,
+            pick: (voicing: GeneratedVoicing) => void
+        ) => void
     ) {
         super(app)
         this.type = types[0]!
@@ -112,7 +127,9 @@ export class AddNoteModal extends Modal {
 
     private voicing(): FrettedVoicing | null {
         const frets = this.typedFrets()
-        if (frets) return { frets, fingers: frets.map(() => null) }
+        // Typed frets get their fingers worked out, when a hand can play them.
+        if (frets) return { frets, fingers: fingerVoicing(frets) ?? frets.map(() => null) }
+        if (this.voicingIndex === PICKED && this.picked) return this.picked
         const symbol = this.symbol()
         return symbol && this.instrument() === 'guitar' && this.voicingIndex >= 0
             ? lookupGuitarVoicing(symbol, this.voicingIndex)
@@ -202,6 +219,8 @@ export class AddNoteModal extends Modal {
             this.shape = ''
             this.level = undefined
             this.voicingIndex = 0
+            this.picked = null
+            this.shapeFromPick = false
             this.scaleRoot = ''
             this.scaleType = ''
             this.render()
@@ -284,6 +303,7 @@ export class AddNoteModal extends Modal {
                     s.createEl('option', { text: v, value: v }).selected = v === this.shape
                 s.addEventListener('change', () => {
                     this.shape = s.value
+                    this.shapeFromPick = false
                     refresh()
                 })
             } else {
@@ -294,6 +314,7 @@ export class AddNoteModal extends Modal {
                 s.value = this.shape
                 s.addEventListener('input', () => {
                     this.shape = s.value.trim()
+                    this.shapeFromPick = false
                     refresh()
                 })
             }
@@ -318,6 +339,27 @@ export class AddNoteModal extends Modal {
                 ? el.createEl('label', { cls: 'mp-field', text: 'Voicing' })
                 : null
         const voicingSelect = voicingField?.createEl('select', { cls: 'dropdown' }) ?? null
+        const more =
+            voicingField && this.moreVoicings
+                ? voicingField.createEl('button', { text: 'More voicings…' })
+                : null
+        more?.addEventListener('click', (event) => {
+            event.preventDefault()
+            const symbol = this.symbol()
+            if (!symbol) return
+            this.moreVoicings?.(symbol, (voicing) => {
+                this.picked = voicing
+                this.voicingIndex = PICKED
+                // The shape comes with the voicing, unless one was chosen.
+                const name = this.fields.shape
+                if ((!this.shape || this.shapeFromPick) && this.type.fields.has(name)) {
+                    this.shape =
+                        shapeValue(voicing.shape, this.type.allowedValues[name] ?? []) ?? ''
+                    this.shapeFromPick = true
+                }
+                this.render()
+            })
+        })
         const diagramEl = el.createDiv({ cls: 'mp-notation-preview' })
 
         const preview = el.createDiv({ cls: 'mp-rubric' })
@@ -331,13 +373,24 @@ export class AddNoteModal extends Modal {
             voicingSelect.empty()
             voicingField.toggle(Boolean(symbol) && this.blocksOn('chord') && !this.typedFrets())
             if (!symbol) return
-            if (count === 0) {
-                voicingSelect.createEl('option', { text: 'None found: no diagram', value: '-1' })
+            if (count === 0 && !this.picked) {
+                voicingSelect.createEl('option', {
+                    text: this.moreVoicings
+                        ? 'None in the database: see More voicings'
+                        : 'None found: no diagram',
+                    value: '-1'
+                })
                 voicingSelect.disabled = true
+                if (this.voicingIndex >= 0) this.voicingIndex = -1
                 return
             }
             voicingSelect.disabled = false
             if (this.voicingIndex >= count) this.voicingIndex = 0
+            if (this.picked)
+                voicingSelect.createEl('option', {
+                    text: `Picked: ${formatFrets(this.picked.frets)}`,
+                    value: String(PICKED)
+                })
             for (let i = 0; i < count; i++) {
                 const v = lookupGuitarVoicing(symbol, i)
                 if (v)
@@ -361,27 +414,32 @@ export class AddNoteModal extends Modal {
         // picks one. Past the fourth, the dropdown picks it and it joins the row. "No diagram"
         // shows none.
         const refreshVoicingRow = (symbol: string): boolean => {
-            const indexes = voicingRow(voicingCount(symbol), this.voicingIndex)
-            if (!indexes.length || this.voicingIndex < 0) return false
+            const picked = this.voicingIndex === PICKED ? this.picked : null
+            const indexes = [
+                ...voicingRow(voicingCount(symbol), this.voicingIndex),
+                ...(picked ? [PICKED] : [])
+            ]
+            if (!indexes.length || (this.voicingIndex < 0 && !picked)) return false
             const row = diagramEl.createDiv({
                 cls: indexes.length > 4 ? 'mp-voicing-row has-extra' : 'mp-voicing-row'
             })
             for (const i of indexes) {
-                const voicing = lookupGuitarVoicing(symbol, i)
+                const voicing = i === PICKED ? picked : lookupGuitarVoicing(symbol, i)
                 const block = voicing ? chordBlock(symbol, 'guitar', voicing) : null
                 if (!voicing || !block) continue
                 const selected = i === this.voicingIndex
+                const label = i === PICKED ? 'Picked' : String(i + 1)
                 const button = row.createEl('button', {
                     cls: selected ? 'mp-voicing is-selected' : 'mp-voicing',
                     attr: {
-                        'aria-label': `Voicing ${i + 1}: ${formatFrets(voicing.frets)}`,
+                        'aria-label': `Voicing ${label}: ${formatFrets(voicing.frets)}`,
                         'aria-pressed': String(selected)
                     }
                 })
                 this.diagrams.push(
                     renderBlock(
                         'chord',
-                        `${blockSource(block)}\ntitle: ${i + 1}`,
+                        `${blockSource(block)}\ntitle: ${label}`,
                         button,
                         options()
                     )
@@ -453,6 +511,14 @@ export class AddNoteModal extends Modal {
         input.addEventListener('input', () => {
             this.text = input.value
             this.voicingIndex = 0
+            this.picked = null
+            if (this.shapeFromPick) {
+                // The shape described the picked voicing: the form starts over without it.
+                this.shape = ''
+                this.shapeFromPick = false
+                this.render()
+                return
+            }
             refreshVoicings()
             refresh()
         })

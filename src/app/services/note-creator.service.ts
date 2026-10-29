@@ -89,15 +89,24 @@ export class NoteCreatorService {
         return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
     }
 
-    async create(type: LearningType, spec: NewLearningNote): Promise<TFile> {
-        const { rules, fields } = this.context()
+    /** Where a note of this type and title goes (its folder, prefix and suffix). */
+    pathFor(type: LearningType, title: string): string {
         const folder = this.folderFor(type)
         const affixes = resolveNoteTypeAffixes(this.app, type.id)
         const prefix = affixes && !affixes.prefixOptional ? affixes.prefix : ''
         const suffix = affixes && !affixes.suffixOptional ? affixes.suffix : ''
-        const path = normalizePath(
-            `${folder ? `${folder}/` : ''}${prefix}${spec.title}${suffix}.md`
-        )
+        return normalizePath(`${folder ? `${folder}/` : ''}${prefix}${title}${suffix}.md`)
+    }
+
+    /** Whether a note of this type already has this title. */
+    exists(type: LearningType, title: string): boolean {
+        return this.app.vault.getAbstractFileByPath(this.pathFor(type, title)) !== null
+    }
+
+    async create(type: LearningType, spec: NewLearningNote): Promise<TFile> {
+        const { rules, fields } = this.context()
+        const path = this.pathFor(type, spec.title)
+        const folder = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
         if (this.app.vault.getAbstractFileByPath(path))
             throw new Error(`"${spec.title}" already exists.`)
         if (folder && !this.app.vault.getAbstractFileByPath(folder))

@@ -42,6 +42,9 @@ import type { MetronomeViewDeps } from './ui/metronome-view'
 import { PRACTICE_PANEL_VIEW, PracticePanelView } from './ui/practice-panel-view'
 import { DrillModal } from './ui/drill-modal'
 import { DrillService } from './services/drill.service'
+import { VoicingNotesService } from './services/voicing-notes.service'
+import { VoicingsModal } from './ui/voicings-modal'
+import { fretsOfProperty } from './domain/voicings'
 import type { DrillPair } from './domain/drill'
 import { blockFromProperties } from '@dsebastien/music-notation'
 import { lookupGuitarVoicing } from '@dsebastien/music-notation/voicings'
@@ -49,9 +52,10 @@ import type { PracticePanelDeps } from './ui/practice-panel-view'
 import { toLog, withPaths } from './domain/panel'
 import type { PanelItem } from './domain/panel'
 import { learningTypeOf } from './domain/item-reader'
-import { propertyNamesOf, chordFromNotes, withAlias } from './domain/notation-note'
+import { propertyNamesOf, chordFromNotes, formatFrets, withAlias } from './domain/notation-note'
 import { ChooseChordModal } from './ui/choose-chord-modal'
-import { parseChord } from '@dsebastien/music-notation'
+import { parseChord, readChord } from '@dsebastien/music-notation'
+import type { GeneratedVoicing } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
 import type { NotationStatus } from './services/notation.service'
 import type { NotationLanguage } from '@dsebastien/music-notation'
@@ -75,6 +79,7 @@ export class MusicPracticePlugin extends Plugin {
     private timerEl: HTMLElement | null = null
     private metronomeEl: HTMLElement | null = null
     private drills!: DrillService
+    private voicingNotes!: VoicingNotesService
     /** One metronome for the panel, the modal and the commands. */
     metronome!: Metronome
     private logModal: LogPracticeModal | null = null
@@ -222,6 +227,11 @@ export class MusicPracticePlugin extends Plugin {
                 })
         )
         this.noteCreator = new NoteCreatorService(this.app, this.items, () => this.effective())
+        this.voicingNotes = new VoicingNotesService(
+            this.app,
+            this.noteCreator,
+            () => this.effective().fields
+        )
         this.drills = new DrillService(
             this.app,
             () => this.ensureModel(),
@@ -401,9 +411,26 @@ export class MusicPracticePlugin extends Plugin {
                         const file = await this.noteCreator.create(type, spec)
                         await this.app.workspace.getLeaf(false).openFile(file)
                     },
-                    () => layoutDefaults(this.settings.notationLayout)
+                    () => layoutDefaults(this.settings.notationLayout),
+                    (symbol, pick) => this.openVoicings({ symbol, pick })
                 ).open()
             }
+        })
+        this.addCommand({
+            id: 'voicings-of-this-chord',
+            name: 'Voicings of this chord',
+            checkCallback: (checking) => {
+                const active = this.activeLearningNote()
+                if (active?.type.kind !== 'chord' || active.type.subject !== 'guitar') return false
+                if (!this.chordSymbolOf(active.file)) return false
+                if (!checking) this.openVoicings({ note: active })
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'voicings-of-a-chord',
+            name: 'Voicings of a chord',
+            callback: () => this.openVoicings({})
         })
         this.addCommand({
             id: 'change-mastery',
@@ -748,6 +775,73 @@ export class MusicPracticePlugin extends Plugin {
             },
             this.metronome.state.bpm
         ).open()
+    }
+
+    /** The chord symbol a note stores, read as the blocks read it (words too). */
+    private chordSymbolOf(file: TFile): string | null {
+        const value = this.app.metadataCache.getFileCache(file)?.frontmatter?.[
+            this.effective().fields.chordSymbol
+        ] as unknown
+        const text = typeof value === 'string' || typeof value === 'number' ? String(value) : ''
+        return text.trim() ? (readChord(text.trim())?.symbol ?? null) : null
+    }
+
+    /**
+     * Every way to play a chord (#54): from a chord note (switch it to another voicing, or add one
+     * as its own note), from Add a learning note (pick one), or for any chord typed.
+     */
+    openVoicings(target: {
+        note?: { file: TFile; type: LearningType }
+        symbol?: string
+        pick?: (voicing: GeneratedVoicing) => void
+    }): void {
+        const note = target.note
+        const symbol = target.symbol ?? (note ? this.chordSymbolOf(note.file) : null)
+        const frontmatter = note
+            ? this.app.metadataCache.getFileCache(note.file)?.frontmatter
+            : undefined
+        const current = fretsOfProperty(frontmatter?.[this.effective().fields.frets])
+        // New notes go to the note's own type, else the first guitar chord type.
+        const type =
+            note?.type ??
+            this.ensureModel().learningTypes.find(
+                (t) => t.kind === 'chord' && t.subject === 'guitar'
+            ) ??
+            null
+        const fail = (what: string) => (error: unknown) => {
+            new Notice(`${what}: ${error instanceof Error ? error.message : String(error)}`)
+            throw error
+        }
+        new VoicingsModal(this.app, {
+            symbol,
+            current,
+            renderOptions: () => layoutDefaults(this.settings.notationLayout),
+            ...(target.pick ? { pick: (voicing) => target.pick!(voicing) } : {}),
+            ...(type && !target.pick
+                ? {
+                      add: async (voicing, chord) => {
+                          const file = await this.voicingNotes
+                              .add(type, voicing, chord, this.notation?.status('chord') === 'on')
+                              .catch(fail("Couldn't add the note"))
+                          new Notice(`Added ${file.basename}.`)
+                          await this.app.workspace.getLeaf(false).openFile(file)
+                      }
+                  }
+                : {}),
+            ...(note && !target.pick
+                ? {
+                      use: async (voicing) => {
+                          await this.voicingNotes
+                              .use(note.file, note.type, voicing)
+                              .catch(fail("Couldn't change the voicing"))
+                          new Notice(
+                              `${note.file.basename} now plays ${formatFrets(voicing.frets)}.`
+                          )
+                      },
+                      cantUse: (voicing) => this.voicingNotes.cantUse(note.file, note.type, voicing)
+                  }
+                : {})
+        }).open()
     }
 
     private activeLearningNote(): { file: TFile; type: LearningType } | null {
