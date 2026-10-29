@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { chordTitle, parseChord, safeTitle } from './chord'
+import { chordTitle, parseChord, safeTitle, scaleTitle, spellRoot } from './chord'
 
 describe('parseChord', () => {
     it('spells chord symbols out in ASCII', () => {
@@ -23,5 +23,16 @@ describe('parseChord', () => {
     it('builds voicing titles and safe names', () => {
         expect(chordTitle(parseChord('A')!, 'Open')).toBe('A Major - Open')
         expect(safeTitle('Knockin/on #1')).toBe('Knockin on 1')
+    })
+})
+
+describe('scale titles', () => {
+    it('spells roots out, so sharps and flats survive file names', () => {
+        expect(scaleTitle('C#', 'Major')).toBe('C Sharp Major')
+        expect(scaleTitle('Bb', 'Minor pentatonic', 'Box 1')).toBe(
+            'B Flat Minor pentatonic - Box 1'
+        )
+        expect(scaleTitle('C#/Db', 'Major')).toBe('C Sharp Major')
+        expect(spellRoot('A')).toBe('A')
     })
 })

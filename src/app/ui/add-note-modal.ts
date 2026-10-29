@@ -1,6 +1,6 @@
 import { Modal, Notice } from 'obsidian'
 import type { App } from 'obsidian'
-import { chordTitle, safeTitle } from '../domain/chord'
+import { chordTitle, safeTitle, scaleTitle } from '../domain/chord'
 import type { FieldNames } from '../domain/fields'
 import { levelOf } from '../domain/mastery'
 import type { LearningType } from '../domain/note-model'
@@ -119,9 +119,19 @@ export class AddNoteModal extends Modal {
             : null
     }
 
+    /** Whether this is a scale type that stores its root and type (else it's named by hand). */
+    private scaleFields(): boolean {
+        return (
+            this.type.kind === 'scale' &&
+            this.instrument() !== null &&
+            this.type.fields.has(this.fields.scaleRoot) &&
+            this.type.fields.has(this.fields.scaleType)
+        )
+    }
+
     /** A scale note's properties, by the configured names. */
     private scaleProperties(): Record<string, string> | null {
-        if (this.type.kind !== 'scale' || !this.scaleRoot || !this.scaleType) return null
+        if (!this.scaleFields() || !this.scaleRoot || !this.scaleType) return null
         return { [this.fields.scaleRoot]: this.scaleRoot, [this.fields.scaleType]: this.scaleType }
     }
 
@@ -153,14 +163,19 @@ export class AddNoteModal extends Modal {
         const shape = safeTitle(this.shape)
         const scale = this.scaleProperties()
         const input = this.text.trim()
-        if (this.type.kind === 'scale' && this.instrument() && !scale) return null
+        if (this.scaleFields() && !scale) return null
         if (!scale && !input) return null
         const chord = this.chord()
         // Frets the library doesn't recognize name nothing: type the chord instead.
         if (this.typedFrets() && !chord) return null
-        const named = scale ? `${this.scaleRoot} ${this.scaleType}` : input
         const title = safeTitle(
-            chord ? chordTitle(chord, shape || undefined) : shape ? `${named} - ${shape}` : named
+            chord
+                ? chordTitle(chord, shape || undefined)
+                : scale
+                  ? scaleTitle(this.scaleRoot, this.scaleType, shape || undefined)
+                  : shape
+                    ? `${input} - ${shape}`
+                    : input
         )
         if (!title) return null
         const block = this.block()
@@ -200,7 +215,7 @@ export class AddNoteModal extends Modal {
         if (!el) return
         el.empty()
         const isChord = this.type.kind === 'chord'
-        const isScale = this.type.kind === 'scale' && this.instrument() !== null
+        const isScale = this.scaleFields()
         const guitarChord = isChord && this.instrument() === 'guitar'
         // Scales: a root and a scale or mode, from the type's values when it lists them.
         const scaleRow = isScale ? el.createDiv({ cls: 'mp-form-row' }) : null
@@ -216,6 +231,9 @@ export class AddNoteModal extends Modal {
             select.createEl('option', { text: '—', value: '' })
             for (const v of values)
                 select.createEl('option', { text: v, value: v }).selected = v === current
+            select.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') void this.submit()
+            })
             select.addEventListener('change', () => {
                 set(select.value)
                 refresh()
@@ -444,7 +462,9 @@ export class AddNoteModal extends Modal {
         submit.addEventListener('click', () => void this.submit())
         refreshVoicings()
         refresh()
-        input.focus()
+        // Scales start on the root; everything else on the name.
+        if (scaleRow) scaleRow.querySelector('select')?.focus()
+        else input.focus()
     }
 
     private async submit(): Promise<void> {

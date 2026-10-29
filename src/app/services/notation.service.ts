@@ -1,6 +1,6 @@
 import { MarkdownPreviewRenderer, MarkdownRenderChild, MarkdownView } from 'obsidian'
 import type { Plugin, Workspace } from 'obsidian'
-import { LANGUAGES, renderBlock } from '@dsebastien/music-notation'
+import { LANGUAGES, blockFromProperties, renderBlock } from '@dsebastien/music-notation'
 import type {
     LayoutDefaults,
     NotationLanguage,
@@ -27,16 +27,22 @@ export type NotationStatus = 'on' | 'off' | 'taken'
  * layout change redraws it in place wherever it shows (reading view, live preview, embeds, canvas).
  */
 class NotationChild extends MarkdownRenderChild {
+    private result: RenderResult | null = null
+    /** What it drew from the note's properties last time, to skip redraws that change nothing. */
+    private drawnFrom: string | null = null
+
     constructor(
-        el: HTMLElement,
-        private result: RenderResult,
-        private readonly draw: () => RenderResult,
+        readonly el: HTMLElement,
+        private readonly draw: (sourcePath: string) => RenderResult,
         private readonly live: Set<NotationChild>,
-        /** The note it's in, and whether it draws from the note's properties (an empty block). */
-        readonly sourcePath: string,
-        readonly fromProperties: boolean
+        /** The note it's in (follows renames), and whether it draws from the note's properties. */
+        public sourcePath: string,
+        readonly fromProperties: boolean,
+        /** The block those properties make, for the current note; null without one. */
+        private readonly propertiesKey: (sourcePath: string) => string | null
     ) {
         super(el)
+        this.redraw()
     }
 
     override onload(): void {
@@ -45,12 +51,18 @@ class NotationChild extends MarkdownRenderChild {
 
     override onunload(): void {
         this.live.delete(this)
-        this.result.destroy()
+        this.result?.destroy()
     }
 
     redraw(): void {
-        this.result.destroy()
-        this.result = this.draw()
+        this.result?.destroy()
+        this.drawnFrom = this.fromProperties ? this.propertiesKey(this.sourcePath) : null
+        this.result = this.draw(this.sourcePath)
+    }
+
+    /** Redraw after the note changed, only when its properties make a different block. */
+    refresh(): void {
+        if (this.propertiesKey(this.sourcePath) !== this.drawnFrom) this.redraw()
     }
 }
 
@@ -108,15 +120,22 @@ export class NotationBlocks {
                     }
                     // An empty block draws from the note's properties, read at each draw.
                     const empty = !source.trim()
-                    const draw = () =>
+                    const draw = (path: string) =>
                         this.render(language, source, el, {
                             ...this.layout(),
-                            ...(empty ? this.note(ctx.sourcePath) : null),
+                            ...(empty ? this.note(path) : null),
                             voicings: lookupGuitarVoicing
                         })
-                    ctx.addChild(
-                        new NotationChild(el, draw(), draw, this.live, ctx.sourcePath, empty)
-                    )
+                    const key = (path: string) => {
+                        const note = this.note(path)
+                        const properties = note?.properties
+                        if (!properties || typeof properties !== 'object') return null
+                        return blockFromProperties(language, properties, {
+                            ...(note.propertyNames ? { names: note.propertyNames } : {}),
+                            ...(note.instrument ? { instrument: note.instrument } : {})
+                        })
+                    }
+                    ctx.addChild(new NotationChild(el, draw, this.live, ctx.sourcePath, empty, key))
                 })
                 this.registered.add(language)
             } catch {
@@ -133,14 +152,26 @@ export class NotationBlocks {
 
     /** Redraw the blocks that draw from a note's properties, after the note changed. */
     redrawNote(path: string): void {
-        for (const child of [...this.live]) {
-            if (child.fromProperties && child.sourcePath === path) child.redraw()
+        for (const child of this.current()) {
+            if (child.fromProperties && child.sourcePath === path) child.refresh()
         }
+    }
+
+    /** A note was renamed or moved: its blocks follow it. */
+    renamed(oldPath: string, newPath: string): void {
+        for (const child of this.live) if (child.sourcePath === oldPath) child.sourcePath = newPath
+    }
+
+    /** The blocks still on screen; those Obsidian dropped without unloading are forgotten. */
+    private current(): NotationChild[] {
+        for (const child of [...this.live])
+            if (child.el.isConnected === false) this.live.delete(child)
+        return [...this.live]
     }
 
     /** Redraw every block on screen with the current layout settings, wherever it shows. */
     redrawLayout(): void {
-        for (const child of [...this.live]) child.redraw()
+        for (const child of this.current()) child.redraw()
     }
 
     /** Redraw open notes in reading view, after a block was turned on or off. */

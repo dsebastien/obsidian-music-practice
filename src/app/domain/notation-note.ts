@@ -47,7 +47,8 @@ export function chordBlock(
  * that draws from its properties: the template's when it has one, else one under the title.
  */
 export function ensureBlock(content: string, language: string): string {
-    const fence = new RegExp(`^\`\`\`${language}[ \\t]*\\r?$`, 'm')
+    // ``` or ~~~ fences, in callouts too, with anything after the language.
+    const fence = new RegExp(`^(?:>\\s*)*(?:\`{3,}|~{3,})\\s*${language}(?![\\w-])`, 'm')
     return fence.test(content) ? content : insertUnderTitle(content, `\`\`\`${language}\n\`\`\``)
 }
 
@@ -118,4 +119,14 @@ export function chordFromNotes(
             return midi
         })
     return detectChordFromPitches(midis)
+}
+
+/** Aliases with one more, kept as a list ("aliases: Open E" is one alias, not none). */
+export function withAlias(aliases: unknown, alias: string): string[] {
+    const list = Array.isArray(aliases)
+        ? aliases.filter((a) => a !== null && a !== undefined).map(String)
+        : typeof aliases === 'string' && aliases.trim()
+          ? [aliases.trim()]
+          : []
+    return list.includes(alias) ? list : [...list, alias]
 }

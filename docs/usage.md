@@ -61,7 +61,7 @@ Pick the type (Guitar Chords, Piano Scales…), type a name (for chords: a symbo
 
 ![Add a guitar chord with its voicing](images/add-note-chord.png)
 
-For guitar chords, the four most common **voicings** are drawn side by side: click one to pick it, or choose any voicing (or "No diagram") from the dropdown. Typed frets are kept as they are and named by the library. The previews follow your orientation and left-handed settings.
+For guitar chords, the four most common **voicings** are drawn side by side: click one to pick it, or choose any voicing (or "No diagram") from the dropdown. Typed frets are named by the library and stored in compact form (`x02220`), without fingers. The previews follow your orientation and left-handed settings.
 
 ![Add a guitar scale](images/add-note-scale.png)
 

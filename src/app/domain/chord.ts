@@ -19,3 +19,16 @@ export const safeTitle = (text: string): string =>
         .replace(/[\\/:*?"<>|#^[\]]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
+
+/** "C#" → "C Sharp", "Bb" → "B Flat", "C#/Db" → "C Sharp": a root as note titles spell it. */
+export function spellRoot(root: string): string {
+    const first = root.split('/')[0]!.trim()
+    const m = /^([A-Ga-g])\s*([#♯]|[b♭])?$/.exec(first)
+    if (!m) return first
+    const accidental = m[2] ? (m[2] === '#' || m[2] === '♯' ? ' Sharp' : ' Flat') : ''
+    return `${m[1]!.toUpperCase()}${accidental}`
+}
+
+/** Note title for a scale: `<root> <type>[ - <shape>]` ("C Sharp Major - Box 1"). */
+export const scaleTitle = (root: string, type: string, shape?: string): string =>
+    `${spellRoot(root)} ${type}${shape ? ` - ${shape}` : ''}`

@@ -33,7 +33,7 @@ import { clockTime, formatElapsed, minutesBetween } from './domain/timer'
 import { NotationBlocks } from './services/notation.service'
 import type { NoteContext } from './services/notation.service'
 import { learningTypeOf } from './domain/item-reader'
-import { propertyNamesOf, chordFromNotes } from './domain/notation-note'
+import { propertyNamesOf, chordFromNotes, withAlias } from './domain/notation-note'
 import { ChooseChordModal } from './ui/choose-chord-modal'
 import { parseChord } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
@@ -83,11 +83,15 @@ export class MusicPracticePlugin extends Plugin {
         frontmatter: Record<string, unknown>
     ): void {
         const fields = this.effective().fields
-        const text = (name: string) => {
+        // As the blocks read them: lists joined, frets stored as numbers given their zeros back.
+        const text = (name: string, digits = 0) => {
             const value = frontmatter[name]
-            return typeof value === 'string' || typeof value === 'number'
-                ? String(value).trim()
-                : ''
+            const plain = Array.isArray(value)
+                ? value.map(String).join(' ')
+                : typeof value === 'string' || typeof value === 'number'
+                  ? String(value)
+                  : ''
+            return typeof value === 'number' && digits ? plain.padStart(digits, '0') : plain.trim()
         }
         const named = text(fields.chordSymbol)
         if (named) {
@@ -96,7 +100,13 @@ export class MusicPracticePlugin extends Plugin {
             )
             return
         }
-        const detected = chordFromNotes(text(fields.frets), text(fields.pitches), type.subject)
+        if (!type.fields.has(fields.chordSymbol)) {
+            new Notice(
+                `This note type has no "${fields.chordSymbol}" property to name the chord in.`
+            )
+            return
+        }
+        const detected = chordFromNotes(text(fields.frets, 6), text(fields.pitches), type.subject)
         if (!detected) {
             new Notice(
                 type.subject === 'piano'
@@ -105,25 +115,31 @@ export class MusicPracticePlugin extends Plugin {
             )
             return
         }
-        const apply = (symbol: string) => {
+        const apply = async (symbol: string) => {
             const chord = parseChord(symbol)
             if (!chord) return
-            void this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
-                const put = (name: string, value: string) => {
-                    if (type.fields.has(name)) fm[name] = value
-                }
-                put(fields.chordSymbol, chord.symbol)
-                put(fields.chordRoot, chord.root)
-                put(fields.chordQuality, chord.quality)
-                const aliases = Array.isArray(fm['aliases'])
-                    ? (fm['aliases'] as unknown[]).map(String)
-                    : []
-                if (!aliases.includes(chord.symbol)) fm['aliases'] = [...aliases, chord.symbol]
-            })
-            new Notice(`This chord is ${chord.name} (${chord.symbol}).`)
+            try {
+                await this.app.fileManager.processFrontMatter(
+                    file,
+                    (fm: Record<string, unknown>) => {
+                        const put = (name: string, value: string) => {
+                            if (type.fields.has(name)) fm[name] = value
+                        }
+                        put(fields.chordSymbol, chord.symbol)
+                        put(fields.chordRoot, chord.root)
+                        put(fields.chordQuality, chord.quality)
+                        fm['aliases'] = withAlias(fm['aliases'], chord.symbol)
+                    }
+                )
+                new Notice(`This chord is ${chord.name} (${chord.symbol}).`)
+            } catch (error: unknown) {
+                new Notice(
+                    `Couldn't name the chord: ${error instanceof Error ? error.message : String(error)}`
+                )
+            }
         }
-        if (detected.readings.length === 1) apply(detected.symbol)
-        else new ChooseChordModal(this.app, detected.readings, apply).open()
+        if (detected.readings.length === 1) void apply(detected.symbol)
+        else new ChooseChordModal(this.app, detected.readings, (s) => void apply(s)).open()
     }
 
     /**
@@ -230,6 +246,11 @@ export class MusicPracticePlugin extends Plugin {
         // the properties change.
         this.registerEvent(
             this.app.metadataCache.on('changed', (file) => this.notation?.redrawNote(file.path))
+        )
+        this.registerEvent(
+            this.app.vault.on('rename', (file, oldPath) =>
+                this.notation?.renamed(oldPath, file.path)
+            )
         )
         this.app.workspace.onLayoutReady(() => this.notation.sync())
 
@@ -548,7 +569,10 @@ export class MusicPracticePlugin extends Plugin {
             const next = produce(this.settings, mutator)
             await this.saveData(next)
             const notationChanged = next.notation !== this.settings.notation
-            const layoutChanged = next.notationLayout !== this.settings.notationLayout
+            // Property names change what empty blocks draw from, like the layout changes how.
+            const layoutChanged =
+                next.notationLayout !== this.settings.notationLayout ||
+                next.fields !== this.settings.fields
             this.settings = next
             this.noteModel?.refresh()
             if (notationChanged) {

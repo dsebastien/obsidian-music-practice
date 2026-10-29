@@ -156,3 +156,90 @@ describe('NotationBlocks layout', () => {
         expect(drawn.slice(4).map((d) => d.source)).toEqual(['C x32010'])
     })
 })
+
+describe('NotationBlocks and note properties', () => {
+    type Register = NotationHost['registerMarkdownCodeBlockProcessor']
+    type Processor = Parameters<Register>[1]
+    type Context = Parameters<Processor>[2]
+
+    function setup(notes: Record<string, Record<string, unknown>>) {
+        const processors = new Map<string, Processor>()
+        const plugin: NotationHost = {
+            registerMarkdownCodeBlockProcessor: (language: string, processor: Processor) => {
+                processors.set(language, processor)
+                return () => {}
+            },
+            app: { workspace: { getLeavesOfType: () => [] } }
+        }
+        const drawn: { source: string; properties: unknown }[] = []
+        const render = (
+            _language: NotationLanguage,
+            source: string,
+            host: HTMLElement,
+            options: RenderOptions = {}
+        ): RenderResult => {
+            drawn.push({ source, properties: options.properties })
+            return { ok: true, el: host, error: null, destroy: () => {} }
+        }
+        const blocks = new NotationBlocks(
+            plugin,
+            allOn,
+            () => ({}),
+            () => false,
+            render,
+            (path) => (notes[path] ? { properties: notes[path], instrument: 'guitar' } : null)
+        )
+        blocks.sync()
+        const children: MarkdownRenderChild[] = []
+        const draw = (source: string, sourcePath: string) => {
+            const ctx: Pick<Context, 'addChild' | 'sourcePath'> = {
+                sourcePath,
+                addChild: (child) => {
+                    children.push(child)
+                    child.onload()
+                }
+            }
+            void processors.get('chord')!(source, {} as HTMLElement, ctx as Context)
+        }
+        return { blocks, draw, drawn, children }
+    }
+
+    it('gives empty blocks the note properties, and blocks with content none', () => {
+        const notes = { 'A.md': { chord_symbol: 'A', frets: 'x02220' } }
+        const { draw, drawn } = setup(notes)
+        draw('', 'A.md')
+        draw('G 320003', 'A.md')
+        expect(drawn[0]!.properties).toEqual(notes['A.md'])
+        expect(drawn[1]!.properties).toBeUndefined()
+    })
+
+    it('redraws a note blocks only when their properties make another block', () => {
+        const notes: Record<string, Record<string, unknown>> = {
+            'A.md': { chord_symbol: 'A', frets: 'x02220' }
+        }
+        const { blocks, draw, drawn } = setup(notes)
+        draw('', 'A.md')
+        blocks.redrawNote('A.md')
+        expect(drawn).toHaveLength(1)
+        notes['A.md'] = { chord_symbol: 'A', frets: 'x02220', mastery: '30 - Can play slowly' }
+        blocks.redrawNote('A.md')
+        expect(drawn).toHaveLength(1)
+        notes['A.md'] = { chord_symbol: 'Am', frets: 'x02210' }
+        blocks.redrawNote('A.md')
+        expect(drawn).toHaveLength(2)
+    })
+
+    it('follows a renamed note', () => {
+        const notes: Record<string, Record<string, unknown>> = {
+            'A.md': { chord_symbol: 'A', frets: 'x02220' }
+        }
+        const { blocks, draw, drawn } = setup(notes)
+        draw('', 'A.md')
+        notes['B.md'] = { chord_symbol: 'Am', frets: 'x02210' }
+        delete notes['A.md']
+        blocks.renamed('A.md', 'B.md')
+        blocks.redrawNote('B.md')
+        expect(drawn).toHaveLength(2)
+        expect(drawn[1]!.properties).toEqual(notes['B.md'])
+    })
+})

@@ -158,8 +158,12 @@ Empty blocks in chord and scale notes draw from the note's properties on your si
 
 ```js
 window.musicNotationOptions = {
-    properties: () => app.site.cache.cache[app.currentFilepath]?.frontmatter
+    // The page's properties; nothing for embedded notes and hover previews (they aren't this page).
+    properties: (el) =>
+        el.closest('.markdown-embed, .popover')
+            ? null
+            : app.site.cache.cache[app.currentFilepath]?.frontmatter
 }
 ```
 
-The library reads the default property names (`chord_symbol`, `frets`, `fingers`, `scale_root`…). If you renamed them in the settings, pass the same names as `propertyNames`.
+Pin the library at 0.3.0 or later in the loader. The library reads the default property names (`chord_symbol`, `frets`, `fingers`, `scale_root`…). If you renamed them in the settings, pass the same names as `propertyNames`.

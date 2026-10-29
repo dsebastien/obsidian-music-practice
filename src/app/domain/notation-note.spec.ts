@@ -6,6 +6,7 @@ import {
     insertUnderTitle,
     chordFromNotes,
     ensureBlock,
+    withAlias,
     voicingRow
 } from './notation-note'
 
@@ -112,5 +113,25 @@ describe('chordFromNotes', () => {
         expect(chordFromNotes('x0222', '', 'guitar')).toBeNull()
         expect(chordFromNotes('', '', 'guitar')).toBeNull()
         expect(chordFromNotes('', 'nope', 'piano')).toBeNull()
+    })
+})
+
+describe('withAlias', () => {
+    it('keeps aliases as a list, a single one included', () => {
+        expect(withAlias(undefined, 'C')).toEqual(['C'])
+        expect(withAlias('Open E', 'E')).toEqual(['Open E', 'E'])
+        expect(withAlias(['C', null], 'C')).toEqual(['C'])
+    })
+})
+
+describe('ensureBlock fences', () => {
+    it('sees tilde fences, callouts and info after the language', () => {
+        expect(ensureBlock('# A\n~~~chord\n~~~\n', 'chord')).toBe('# A\n~~~chord\n~~~\n')
+        expect(ensureBlock('# A\n> ```fretboard\n> ```\n', 'fretboard')).toBe(
+            '# A\n> ```fretboard\n> ```\n'
+        )
+        expect(ensureBlock('# A\n```chord title\n```\n', 'chord')).toBe(
+            '# A\n```chord title\n```\n'
+        )
     })
 })

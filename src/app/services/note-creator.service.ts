@@ -10,7 +10,7 @@ import type { LearningItem } from '../domain/practice'
 import type { LearningType } from '../domain/note-model'
 import type { PracticeRules } from '../domain/rules'
 import { renderTemplate } from '../domain/template-render'
-import { ensureBlock, formatFingers, formatFrets } from '../domain/notation-note'
+import { ensureBlock, formatFingers, formatFrets, withAlias } from '../domain/notation-note'
 import type { FrettedVoicing } from '@dsebastien/music-notation'
 import {
     resolveNoteTypeAffixes,
@@ -136,15 +136,14 @@ export class NoteCreatorService {
                 put(fields.chordSymbol, chord.symbol)
                 put(fields.chordRoot, chord.root)
                 put(fields.chordQuality, chord.quality)
-                const aliases = Array.isArray(fm['aliases'])
-                    ? (fm['aliases'] as unknown[]).map(String)
-                    : []
-                if (!aliases.includes(chord.symbol)) fm['aliases'] = [...aliases, chord.symbol]
+                fm['aliases'] = withAlias(fm['aliases'], chord.symbol)
             }
             for (const [name, value] of Object.entries(spec.properties ?? {})) put(name, value)
             if (spec.voicing) {
                 put(fields.frets, formatFrets(spec.voicing.frets))
-                put(fields.fingers, formatFingers(spec.voicing))
+                // Typed frets come without fingers: none written.
+                if (spec.voicing.fingers.some((f) => f !== null))
+                    put(fields.fingers, formatFingers(spec.voicing))
             }
         })
         const block = spec.block
