@@ -6,7 +6,7 @@ Every chord, scale, technique, exercise and piece you learn is a note with a mas
 
 I built this because I'm learning guitar and piano again, and I wanted my practice to live next to the rest of my notes, with a system that tells me what to work on instead of a pile of tabs.
 
-> **Version 0.3** ships the practice engine and notation blocks (chord diagrams, keyboards, fretboards, chord charts), side by side, in any orientation, left-handed too. Tabs and scores with playback come in 0.4. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones) and [issues](https://github.com/dsebastien/obsidian-music-practice/issues).
+> **Version 0.4** ships the practice engine and notation blocks (chord diagrams, keyboards, fretboards, chord charts) that chord and scale notes draw from their own properties. Tabs and scores with playback come in 0.5. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones) and [issues](https://github.com/dsebastien/obsidian-music-practice/issues).
 
 ## Screenshots
 
@@ -55,7 +55,15 @@ Add a chord from its symbol:
 
 ![Chords side by side](docs/images/notation-row.png)
 
-### 0.4: tabs, scores and playback (planned)
+### 0.4: chords and scales (available)
+
+- **Notes draw their own diagram**: an empty block in a chord or scale note draws from the note's properties (chord, frets, fingers; scale root, type and shape), in Obsidian and on Publish. Nothing is written twice.
+- **Chords in words or frets**: `A Major`, `F Sharp Minor 7`, or `x02220` (recognized). **Identify this chord** names a chord note from its frets.
+- **Scales and modes**: positions (boxes, CAGED, 3NPS), characteristic notes, comparisons, every mode of a key. **Add a learning note** picks a scale's root, type and shape, with a preview.
+
+![A scale note drawing its fretboard](docs/images/notation-from-properties.png)
+
+### 0.5: tabs, scores and playback (planned)
 
 - Tabs and scores (alphaTex, via [alphaTab](https://alphatab.net)) with playback: play, slow down, loop, metronome.
 - Play chords, scales and notes from the notation blocks.

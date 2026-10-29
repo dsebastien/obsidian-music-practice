@@ -98,3 +98,12 @@ This document defines the core business rules. These rules MUST be respected in 
 - Changing a layout setting redraws every block on screen in place (each rendered block is tracked while loaded: reading view, live preview, embeds, canvas); it never re-registers processors. The block switches still re-render reading view.
 - Layout settings apply in Obsidian only; a Publish site gets the same with `window.musicNotationOptions` in its `publish.js` (documented). Blocks that say `orientation:` / `hand:` render the same everywhere.
 - Add a learning note, guitar chords: the first 4 voicings are drawn side by side (titled 1 to 4), plus the selected one when it's further down the list (5 columns then); clicking one selects it in place (focus kept) and updates the dropdown; "No diagram" shows no row. Previews use the layout settings. The note still gets one diagram (the selected voicing).
+
+## Chords and scales (v0.4)
+
+- An empty `chord block in a chord note and an empty `fretboard / ```keyboard block in a scale note draw from the note's frontmatter through the library's `blockFromProperties`, with the configured property names and the instrument of the note type (guitar or piano subject; otherwise the library reads the tags). Other notes and blocks with content are unaffected. The note is matched to its learning type the same way as everywhere (`learningTypeOf`).
+- Those blocks redraw when the note's metadata changes (`metadataCache` "changed"), with the layout settings.
+- Add a learning note writes properties only: chord symbol, root, quality, alias, frets and fingers (guitar), scale root and type, shape; the note gets an empty block of its language (`ensureBlock`: the template's, else one under the title), only when Music Practice draws that language and, for chords, when the block would draw.
+- Chords are typed as a symbol, words, or six guitar frets (recognized; kept as typed, without fingers). Frets the library can't name give no note.
+- Scales: root and scale/mode from the type's allowed values (else the common roots and scales), shape from the type's shape values; title `<root> <type>[ - <shape>]`.
+- Identify this chord: only on a chord-kind note without a chord symbol; six frets (guitar) or pitches (piano; pitch classes stacked from middle C); one reading applies directly, several open a picker; writes symbol, root, quality and alias, only fields the type defines.

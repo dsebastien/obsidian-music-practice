@@ -1,7 +1,12 @@
 import { MarkdownPreviewRenderer, MarkdownRenderChild, MarkdownView } from 'obsidian'
 import type { Plugin, Workspace } from 'obsidian'
 import { LANGUAGES, renderBlock } from '@dsebastien/music-notation'
-import type { LayoutDefaults, NotationLanguage, RenderResult } from '@dsebastien/music-notation'
+import type {
+    LayoutDefaults,
+    NotationLanguage,
+    RenderOptions,
+    RenderResult
+} from '@dsebastien/music-notation'
 import { lookupGuitarVoicing } from '@dsebastien/music-notation/voicings'
 
 export type NotationToggles = Record<NotationLanguage, boolean>
@@ -10,6 +15,9 @@ export type NotationToggles = Record<NotationLanguage, boolean>
 export type NotationHost = Pick<Plugin, 'registerMarkdownCodeBlockProcessor'> & {
     app: { workspace: Pick<Workspace, 'getLeavesOfType'> }
 }
+
+/** What an empty block in a note draws from: the note's properties, their names, its instrument. */
+export type NoteContext = Pick<RenderOptions, 'properties' | 'propertyNames' | 'instrument'>
 
 /** Where each block language stands: rendered by us, turned off, or handled by another plugin. */
 export type NotationStatus = 'on' | 'off' | 'taken'
@@ -23,7 +31,10 @@ class NotationChild extends MarkdownRenderChild {
         el: HTMLElement,
         private result: RenderResult,
         private readonly draw: () => RenderResult,
-        private readonly live: Set<NotationChild>
+        private readonly live: Set<NotationChild>,
+        /** The note it's in, and whether it draws from the note's properties (an empty block). */
+        readonly sourcePath: string,
+        readonly fromProperties: boolean
     ) {
         super(el)
     }
@@ -73,7 +84,8 @@ export class NotationBlocks {
         private readonly toggles: () => NotationToggles,
         private readonly layout: () => LayoutDefaults = () => ({}),
         private readonly exists: (language: string) => boolean | null = processorExists,
-        private readonly render: typeof renderBlock = renderBlock
+        private readonly render: typeof renderBlock = renderBlock,
+        private readonly note: (sourcePath: string) => NoteContext | null = () => null
     ) {}
 
     /** Register every language turned on, not registered yet and not taken. */
@@ -94,12 +106,17 @@ export class NotationBlocks {
                         })
                         return
                     }
+                    // An empty block draws from the note's properties, read at each draw.
+                    const empty = !source.trim()
                     const draw = () =>
                         this.render(language, source, el, {
                             ...this.layout(),
+                            ...(empty ? this.note(ctx.sourcePath) : null),
                             voicings: lookupGuitarVoicing
                         })
-                    ctx.addChild(new NotationChild(el, draw(), draw, this.live))
+                    ctx.addChild(
+                        new NotationChild(el, draw(), draw, this.live, ctx.sourcePath, empty)
+                    )
                 })
                 this.registered.add(language)
             } catch {
@@ -112,6 +129,13 @@ export class NotationBlocks {
     status(language: NotationLanguage): NotationStatus {
         if (this.taken.has(language)) return 'taken'
         return this.toggles()[language] && this.registered.has(language) ? 'on' : 'off'
+    }
+
+    /** Redraw the blocks that draw from a note's properties, after the note changed. */
+    redrawNote(path: string): void {
+        for (const child of [...this.live]) {
+            if (child.fromProperties && child.sourcePath === path) child.redraw()
+        }
     }
 
     /** Redraw every block on screen with the current layout settings, wherever it shows. */

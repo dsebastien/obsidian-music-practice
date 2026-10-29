@@ -1,19 +1,54 @@
 import { Modal, Notice } from 'obsidian'
 import type { App } from 'obsidian'
-import { chordTitle, parseChord, safeTitle } from '../domain/chord'
+import { chordTitle, safeTitle } from '../domain/chord'
 import type { FieldNames } from '../domain/fields'
 import { levelOf } from '../domain/mastery'
 import type { LearningType } from '../domain/note-model'
 import type { NewLearningNote } from '../services/note-creator.service'
-import { renderBlock } from '@dsebastien/music-notation'
-import type { FrettedVoicing, RenderOptions, RenderResult } from '@dsebastien/music-notation'
+import {
+    detectChordFromFrets,
+    parseChord,
+    parseFrets,
+    readChord,
+    renderBlock
+} from '@dsebastien/music-notation'
+import type {
+    FrettedVoicing,
+    NotationLanguage,
+    ParsedChord,
+    RenderOptions,
+    RenderResult
+} from '@dsebastien/music-notation'
 import { lookupGuitarVoicing, voicingCount } from '@dsebastien/music-notation/voicings'
 import { blockSource, chordBlock, formatFrets, voicingRow } from '../domain/notation-note'
 
-/** Add a learning note: type, name (or chord symbol), shape and starting level. */
+/** Scale roots and types offered when the note type doesn't list its own. */
+const ROOTS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
+const SCALE_TYPES = [
+    'Major',
+    'Natural minor',
+    'Harmonic minor',
+    'Melodic minor',
+    'Major pentatonic',
+    'Minor pentatonic',
+    'Blues',
+    'Dorian',
+    'Phrygian',
+    'Lydian',
+    'Mixolydian',
+    'Locrian'
+]
+
+/**
+ * Add a learning note: type, name (a chord in symbols, words or frets; a scale's root and type),
+ * shape and starting level. Chord and scale notes get their properties and an empty notation
+ * block that draws from them.
+ */
 export class AddNoteModal extends Modal {
     private type: LearningType
     private text = ''
+    private scaleRoot = ''
+    private scaleType = ''
     private shape = ''
     private level: number | undefined
     /** Guitar chords: index of the voicing to prefill; -1 for none. */
@@ -26,8 +61,8 @@ export class AddNoteModal extends Modal {
         app: App,
         private readonly types: LearningType[],
         private readonly fields: FieldNames,
-        /** Whether chord notes get a ```chord block (Music Practice draws them). */
-        private readonly chordBlocks: () => boolean,
+        /** Whether Music Practice draws a block language (notes only get blocks it draws). */
+        private readonly blocksOn: (language: NotationLanguage) => boolean,
         private readonly create: (type: LearningType, spec: NewLearningNote) => Promise<void>,
         /** Orientation and hand, so previews look like the notes will. */
         private readonly renderOptions: () => RenderOptions = () => ({})
@@ -36,31 +71,65 @@ export class AddNoteModal extends Modal {
         this.type = types[0]!
     }
 
-    /** The instrument whose notation a chord note of this type gets; null for other kinds. */
+    /** The instrument whose notation a chord or scale note of this type gets; null for others. */
     private instrument(): 'guitar' | 'piano' | null {
-        if (this.type.kind !== 'chord') return null
+        if (this.type.kind !== 'chord' && this.type.kind !== 'scale') return null
         return this.type.subject === 'guitar' || this.type.subject === 'piano'
             ? this.type.subject
             : null
     }
 
+    /** The block language a note of this type gets; null when it gets none. */
+    private language(): NotationLanguage | null {
+        const instrument = this.instrument()
+        if (!instrument) return null
+        if (this.type.kind === 'chord') return 'chord'
+        return instrument === 'guitar' ? 'fretboard' : 'keyboard'
+    }
+
+    /** Guitar chords typed as frets ("x02220"): six strings, lowest first. */
+    private typedFrets(): (number | null)[] | null {
+        if (this.type.kind !== 'chord' || this.instrument() !== 'guitar') return null
+        const frets = parseFrets(this.text.trim())
+        return frets?.length === 6 ? frets : null
+    }
+
+    /** The chord typed: a symbol ("Am7"), words ("A Minor 7"), or recognized from frets. */
+    private chord(): ParsedChord | null {
+        if (this.type.kind !== 'chord') return null
+        const frets = this.typedFrets()
+        if (frets) {
+            const detected = detectChordFromFrets(frets)
+            return detected ? parseChord(detected.symbol) : null
+        }
+        return readChord(this.text.trim())
+    }
+
     /** The chord symbol typed, when it is one. */
     private symbol(): string | null {
-        return this.type.kind === 'chord' ? (parseChord(this.text.trim())?.symbol ?? null) : null
+        return this.chord()?.symbol ?? null
     }
 
     private voicing(): FrettedVoicing | null {
+        const frets = this.typedFrets()
+        if (frets) return { frets, fingers: frets.map(() => null) }
         const symbol = this.symbol()
         return symbol && this.instrument() === 'guitar' && this.voicingIndex >= 0
             ? lookupGuitarVoicing(symbol, this.voicingIndex)
             : null
     }
 
-    /** The ```chord block the note gets: only one that draws, and only when Music Practice draws them. */
-    private notation(): string | null {
+    /** A scale note's properties, by the configured names. */
+    private scaleProperties(): Record<string, string> | null {
+        if (this.type.kind !== 'scale' || !this.scaleRoot || !this.scaleType) return null
+        return { [this.fields.scaleRoot]: this.scaleRoot, [this.fields.scaleType]: this.scaleType }
+    }
+
+    /** The full ```chord block for the preview: only one that draws. */
+    private preview(): string | null {
         const symbol = this.symbol()
         const instrument = this.instrument()
-        if (!symbol || !instrument || !this.chordBlocks()) return null
+        if (!symbol || !instrument || this.type.kind !== 'chord') return null
         const block = chordBlock(symbol, instrument, this.voicing())
         if (!block) return null
         const probe = renderBlock('chord', blockSource(block), createDiv())
@@ -68,23 +137,41 @@ export class AddNoteModal extends Modal {
         return probe.ok ? block : null
     }
 
-    /** The note's title and chord symbol for the current input. */
+    /**
+     * The empty block the note gets (it draws from the properties): only one that would draw, and
+     * only a language Music Practice draws.
+     */
+    private block(): NotationLanguage | null {
+        const language = this.language()
+        if (!language || !this.blocksOn(language)) return null
+        if (language === 'chord') return this.preview() ? language : null
+        return this.scaleProperties() ? language : null
+    }
+
+    /** The note's title and properties for the current input. */
     private spec(): NewLearningNote | null {
-        const input = this.text.trim()
-        if (!input) return null
-        const chord = this.type.kind === 'chord' ? parseChord(input) : null
         const shape = safeTitle(this.shape)
+        const scale = this.scaleProperties()
+        const input = this.text.trim()
+        if (this.type.kind === 'scale' && this.instrument() && !scale) return null
+        if (!scale && !input) return null
+        const chord = this.chord()
+        // Frets the library doesn't recognize name nothing: type the chord instead.
+        if (this.typedFrets() && !chord) return null
+        const named = scale ? `${this.scaleRoot} ${this.scaleType}` : input
         const title = safeTitle(
-            chord ? chordTitle(chord, shape || undefined) : shape ? `${input} - ${shape}` : input
+            chord ? chordTitle(chord, shape || undefined) : shape ? `${named} - ${shape}` : named
         )
         if (!title) return null
+        const block = this.block()
         return {
             title,
             ...(chord ? { chordSymbol: chord.symbol } : {}),
             ...(this.shape ? { shape: this.shape } : {}),
             ...(this.level !== undefined ? { level: this.level } : {}),
             ...(this.voicing() ? { voicing: this.voicing()! } : {}),
-            ...(this.notation() ? { notation: this.notation()! } : {})
+            ...(scale ? { properties: scale } : {}),
+            ...(block ? { block } : {})
         }
     }
 
@@ -100,6 +187,8 @@ export class AddNoteModal extends Modal {
             this.shape = ''
             this.level = undefined
             this.voicingIndex = 0
+            this.scaleRoot = ''
+            this.scaleType = ''
             this.render()
         })
         this.formEl = this.contentEl.createDiv({ cls: 'mp-modal' })
@@ -111,13 +200,58 @@ export class AddNoteModal extends Modal {
         if (!el) return
         el.empty()
         const isChord = this.type.kind === 'chord'
-        const nameField = el.createEl('label', {
-            cls: 'mp-field',
-            text: isChord ? 'Chord symbol (F#m7, C/G) or name' : 'Name'
-        })
-        const input = nameField.createEl('input', {
+        const isScale = this.type.kind === 'scale' && this.instrument() !== null
+        const guitarChord = isChord && this.instrument() === 'guitar'
+        // Scales: a root and a scale or mode, from the type's values when it lists them.
+        const scaleRow = isScale ? el.createDiv({ cls: 'mp-form-row' }) : null
+        const picker = (
+            label: string,
+            values: string[],
+            current: string,
+            set: (v: string) => void
+        ) => {
+            if (!scaleRow) return
+            const field = scaleRow.createEl('label', { cls: 'mp-field', text: label })
+            const select = field.createEl('select', { cls: 'dropdown' })
+            select.createEl('option', { text: '—', value: '' })
+            for (const v of values)
+                select.createEl('option', { text: v, value: v }).selected = v === current
+            select.addEventListener('change', () => {
+                set(select.value)
+                refresh()
+            })
+        }
+        const valuesOf = (name: string, fallback: string[]) => {
+            const values = this.type.allowedValues[name]
+            return values?.length ? values : fallback
+        }
+        picker(
+            'Root',
+            valuesOf(this.fields.scaleRoot, ROOTS),
+            this.scaleRoot,
+            (v) => (this.scaleRoot = v)
+        )
+        picker(
+            'Scale or mode',
+            valuesOf(this.fields.scaleType, SCALE_TYPES),
+            this.scaleType,
+            (v) => (this.scaleType = v)
+        )
+        const nameField = isScale
+            ? null
+            : el.createEl('label', {
+                  cls: 'mp-field',
+                  text: guitarChord
+                      ? 'Chord (F#m7, A Major) or frets (x02220)'
+                      : isChord
+                        ? 'Chord (F#m7, A Major)'
+                        : 'Name'
+              })
+        const input = (nameField ?? createDiv()).createEl('input', {
             type: 'text',
-            attr: { placeholder: isChord ? 'Am7' : "Knockin on Heaven's Door - Simplified" }
+            attr: {
+                placeholder: isChord ? 'Am7' : "Knockin on Heaven's Door - Simplified"
+            }
         })
         input.value = this.text
 
@@ -177,7 +311,7 @@ export class AddNoteModal extends Modal {
             const symbol = this.symbol()
             const count = symbol ? voicingCount(symbol) : 0
             voicingSelect.empty()
-            voicingField.toggle(Boolean(symbol) && this.chordBlocks())
+            voicingField.toggle(Boolean(symbol) && this.blocksOn('chord') && !this.typedFrets())
             if (!symbol) return
             if (count === 0) {
                 voicingSelect.createEl('option', { text: 'None found: no diagram', value: '-1' })
@@ -255,11 +389,30 @@ export class AddNoteModal extends Modal {
             if (
                 symbol &&
                 this.instrument() === 'guitar' &&
-                this.chordBlocks() &&
+                this.blocksOn('chord') &&
+                !this.typedFrets() &&
                 refreshVoicingRow(symbol)
             )
                 return
-            const block = this.notation()
+            // Scales: drawn from the properties the note will get, as the note will draw them.
+            const scale = this.scaleProperties()
+            const language = this.language()
+            if (scale && language && language !== 'chord' && this.blocksOn(language)) {
+                const properties = {
+                    scale_root: this.scaleRoot,
+                    scale_type: this.scaleType,
+                    shape: this.shape
+                }
+                this.diagrams.push(
+                    renderBlock(language, '', diagramEl, {
+                        ...options(),
+                        properties,
+                        instrument: this.instrument()!
+                    })
+                )
+                return
+            }
+            const block = this.blocksOn('chord') ? this.preview() : null
             if (!block) return
             this.diagrams.push(renderBlock('chord', blockSource(block), diagramEl, options()))
         }
@@ -270,8 +423,12 @@ export class AddNoteModal extends Modal {
                 spec
                     ? `Note: ${spec.title}${spec.chordSymbol ? ` (alias ${spec.chordSymbol})` : ''}`
                     : isChord
-                      ? 'Type a chord symbol: its name is spelled out, the symbol becomes an alias.'
-                      : ''
+                      ? this.typedFrets()
+                          ? 'These frets make no chord the library knows: type the chord instead.'
+                          : 'Type a chord: its name is spelled out, the symbol becomes an alias.'
+                      : isScale
+                        ? 'Pick a root and a scale or mode.'
+                        : ''
             )
             submit.disabled = !spec
         }

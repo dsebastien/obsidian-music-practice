@@ -16,9 +16,17 @@ export interface FieldNames {
     chordSymbol: string
     chordRoot: string
     chordQuality: string
-    /** Guitar chords: frets and fingers, lowest string first ("x02220"). */
+    /** Guitar chords: frets and fingers, lowest string first ("x02220"), and the first fret shown. */
     frets: string
     fingers: string
+    position: string
+    /** Piano chords: pitches ("A3 C#4 E4") and fingering ("5 3 1"). */
+    pitches: string
+    fingering: string
+    /** Scales: root ("A"), type ("Minor pentatonic"), right-hand fingering (piano). */
+    scaleRoot: string
+    scaleType: string
+    fingeringRight: string
     /** Spaced review (Kanban Action Planner: reviewed date / interval / count properties). */
     lastReviewed: string
     reviewInterval: string
@@ -50,6 +58,12 @@ export function createDefaultFieldNames(): FieldNames {
         chordQuality: 'chord_quality',
         frets: 'frets',
         fingers: 'fingers',
+        position: 'position',
+        pitches: 'pitches',
+        fingering: 'fingering',
+        scaleRoot: 'scale_root',
+        scaleType: 'scale_type',
+        fingeringRight: 'fingering_rh',
         lastReviewed: 'last_reviewed',
         reviewInterval: 'review_interval',
         reviewCount: 'review_count',

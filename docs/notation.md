@@ -117,9 +117,21 @@ The defaults for every note are settings: **Left-handed**, and the orientation o
 
 A block with a mistake shows what's wrong and what to write instead. The note itself is never changed.
 
-## New chord notes
+## Chords and scales, easier
 
-**Add a learning note** fills a new chord note: for guitar chords, the four most common voicings are drawn side by side; click one to pick it (the dropdown lists them all, and "No diagram"). The note gets its `frets` and `fingers` properties and a ` ```chord ` block. Piano chords get a ` ```chord ` block with `instrument: piano`. An empty ` ```chord ` block (as templates scaffold) draws nothing. See [Usage](usage.md#add-a-learning-note).
+The blocks accept chords in words and recognize chords from their frets, and draw scales and modes more ways (see the library's [guide](https://dsebastien.github.io/music-notation/blocks.html#scales-and-modes)):
+
+- ` ```chord ` with `F Sharp Minor 7`, or only `frets: x02220` (named A).
+- Modes mark their characteristic note in a third color; `compare: major` shows what changes from the major scale.
+- Fretboards draw one position (`position: 2`, `shape: E`, `shape: 3nps`) or all of them in a row (`positions: all`); `modes: C major` draws every mode of a key.
+
+## Notes draw their own diagram
+
+![A scale note drawing its fretboard from its properties](images/notation-from-properties.png)
+
+An empty ` ```chord ` block in a chord note, or an empty ` ```fretboard ` / ` ```keyboard ` block in a scale note, draws what the note's properties say: the chord symbol, frets, fingers and position (guitar), pitches and fingering (piano), or the scale's root, type and shape (a box, CAGED shape or 3NPS) and fingering. The templates already have that empty block, and new notes from **Add a learning note** keep it empty, so a note never repeats its frets or scale in the body. Editing a property redraws the diagram. A block with content draws its content. The property names are settings (Settings → Music Practice → Rules → Property names).
+
+**Identify this chord** names a chord note from its frets or pitches when it has no chord symbol yet. See [Usage](usage.md#add-a-learning-note).
 
 ## Turning blocks off
 
@@ -141,3 +153,13 @@ window.musicNotationOptions = {
 ```
 
 Blocks that say `orientation:` or `hand:` look the same everywhere.
+
+Empty blocks in chord and scale notes draw from the note's properties on your site too: give the library the page's properties (Obsidian Publish keeps them in its cache).
+
+```js
+window.musicNotationOptions = {
+    properties: () => app.site.cache.cache[app.currentFilepath]?.frontmatter
+}
+```
+
+The library reads the default property names (`chord_symbol`, `frets`, `fingers`, `scale_root`…). If you renamed them in the settings, pass the same names as `propertyNames`.

@@ -2,8 +2,16 @@
  * What a new chord note gets from the notation library: its frets and fingers as text properties
  * and a ```chord block under the title.
  */
-import { baseFretOf } from '@dsebastien/music-notation'
-import type { FrettedVoicing } from '@dsebastien/music-notation'
+import {
+    baseFretOf,
+    detectChordFromFrets,
+    detectChordFromPitches,
+    listNoteSet,
+    parseFrets
+} from '@dsebastien/music-notation'
+import type { DetectedChord } from '@dsebastien/music-notation'
+import type { FrettedVoicing, PropertyNames } from '@dsebastien/music-notation'
+import type { FieldNames } from './fields'
 
 /** "x02220"; separated by dashes when a fret has two digits ("x-10-12-12-11-10"). */
 export function formatFrets(frets: (number | null)[]): string {
@@ -35,15 +43,12 @@ export function chordBlock(
 }
 
 /**
- * Put a chord block in a new note: into the template's empty ```chord block when it has one,
- * else right under the title.
+ * Make sure a new note has an empty block of a language (```chord, ```fretboard, ```keyboard)
+ * that draws from its properties: the template's when it has one, else one under the title.
  */
-export function placeChordBlock(content: string, block: string): string {
-    // An empty block, blank lines and CRLF included.
-    const empty = /^```chord[ \t]*\r?\n(?:[ \t]*\r?\n)*[ \t]*```[ \t]*$/m
-    return empty.test(content)
-        ? content.replace(empty, () => block)
-        : insertUnderTitle(content, block)
+export function ensureBlock(content: string, language: string): string {
+    const fence = new RegExp(`^\`\`\`${language}[ \\t]*\\r?$`, 'm')
+    return fence.test(content) ? content : insertUnderTitle(content, `\`\`\`${language}\n\`\`\``)
 }
 
 /**
@@ -72,4 +77,45 @@ export function insertUnderTitle(content: string, block: string): string {
     const at = h1 >= 0 ? h1 + 1 : start
     lines.splice(at, 0, ...block.split('\n'))
     return lines.join(eol)
+}
+
+/** The library's property names for empty notation blocks, from the plugin's settings. */
+export const propertyNamesOf = (fields: FieldNames): Partial<PropertyNames> => ({
+    chordSymbol: fields.chordSymbol,
+    frets: fields.frets,
+    fingers: fields.fingers,
+    position: fields.position,
+    pitches: fields.pitches,
+    fingering: fields.fingering,
+    scaleRoot: fields.scaleRoot,
+    scaleType: fields.scaleType,
+    shape: fields.shape,
+    fingeringRight: fields.fingeringRight
+})
+
+/**
+ * The chord a note's notes play: six frets for guitar notes, pitches for piano notes ("A3 C#4 E4",
+ * or "A C# E" stacked upwards from middle C). Null when there's nothing to read or no chord fits.
+ */
+export function chordFromNotes(
+    frets: string,
+    pitches: string,
+    subject: string | null
+): DetectedChord | null {
+    if (subject !== 'piano') {
+        const parsed = frets ? parseFrets(frets) : null
+        return parsed?.length === 6 ? detectChordFromFrets(parsed) : null
+    }
+    const set = pitches ? listNoteSet(pitches) : null
+    if (!set) return null
+    let previous = 59
+    const midis =
+        set.pitches ??
+        set.members.map((m) => {
+            let midi = 60 + m.chroma
+            while (midi <= previous) midi += 12
+            previous = midi
+            return midi
+        })
+    return detectChordFromPitches(midis)
 }

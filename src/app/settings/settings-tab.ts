@@ -370,6 +370,24 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             this.text('fields.chordQuality', 'Chord quality', ''),
                             this.text('fields.frets', 'Frets', 'Guitar chords: "x02220".'),
                             this.text('fields.fingers', 'Fingers', 'Guitar chords: "x01230".'),
+                            this.text(
+                                'fields.position',
+                                'Position',
+                                'Guitar chords: the first fret shown.'
+                            ),
+                            this.text('fields.pitches', 'Pitches', 'Piano chords: "A3 C#4 E4".'),
+                            this.text('fields.fingering', 'Fingering', 'Piano chords: "5 3 1".'),
+                            this.text('fields.scaleRoot', 'Scale root', 'Scales: "A".'),
+                            this.text(
+                                'fields.scaleType',
+                                'Scale type',
+                                'Scales: "Minor pentatonic".'
+                            ),
+                            this.text(
+                                'fields.fingeringRight',
+                                'Scale fingering',
+                                'Piano scales, right hand: "1 2 3 1 2 3 4 5".'
+                            ),
                             this.text('fields.lastReviewed', 'Last reviewed', ''),
                             this.text('fields.reviewInterval', 'Review interval', ''),
                             this.text('fields.reviewCount', 'Review count', '')

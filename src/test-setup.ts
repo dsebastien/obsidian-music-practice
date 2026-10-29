@@ -23,6 +23,8 @@ void mock.module('obsidian', () => ({
     MarkdownRenderer: { render: async () => {} },
     // Notation blocks (plugin.ts → notation.service.ts) wrap renders in a render child.
     MarkdownRenderChild: class MarkdownRenderChild {},
+    // Identify this chord asks which reading with a suggest modal.
+    SuggestModal: class SuggestModal {},
     MarkdownPreviewRenderer: class MarkdownPreviewRenderer {},
     PluginSettingTab: class PluginSettingTab {},
     Setting: class Setting {},

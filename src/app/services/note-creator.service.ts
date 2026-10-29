@@ -10,7 +10,7 @@ import type { LearningItem } from '../domain/practice'
 import type { LearningType } from '../domain/note-model'
 import type { PracticeRules } from '../domain/rules'
 import { renderTemplate } from '../domain/template-render'
-import { formatFingers, formatFrets, placeChordBlock } from '../domain/notation-note'
+import { ensureBlock, formatFingers, formatFrets } from '../domain/notation-note'
 import type { FrettedVoicing } from '@dsebastien/music-notation'
 import {
     resolveNoteTypeAffixes,
@@ -58,8 +58,10 @@ export interface NewLearningNote {
     level?: number
     /** Guitar chords: the voicing picked from the notation library, stored as frets and fingers. */
     voicing?: FrettedVoicing
-    /** A ```chord block placed under the note's title. */
-    notation?: string
+    /** Scales and other notes: more properties, by name (scale root and type). */
+    properties?: Record<string, string>
+    /** An empty notation block the note gets (```chord, ```fretboard, ```keyboard): it draws from the properties. */
+    block?: string
 }
 
 /** Creates learning notes in their type's folder, name and template. */
@@ -139,13 +141,14 @@ export class NoteCreatorService {
                     : []
                 if (!aliases.includes(chord.symbol)) fm['aliases'] = [...aliases, chord.symbol]
             }
+            for (const [name, value] of Object.entries(spec.properties ?? {})) put(name, value)
             if (spec.voicing) {
                 put(fields.frets, formatFrets(spec.voicing.frets))
                 put(fields.fingers, formatFingers(spec.voicing))
             }
         })
-        const notation = spec.notation
-        if (notation) await this.app.vault.process(file, (text) => placeChordBlock(text, notation))
+        const block = spec.block
+        if (block) await this.app.vault.process(file, (text) => ensureBlock(text, block))
         return file
     }
 }

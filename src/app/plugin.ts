@@ -31,6 +31,11 @@ import type { PracticeRules } from './domain/rules'
 import type { LocalModelSettings } from './domain/local-model'
 import { clockTime, formatElapsed, minutesBetween } from './domain/timer'
 import { NotationBlocks } from './services/notation.service'
+import type { NoteContext } from './services/notation.service'
+import { learningTypeOf } from './domain/item-reader'
+import { propertyNamesOf, chordFromNotes } from './domain/notation-note'
+import { ChooseChordModal } from './ui/choose-chord-modal'
+import { parseChord } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
 import type { NotationStatus } from './services/notation.service'
 import type { NotationLanguage } from '@dsebastien/music-notation'
@@ -68,9 +73,76 @@ export class MusicPracticePlugin extends Plugin {
         }
     }
 
-    /** Whether new chord notes get a ```chord block: only when Music Practice draws them. */
-    chordBlocksOn(): boolean {
-        return this.notation?.status('chord') === 'on'
+    /**
+     * Name a chord note from its frets (guitar) or pitches (piano): fills the chord symbol, root,
+     * quality and alias. Asks which reading when several fit; leaves a named chord alone.
+     */
+    private identifyChord(
+        file: TFile,
+        type: LearningType,
+        frontmatter: Record<string, unknown>
+    ): void {
+        const fields = this.effective().fields
+        const text = (name: string) => {
+            const value = frontmatter[name]
+            return typeof value === 'string' || typeof value === 'number'
+                ? String(value).trim()
+                : ''
+        }
+        const named = text(fields.chordSymbol)
+        if (named) {
+            new Notice(
+                `Already named ${named}: clear "${fields.chordSymbol}" to identify it again.`
+            )
+            return
+        }
+        const detected = chordFromNotes(text(fields.frets), text(fields.pitches), type.subject)
+        if (!detected) {
+            new Notice(
+                type.subject === 'piano'
+                    ? `No chord found: add the notes to "${fields.pitches}" (A3 C#4 E4).`
+                    : `No chord found: add six frets to "${fields.frets}" (x02220).`
+            )
+            return
+        }
+        const apply = (symbol: string) => {
+            const chord = parseChord(symbol)
+            if (!chord) return
+            void this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+                const put = (name: string, value: string) => {
+                    if (type.fields.has(name)) fm[name] = value
+                }
+                put(fields.chordSymbol, chord.symbol)
+                put(fields.chordRoot, chord.root)
+                put(fields.chordQuality, chord.quality)
+                const aliases = Array.isArray(fm['aliases'])
+                    ? (fm['aliases'] as unknown[]).map(String)
+                    : []
+                if (!aliases.includes(chord.symbol)) fm['aliases'] = [...aliases, chord.symbol]
+            })
+            new Notice(`This chord is ${chord.name} (${chord.symbol}).`)
+        }
+        if (detected.readings.length === 1) apply(detected.symbol)
+        else new ChooseChordModal(this.app, detected.readings, apply).open()
+    }
+
+    /**
+     * What an empty notation block in a note draws from: a chord or scale note's properties (with
+     * the configured names) and its instrument. Null for other notes.
+     */
+    private noteContext(path: string): NoteContext | null {
+        const file = this.app.vault.getFileByPath(path)
+        const frontmatter = file ? this.app.metadataCache.getFileCache(file)?.frontmatter : null
+        if (!frontmatter) return null
+        const type = learningTypeOf(this.noteModel.get().learningTypes, frontmatter)
+        if (!type || (type.kind !== 'chord' && type.kind !== 'scale')) return null
+        const instrument =
+            type.subject === 'piano' || type.subject === 'guitar' ? type.subject : null
+        return {
+            properties: frontmatter,
+            propertyNames: propertyNamesOf(this.effective().fields),
+            ...(instrument ? { instrument } : {})
+        }
     }
 
     /** Whether Music Practice draws a notation block language (for the settings tab). */
@@ -149,7 +221,15 @@ export class MusicPracticePlugin extends Plugin {
         this.notation = new NotationBlocks(
             this,
             () => this.settings.notation,
-            () => layoutDefaults(this.settings.notationLayout)
+            () => layoutDefaults(this.settings.notationLayout),
+            undefined,
+            undefined,
+            (path) => this.noteContext(path)
+        )
+        // Empty blocks in chord and scale notes draw from the note's properties: redraw them when
+        // the properties change.
+        this.registerEvent(
+            this.app.metadataCache.on('changed', (file) => this.notation?.redrawNote(file.path))
         )
         this.app.workspace.onLayoutReady(() => this.notation.sync())
 
@@ -223,7 +303,7 @@ export class MusicPracticePlugin extends Plugin {
                     this.app,
                     model.learningTypes,
                     this.effective().fields,
-                    () => this.chordBlocksOn(),
+                    (language) => this.notation?.status(language) === 'on',
                     async (type, spec) => {
                         const file = await this.noteCreator.create(type, spec)
                         await this.app.workspace.getLeaf(false).openFile(file)
@@ -252,6 +332,22 @@ export class MusicPracticePlugin extends Plugin {
                         }
                     ).open()
                 }
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'identify-chord',
+            name: 'Identify this chord',
+            checkCallback: (checking) => {
+                const file = this.app.workspace.getActiveFile()
+                const frontmatter = file
+                    ? this.app.metadataCache.getFileCache(file)?.frontmatter
+                    : null
+                const type = frontmatter
+                    ? learningTypeOf(this.noteModel.get().learningTypes, frontmatter)
+                    : null
+                if (!file || !frontmatter || type?.kind !== 'chord') return false
+                if (!checking) this.identifyChord(file, type, frontmatter)
                 return true
             }
         })

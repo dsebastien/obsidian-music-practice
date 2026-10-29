@@ -44,7 +44,7 @@ What each level means, for chords, for arrangements and pieces, and for scales, 
 
 ## Property names
 
-The frontmatter properties the plugin reads and writes (last practiced, BPMs, priority, prerequisites, review fields, a guitar chord's frets and fingers, minutes, session fields, time entries…). When the Kanban Action Planner is installed, its time-tracking and review property names are used, so both plugins write the same properties.
+The frontmatter properties the plugin reads and writes (last practiced, BPMs, priority, prerequisites, review fields, a guitar chord's frets, fingers and position, a piano chord's pitches and fingering, a scale's root, type and fingering, minutes, session fields, time entries…). When the Kanban Action Planner is installed, its time-tracking and review property names are used, so both plugins write the same properties. Empty notation blocks in chord and scale notes draw from these names ([Notation](notation.md#notes-draw-their-own-diagram)).
 
 ## With or without the Obsidian Starter Kit
 

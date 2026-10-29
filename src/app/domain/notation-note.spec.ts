@@ -4,7 +4,8 @@ import {
     formatFingers,
     formatFrets,
     insertUnderTitle,
-    placeChordBlock,
+    chordFromNotes,
+    ensureBlock,
     voicingRow
 } from './notation-note'
 
@@ -60,27 +61,23 @@ describe('insertUnderTitle', () => {
     })
 })
 
-describe('placeChordBlock', () => {
-    it("fills the template's empty chord block", () => {
-        expect(placeChordBlock('# A\n```chord\n```\n## Tips\n', '```chord\nsymbol: A\n```')).toBe(
-            '# A\n```chord\nsymbol: A\n```\n## Tips\n'
+describe('ensureBlock', () => {
+    it("keeps the template's block, with or without content", () => {
+        expect(ensureBlock('# A\n```chord\n```\n## Tips\n', 'chord')).toBe(
+            '# A\n```chord\n```\n## Tips\n'
         )
+        expect(ensureBlock('# A\r\n```fretboard\r\n```\r\n', 'fretboard')).toBe(
+            '# A\r\n```fretboard\r\n```\r\n'
+        )
+        expect(ensureBlock('# A\n```chord\nAm\n```\n', 'chord')).toBe('# A\n```chord\nAm\n```\n')
     })
 
-    it('leaves a filled chord block alone and adds under the title', () => {
-        expect(placeChordBlock('# A\n```chord\nAm\n```\n', 'B')).toBe('# A\nB\n```chord\nAm\n```\n')
-    })
-})
-
-describe('CRLF notes and blank lines', () => {
-    it('fills an empty block with blank lines or CRLF', () => {
-        expect(placeChordBlock('# A\r\n```chord\r\n\r\n```\r\n', 'B')).toBe('# A\r\nB\r\n')
-        expect(placeChordBlock('# A\n```chord\n\n  \n```\n', 'B')).toBe('# A\nB\n')
-    })
-
-    it('keeps CRLF and finds the frontmatter when inserting', () => {
-        expect(insertUnderTitle('---\r\na: 1\r\n---\r\n# A\r\ntext', 'X\nY')).toBe(
-            '---\r\na: 1\r\n---\r\n# A\r\nX\r\nY\r\ntext'
+    it('adds an empty block under the title when there is none', () => {
+        expect(ensureBlock('---\na: 1\n---\n# A\n## Tips\n', 'keyboard')).toBe(
+            '---\na: 1\n---\n# A\n```keyboard\n```\n## Tips\n'
+        )
+        expect(ensureBlock('# A\n```chords\n```\n', 'chord')).toBe(
+            '# A\n```chord\n```\n```chords\n```\n'
         )
     })
 })
@@ -92,5 +89,28 @@ describe('voicingRow', () => {
         expect(voicingRow(2, 1)).toEqual([0, 1])
         expect(voicingRow(10, -1)).toEqual([0, 1, 2, 3])
         expect(voicingRow(0, 0)).toEqual([])
+    })
+})
+
+describe('CRLF notes', () => {
+    it('keeps CRLF and finds the frontmatter when inserting', () => {
+        expect(insertUnderTitle('---\r\na: 1\r\n---\r\n# A\r\ntext', 'X\nY')).toBe(
+            '---\r\na: 1\r\n---\r\n# A\r\nX\r\nY\r\ntext'
+        )
+    })
+})
+
+describe('chordFromNotes', () => {
+    it('reads guitar frets and piano pitches', () => {
+        expect(chordFromNotes('x02220', '', 'guitar')?.symbol).toBe('A')
+        expect(chordFromNotes('x02210', '', null)?.symbol).toBe('Am')
+        expect(chordFromNotes('', 'E4 G4 C5', 'piano')?.symbol).toBe('C/E')
+        expect(chordFromNotes('', 'C E G', 'piano')?.symbol).toBe('C')
+    })
+
+    it('needs six frets or readable pitches', () => {
+        expect(chordFromNotes('x0222', '', 'guitar')).toBeNull()
+        expect(chordFromNotes('', '', 'guitar')).toBeNull()
+        expect(chordFromNotes('', 'nope', 'piano')).toBeNull()
     })
 })
