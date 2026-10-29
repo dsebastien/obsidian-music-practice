@@ -96,12 +96,37 @@ export function fretsOfProperty(value: unknown): (number | null)[] | null {
     return text ? parseFrets(text) : null
 }
 
+/** A shape property's value: text, or the first of a list. */
+export function shapeText(value: unknown): string {
+    const first = Array.isArray(value) ? (value as unknown[])[0] : value
+    return typeof first === 'string' ? first.trim() : ''
+}
+
 /**
- * Why a voicing can't become a note's: the note is another shape, and each shape is its own thing
- * to learn (its own note and mastery). Null when the note has no shape yet, or the same one.
+ * Why a voicing can't become a note's: each shape is its own thing to learn (its own note and
+ * mastery), so a note only takes another fingering or position of its own shape. With frets, the
+ * note's shape is the library's name for them (compared with the voicing's, so a note type's
+ * coarser values don't matter); without, its shape property, matched to the voicing's mapped
+ * value. Null when the voicing can be the note's (its own, the same shape, or a note with neither
+ * frets nor shape).
  */
-export function shapeConflict(current: string, shape: string | null): string | null {
-    const note = current.trim()
-    if (!note || shape?.toLowerCase() === note.toLowerCase()) return null
-    return `This note is the ${note} shape: add ${shape ? `the ${shape}` : 'this voicing'} as its own note.`
+export function voicingConflict(note: {
+    frets: (number | null)[] | null
+    /** The library's shape for the note's frets. */
+    fretsShape: VoicingShape | null
+    /** The note's shape property. */
+    shape: string
+    voicing: GeneratedVoicing
+    /** The voicing's shape as the note type writes it. */
+    voicingShape: string | null
+}): string | null {
+    const { frets, voicing } = note
+    const own = note.shape || note.fretsShape
+    if (frets) {
+        if (sameFrets(frets, voicing.frets) || note.fretsShape === voicing.shape) return null
+    } else if (!note.shape || note.voicingShape?.toLowerCase() === note.shape.toLowerCase()) {
+        return null
+    }
+    const other = note.voicingShape ?? voicing.shape
+    return `This note is ${own ? `the ${own} shape` : 'another shape'}: add ${other ? `the ${other}` : 'this voicing'} as its own note.`
 }

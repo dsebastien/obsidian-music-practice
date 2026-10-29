@@ -230,7 +230,12 @@ export class MusicPracticePlugin extends Plugin {
         this.voicingNotes = new VoicingNotesService(
             this.app,
             this.noteCreator,
-            () => this.effective().fields
+            () => this.effective().fields,
+            (type) =>
+                this.items
+                    .inputs()
+                    .filter((i) => i.typeId === type.id)
+                    .map((i) => i.path)
         )
         this.drills = new DrillService(
             this.app,
@@ -808,37 +813,53 @@ export class MusicPracticePlugin extends Plugin {
                 (t) => t.kind === 'chord' && t.subject === 'guitar'
             ) ??
             null
-        const fail = (what: string) => (error: unknown) => {
+        const fail = (what: string, error: unknown): never => {
             new Notice(`${what}: ${error instanceof Error ? error.message : String(error)}`)
             throw error
         }
+        // Only types whose notes hold frets can take a voicing.
+        const holds = type !== null && this.voicingNotes.holdsVoicings(type)
         new VoicingsModal(this.app, {
             symbol,
             current,
             renderOptions: () => layoutDefaults(this.settings.notationLayout),
             ...(target.pick ? { pick: (voicing) => target.pick!(voicing) } : {}),
-            ...(type && !target.pick
+            ...(type && holds && !target.pick
                 ? {
                       add: async (voicing, chord) => {
-                          const file = await this.voicingNotes
-                              .add(type, voicing, chord, this.notation?.status('chord') === 'on')
-                              .catch(fail("Couldn't add the note"))
-                          new Notice(`Added ${file.basename}.`)
-                          await this.app.workspace.getLeaf(false).openFile(file)
+                          try {
+                              const added = await this.voicingNotes.add(
+                                  type,
+                                  voicing,
+                                  chord,
+                                  this.notation?.status('chord') === 'on'
+                              )
+                              new Notice(
+                                  added.existed
+                                      ? `${added.file.basename} already plays this voicing.`
+                                      : `Added ${added.file.basename}.`
+                              )
+                              await this.app.workspace.getLeaf(false).openFile(added.file)
+                          } catch (error: unknown) {
+                              fail("Couldn't add the note", error)
+                          }
                       }
                   }
                 : {}),
-            ...(note && !target.pick
+            ...(note && holds && !target.pick
                 ? {
                       use: async (voicing) => {
-                          await this.voicingNotes
-                              .use(note.file, note.type, voicing)
-                              .catch(fail("Couldn't change the voicing"))
+                          try {
+                              await this.voicingNotes.use(note.file, note.type, voicing)
+                          } catch (error: unknown) {
+                              fail("Couldn't change the voicing", error)
+                          }
                           new Notice(
                               `${note.file.basename} now plays ${formatFrets(voicing.frets)}.`
                           )
                       },
-                      cantUse: (voicing) => this.voicingNotes.cantUse(note.file, note.type, voicing)
+                      cantUse: (voicing, chord) =>
+                          this.voicingNotes.cantUse(note.file, note.type, voicing, chord)
                   }
                 : {})
         }).open()

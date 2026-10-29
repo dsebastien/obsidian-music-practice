@@ -77,13 +77,13 @@ The drill's length is a setting (60 seconds by default).
 A chord note shows one voicing. **Voicings of this chord** shows every playable one, worked out from the chord's notes, the easiest first: open chords, then E- and A-shape barres and the other CAGED shapes, then the rest. Each is titled with its shape when it has a usual one; this note's voicing has a dashed border.
 
 - **Neck**: the whole neck, the first position, or frets 1–5, 5–9, 9–12, 12–15.
-- **Root on**: the 6th, 5th or 4th string.
-- **Inversions**: the third or fifth in the bass too. **Stretch**: shapes over five frets.
+- **Root on**: the 6th, 5th or 4th string (with inversions, the string of the lowest note).
+- **Inversions**: another chord note in the bass too (the third, the fifth, the seventh). **Stretch**: shapes over five frets.
 
 Pick one, then:
 
-- **Use for this note**: the note gets its frets, fingers and shape (and position, if it has one); mastery and history stay with it. Only for voicings of the note's own shape (another fingering or position of it), or any voicing when the note has no shape yet: another shape is another thing to learn, so it gets its own note.
-- **Add as note**: a new chord note ("A Major - E-shape barre"), with its frets, fingers and shape, and an empty diagram block that draws them. When that title is taken, the fret is added ("… at fret 5").
+- **Use for this note**: the note gets its frets and fingers (its shape when it had none, and its position if it has one); mastery and history stay with it. Only for another fingering or position of the note's own shape (as the library names its frets), or any voicing when the note has neither frets nor a shape: another shape is another thing to learn, so it gets its own note.
+- **Add as note**: a new chord note ("A Major - E-shape barre", or "A Major" for a voicing without a usual shape), with its frets, fingers and shape, and an empty diagram block that draws them. When that title is taken, the fret is added ("… at fret 5"). When a note already plays that voicing, it opens instead.
 
 **Voicings of a chord** does the same for any chord you type. In **Add a learning note**, **More voicings…** picks one for the new note (its shape comes along).
 

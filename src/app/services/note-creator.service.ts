@@ -98,9 +98,15 @@ export class NoteCreatorService {
         return normalizePath(`${folder ? `${folder}/` : ''}${prefix}${title}${suffix}.md`)
     }
 
-    /** Whether a note of this type already has this title. */
+    /**
+     * Whether this title is taken: a note at its path, or a note of the same name anywhere (links
+     * would be ambiguous).
+     */
     exists(type: LearningType, title: string): boolean {
-        return this.app.vault.getAbstractFileByPath(this.pathFor(type, title)) !== null
+        const path = this.pathFor(type, title)
+        if (this.app.vault.getAbstractFileByPath(path) !== null) return true
+        const name = path.slice(path.lastIndexOf('/') + 1).replace(/\.md$/, '')
+        return this.app.metadataCache.getFirstLinkpathDest(name, '') !== null
     }
 
     async create(type: LearningType, spec: NewLearningNote): Promise<TFile> {

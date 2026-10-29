@@ -29,7 +29,7 @@ export interface VoicingsModalOptions {
     /** Make it the current note's voicing. */
     use?: (voicing: GeneratedVoicing, symbol: string) => Promise<void>
     /** Why this voicing can't be the note's (another shape: its own note); null when it can. */
-    cantUse?: (voicing: GeneratedVoicing) => string | null
+    cantUse?: (voicing: GeneratedVoicing, symbol: string) => string | null
 }
 
 /** Every playable voicing of a chord, easiest first, filtered by neck area and root string (#54). */
@@ -41,6 +41,10 @@ export class VoicingsModal extends Modal {
     private listEl: HTMLElement | null = null
     private actionsEl: HTMLElement | null = null
     private infoEl: HTMLElement | null = null
+    /** Under the list: why an action is off. */
+    private noteEl: HTMLElement | null = null
+    /** An action is running. */
+    private busy = false
 
     constructor(
         app: App,
@@ -110,6 +114,7 @@ export class VoicingsModal extends Modal {
         toggle('Stretch', (on) => (this.filter.stretch = on))
         this.infoEl = el.createDiv({ cls: 'mp-muted' })
         this.listEl = el.createDiv({ cls: 'mp-voicing-row mp-voicing-grid' })
+        this.noteEl = el.createDiv({ cls: 'mp-muted' })
         this.actionsEl = el.createDiv({ cls: 'mp-actions' })
         this.refresh()
     }
@@ -179,12 +184,16 @@ export class VoicingsModal extends Modal {
 
     private renderActions(): void {
         const el = this.actionsEl
-        if (!el) return
+        const note = this.noteEl
+        if (!el || !note) return
         el.empty()
+        note.empty()
         el.createEl('button', { text: 'Close' }).addEventListener('click', () => this.close())
         const voicing = this.selected
         const symbol = this.symbol
-        const ready = voicing !== null && symbol !== null
+        const ready = voicing !== null && symbol !== null && !this.busy
+        const current = this.options.current ?? null
+        const isCurrent = voicing !== null && current !== null && sameFrets(voicing.frets, current)
         const action = (
             text: string,
             run: () => Promise<void> | void,
@@ -195,27 +204,40 @@ export class VoicingsModal extends Modal {
             button.disabled = !ready || blocked !== null
             if (blocked) button.setAttr('title', blocked)
             button.addEventListener('click', () => {
-                button.disabled = true
-                void Promise.resolve(run())
+                // One action at a time: picking another voicing meanwhile doesn't re-enable them.
+                this.busy = true
+                this.renderActions()
+                Promise.resolve()
+                    .then(run)
                     .then(() => this.close())
-                    .catch(() => {
-                        button.disabled = false
+                    .catch((error: unknown) => {
+                        // The action already told the user; keep the details for the console.
+                        console.error('Music Practice: voicing action failed', error)
+                        this.busy = false
+                        this.renderActions()
                     })
             })
         }
+        // Another shape is another thing to learn: its own note, with its own mastery.
+        const blocked =
+            voicing && symbol && this.options.cantUse ? this.options.cantUse(voicing, symbol) : null
         if (this.options.pick)
             action('Use this voicing', () => this.options.pick!(voicing!, symbol!), true)
-        // Another shape is another thing to learn: its own note, with its own mastery.
-        const blocked = voicing && this.options.cantUse ? this.options.cantUse(voicing) : null
         if (this.options.use)
-            action('Use for this note', () => this.options.use!(voicing!, symbol!), false, blocked)
+            action(
+                'Use for this note',
+                () => this.options.use!(voicing!, symbol!),
+                false,
+                isCurrent ? "This is this note's voicing." : blocked
+            )
         if (this.options.add)
             action(
                 'Add as note',
                 () => this.options.add!(voicing!, symbol!),
-                !this.options.pick || blocked !== null
+                !this.options.pick || blocked !== null,
+                isCurrent ? "This is this note's voicing." : null
             )
-        if (blocked) el.createDiv({ cls: 'mp-muted mp-actions-note', text: blocked })
+        if (blocked && !isCurrent) note.setText(blocked)
     }
 
     override onClose(): void {

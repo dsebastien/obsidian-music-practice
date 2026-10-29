@@ -63,6 +63,8 @@ export class AddNoteModal extends Modal {
     private picked: GeneratedVoicing | null = null
     /** The shape came with the picked voicing (and goes when the chord changes). */
     private shapeFromPick = false
+    /** The shape field, to update it in place. */
+    private shapeEl: HTMLSelectElement | HTMLInputElement | null = null
     private formEl: HTMLElement | null = null
     /** The previews: one diagram, or a row of voicings to pick from. */
     private diagrams: RenderResult[] = []
@@ -294,10 +296,12 @@ export class AddNoteModal extends Modal {
 
         const row = el.createDiv({ cls: 'mp-form-row' })
         const shapes = this.type.allowedValues[this.fields.shape] ?? []
+        this.shapeEl = null
         if (this.type.fields.has(this.fields.shape)) {
             const shapeField = row.createEl('label', { cls: 'mp-field', text: 'Shape (optional)' })
             if (shapes.length) {
                 const s = shapeField.createEl('select', { cls: 'dropdown' })
+                this.shapeEl = s
                 s.createEl('option', { text: '—', value: '' })
                 for (const v of shapes)
                     s.createEl('option', { text: v, value: v }).selected = v === this.shape
@@ -311,6 +315,7 @@ export class AddNoteModal extends Modal {
                     type: 'text',
                     attr: { placeholder: 'Open' }
                 })
+                this.shapeEl = s
                 s.value = this.shape
                 s.addEventListener('input', () => {
                     this.shape = s.value.trim()
@@ -350,13 +355,13 @@ export class AddNoteModal extends Modal {
             this.moreVoicings?.(symbol, (voicing) => {
                 this.picked = voicing
                 this.voicingIndex = PICKED
-                // The shape comes with the voicing, unless one was chosen.
+                // The shape is the voicing's (one chosen before described another voicing).
                 const name = this.fields.shape
-                if ((!this.shape || this.shapeFromPick) && this.type.fields.has(name)) {
-                    this.shape =
-                        shapeValue(voicing.shape, this.type.allowedValues[name] ?? []) ?? ''
-                    this.shapeFromPick = true
-                }
+                if (this.type.fields.has(name))
+                    this.setShape(
+                        shapeValue(voicing.shape, this.type.allowedValues[name] ?? []) ?? '',
+                        true
+                    )
                 this.render()
             })
         })
@@ -404,6 +409,7 @@ export class AddNoteModal extends Modal {
         }
         voicingSelect?.addEventListener('change', () => {
             this.voicingIndex = Number(voicingSelect.value)
+            this.dropPickedShape()
             refresh()
         })
         const options = (): RenderOptions => ({
@@ -448,6 +454,11 @@ export class AddNoteModal extends Modal {
                 button.addEventListener('click', () => {
                     this.voicingIndex = i
                     if (voicingSelect) voicingSelect.value = String(i)
+                    // Away from the picked voicing, its shape goes too (the title changes).
+                    if (this.dropPickedShape()) {
+                        refresh()
+                        return
+                    }
                     row.querySelectorAll('.mp-voicing').forEach((b) => {
                         const on = b === button
                         b.toggleClass('is-selected', on)
@@ -509,15 +520,13 @@ export class AddNoteModal extends Modal {
             submit.disabled = !spec
         }
         input.addEventListener('input', () => {
+            const before = this.symbol()
             this.text = input.value
-            this.voicingIndex = 0
-            this.picked = null
-            if (this.shapeFromPick) {
-                // The shape described the picked voicing: the form starts over without it.
-                this.shape = ''
-                this.shapeFromPick = false
-                this.render()
-                return
+            // A new chord starts over; a space or a different spelling of the same chord doesn't.
+            if (this.symbol() !== before) {
+                this.voicingIndex = 0
+                this.picked = null
+                this.dropPickedShape()
             }
             refreshVoicings()
             refresh()
@@ -531,6 +540,20 @@ export class AddNoteModal extends Modal {
         // Scales start on the root; everything else on the name.
         if (scaleRow) scaleRow.querySelector('select')?.focus()
         else input.focus()
+    }
+
+    /** Sets the shape and its field, without drawing the form again. */
+    private setShape(value: string, fromPick: boolean): void {
+        this.shape = value
+        this.shapeFromPick = fromPick
+        if (this.shapeEl) this.shapeEl.value = value
+    }
+
+    /** Clears the shape that came with a picked voicing, once it's no longer the one used. */
+    private dropPickedShape(): boolean {
+        if (!this.shapeFromPick || this.voicingIndex === PICKED) return false
+        this.setShape('', false)
+        return true
     }
 
     private async submit(): Promise<void> {

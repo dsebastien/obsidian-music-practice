@@ -4,7 +4,8 @@ import {
     DEFAULT_VOICING_FILTER,
     fretsOfProperty,
     sameFrets,
-    shapeConflict,
+    shapeText,
+    voicingConflict,
     shapeValue,
     voicingLabel,
     voicingNoteTitle,
@@ -88,20 +89,75 @@ describe('helpers', () => {
     })
 })
 
-describe('shapeConflict', () => {
-    it('lets a note take any voicing of its own shape, or any when it has none', () => {
-        expect(shapeConflict('Open', 'Open')).toBeNull()
-        expect(shapeConflict('open', 'Open')).toBeNull()
-        expect(shapeConflict('', 'E-shape barre')).toBeNull()
-        expect(shapeConflict('  ', null)).toBeNull()
+describe('voicingConflict', () => {
+    const a = generateVoicings('A')
+    const open = a.find((v) => v.shape === 'Open')!
+    const eShape = a.find((v) => v.shape === 'E-shape barre')!
+    const otherOpen = { ...open, frets: [null, 0, 2, 2, 2, null] }
+    const base = { fretsShape: null, shape: '', voicingShape: null }
+
+    it("takes the note's own voicing and other fingerings of its shape", () => {
+        expect(
+            voicingConflict({ ...base, frets: open.frets, fretsShape: 'Open', voicing: open })
+        ).toBeNull()
+        const sameShape = { ...eShape, frets: [...eShape.frets] }
+        expect(
+            voicingConflict({
+                ...base,
+                frets: [5, 7, 7, 6, 5, null],
+                fretsShape: 'E-shape barre',
+                voicing: sameShape
+            })
+        ).toBeNull()
+        expect(
+            voicingConflict({
+                ...base,
+                frets: null,
+                shape: 'Open',
+                voicingShape: 'Open',
+                voicing: otherOpen
+            })
+        ).toBeNull()
     })
 
-    it('sends another shape to its own note', () => {
-        expect(shapeConflict('Open', 'E-shape barre')).toBe(
-            'This note is the Open shape: add the E-shape barre as its own note.'
-        )
-        expect(shapeConflict('Open', null)).toBe(
-            'This note is the Open shape: add this voicing as its own note.'
-        )
+    it('compares the shapes of the frets, not the note type values', () => {
+        // A type whose only barre value is "Barre": the note's own E-shape stays allowed.
+        expect(
+            voicingConflict({
+                frets: eShape.frets,
+                fretsShape: 'E-shape barre',
+                shape: 'Barre',
+                voicing: eShape,
+                voicingShape: null
+            })
+        ).toBeNull()
+    })
+
+    it('sends another shape to its own note, even when the note has no shape property', () => {
+        expect(
+            voicingConflict({ ...base, frets: open.frets, fretsShape: 'Open', voicing: eShape })
+        ).toBe('This note is the Open shape: add the E-shape barre as its own note.')
+        expect(
+            voicingConflict({
+                ...base,
+                frets: null,
+                shape: 'Open',
+                voicingShape: 'E-shape barre',
+                voicing: eShape
+            })
+        ).toBe('This note is the Open shape: add the E-shape barre as its own note.')
+    })
+
+    it('lets a note with neither frets nor shape take any voicing', () => {
+        expect(voicingConflict({ ...base, frets: null, voicing: eShape })).toBeNull()
+    })
+})
+
+describe('shapeText', () => {
+    it('reads text or the first of a list', () => {
+        expect(shapeText(' Open ')).toBe('Open')
+        expect(shapeText(['Open', 'Barre'])).toBe('Open')
+        expect(shapeText(null)).toBe('')
+        expect(shapeText(3)).toBe('')
     })
 })
