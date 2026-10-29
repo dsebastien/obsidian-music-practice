@@ -16,3 +16,21 @@ export function clockTime(ms: number): string {
     const d = new Date(ms)
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
+
+/** The practice timer as stored: its start, and the time spent paused. */
+export interface TimerState {
+    /** Epoch ms; 0 when no timer runs. */
+    startedAt: number
+    /** Epoch ms of the pause; 0 when running. */
+    pausedAt: number
+    /** Paused time before the current pause. */
+    pausedMs: number
+}
+
+/** Time practiced so far: from the start to now (or to the pause), minus the pauses. */
+export const timerElapsed = (timer: TimerState, now: number): number =>
+    timer.startedAt ? Math.max(0, (timer.pausedAt || now) - timer.startedAt - timer.pausedMs) : 0
+
+/** Whole minutes practiced, at least 1. */
+export const timerMinutes = (timer: TimerState, now: number): number =>
+    Math.max(1, Math.round(timerElapsed(timer, now) / 60_000))

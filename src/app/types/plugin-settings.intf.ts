@@ -11,6 +11,8 @@ import type { NotationLayout } from '../domain/notation-layout'
 import type { NotationToggles } from '../services/notation.service'
 import { isUndoRecord } from '../domain/undo'
 import { createDefaultMetronomeSettings } from '../domain/metronome'
+import { panelItemsFrom } from '../domain/panel'
+import type { PanelItem } from '../domain/panel'
 import type { MetronomeSettings } from '../domain/metronome'
 import type { UndoRecord } from '../domain/undo'
 
@@ -31,6 +33,10 @@ export interface PluginSettings {
     activityName: string
     /** Start of the running practice timer (epoch ms); 0 when no timer runs. Survives restarts. */
     timerStartedAt: number
+    /** When the timer was paused (epoch ms); 0 while it runs (#52). */
+    timerPausedAt: number
+    /** Time paused before the current pause, not counted as practice. */
+    timerPausedMs: number
     /** Notation code blocks drawn by the plugin, per language (#29). */
     notation: NotationToggles
     /** Default orientation per diagram, and left-handed diagrams (#32). */
@@ -39,6 +45,8 @@ export interface PluginSettings {
     lastLog: UndoRecord | null
     /** Metronome and speed trainer defaults (#39). */
     metronome: MetronomeSettings
+    /** The practice panel's session list, kept until it's logged (#37). */
+    panelItems: PanelItem[]
 }
 
 /**
@@ -61,6 +69,8 @@ export function createDefaultSettings(): PluginSettings {
         notesHeading: 'Notes',
         activityName: 'Learn {subject}',
         timerStartedAt: 0,
+        timerPausedAt: 0,
+        timerPausedMs: 0,
         notation: { chord: true, chords: true, keyboard: true, fretboard: true },
         notationLayout: {
             leftHanded: false,
@@ -69,7 +79,8 @@ export function createDefaultSettings(): PluginSettings {
             keyboard: 'horizontal'
         },
         lastLog: null,
-        metronome: createDefaultMetronomeSettings()
+        metronome: createDefaultMetronomeSettings(),
+        panelItems: []
     }
 }
 
@@ -109,6 +120,8 @@ export function overlay<T>(defaults: T, loaded: unknown): T {
 /** Settings from whatever data.json holds, every field checked against the defaults. */
 export function settingsFrom(loaded: unknown): PluginSettings {
     const settings = overlay(createDefaultSettings(), loaded)
+    // Lists of objects don't survive the overlay: the panel's list is read on its own.
+    settings.panelItems = panelItemsFrom(isRecord(loaded) ? loaded['panelItems'] : undefined)
     // Metronome values out of range fall back to the defaults.
     const m = settings.metronome
     const d = DEFAULT_SETTINGS.metronome

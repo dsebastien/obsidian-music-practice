@@ -25,7 +25,9 @@ export class PracticePlanModal extends Modal {
         private readonly items: LearningItem[],
         private readonly rules: PracticeRules,
         minutes: number,
-        private readonly onLog?: (minutes: number, paths: string[]) => void
+        private readonly onLog?: (minutes: number, paths: string[]) => void,
+        /** Put the plan in the practice panel's session list. */
+        private readonly onUseInPanel?: (paths: string[]) => void
     ) {
         super(app)
         this.minutes = minutes
@@ -77,8 +79,16 @@ export class PracticePlanModal extends Modal {
                 renderItemRow(this.app, list, this.model, p.item, { minutes: p.minutes })
         }
         const onLog = this.onLog
+        const onUseInPanel = this.onUseInPanel
+        const paths = () => planned.flatMap((b) => b.items.map((p) => p.item.path))
+        const actions = el.createDiv({ cls: 'mp-actions' })
+        if (onUseInPanel) {
+            actions.createEl('button', { text: 'Use in panel' }).addEventListener('click', () => {
+                this.close()
+                onUseInPanel(paths())
+            })
+        }
         if (onLog) {
-            const actions = el.createDiv({ cls: 'mp-actions' })
             const button = actions.createEl('button', { cls: 'mod-cta', text: 'Log this session' })
             button.addEventListener('click', () => {
                 this.close()

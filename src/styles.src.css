@@ -391,3 +391,45 @@
 .mp-metronome-dot.is-accent {
     background: var(--text-error);
 }
+
+/* Practice panel (#37). */
+.mp-panel {
+    @apply flex flex-col gap-4;
+}
+
+.mp-panel-section h4 {
+    @apply my-1;
+}
+
+.mp-panel-head {
+    @apply flex items-center justify-between gap-2;
+}
+
+.mp-panel-elapsed {
+    font-size: 1.8em;
+    font-variant-numeric: tabular-nums;
+}
+
+.mp-panel-row {
+    @apply flex items-start gap-2;
+}
+
+.mp-panel-row.is-done .mp-panel-body > a {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.mp-panel-body {
+    @apply flex flex-1 flex-col gap-1;
+    min-width: 0;
+}
+
+.mp-panel-bpm {
+    @apply flex items-center gap-1;
+    font-size: var(--font-ui-small);
+    color: var(--text-muted);
+}
+
+.mp-panel-log {
+    @apply mt-2 w-full;
+}

@@ -21,6 +21,8 @@ export interface LogPracticePreset {
     /** HH:MM, from the practice timer. */
     startTime?: string
     paths?: string[]
+    /** BPMs reached, by path (the practice panel's nudges). */
+    bpms?: Record<string, number>
     /** Called after a successful log (the practice timer clears itself). */
     onLogged?: () => void
 }
@@ -82,7 +84,8 @@ export class LogPracticeModal extends Modal {
             const itemSubject = item ? (this.typeOf(item)?.subject ?? null) : null
             if (itemSubject && subject && itemSubject !== subject) continue
             subject ??= itemSubject
-            this.selected.set(path, { path })
+            const bpm = preset.bpms?.[path]
+            this.selected.set(path, bpm !== undefined ? { path, bpm } : { path })
         }
     }
 

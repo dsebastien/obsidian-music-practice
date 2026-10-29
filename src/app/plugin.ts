@@ -1,4 +1,4 @@
-import { Notice, Plugin } from 'obsidian'
+import { Notice, Platform, Plugin } from 'obsidian'
 import type { TFile } from 'obsidian'
 import { createDefaultSettings, settingsFrom } from './types/plugin-settings.intf'
 import type { PluginSettings } from './types/plugin-settings.intf'
@@ -29,7 +29,8 @@ import type { LearningType, NoteModel } from './domain/note-model'
 import type { FieldNames } from './domain/fields'
 import type { PracticeRules } from './domain/rules'
 import type { LocalModelSettings } from './domain/local-model'
-import { clockTime, formatElapsed, minutesBetween } from './domain/timer'
+import { clockTime, formatElapsed, timerElapsed, timerMinutes } from './domain/timer'
+import type { TimerState } from './domain/timer'
 import { NotationBlocks } from './services/notation.service'
 import type { NoteContext } from './services/notation.service'
 import type { UndoResult } from './services/practice-log.service'
@@ -37,6 +38,10 @@ import { Metronome } from './services/metronome.service'
 import type { MetronomeItem } from './services/metronome.service'
 import { MetronomeModal } from './ui/metronome-view'
 import type { MetronomeViewDeps } from './ui/metronome-view'
+import { PRACTICE_PANEL_VIEW, PracticePanelView } from './ui/practice-panel-view'
+import type { PracticePanelDeps } from './ui/practice-panel-view'
+import { toLog, withPaths } from './domain/panel'
+import type { PanelItem } from './domain/panel'
 import { learningTypeOf } from './domain/item-reader'
 import { propertyNamesOf, chordFromNotes, withAlias } from './domain/notation-note'
 import { ChooseChordModal } from './ui/choose-chord-modal'
@@ -227,6 +232,7 @@ export class MusicPracticePlugin extends Plugin {
         const invalidate = () => {
             this.items.invalidate()
             this.noteModel.invalidate()
+            this.refreshPanels()
         }
         this.registerEvent(this.app.metadataCache.on('changed', invalidate))
         this.registerEvent(this.app.vault.on('delete', invalidate))
@@ -283,6 +289,13 @@ export class MusicPracticePlugin extends Plugin {
         )
         this.metronomeEl.addClass('mp-is-hidden')
 
+        // The practice panel (#37).
+        this.registerView(
+            PRACTICE_PANEL_VIEW,
+            (leaf) => new PracticePanelView(leaf, this.panelDeps())
+        )
+        this.addRibbonIcon('music', 'Open practice panel', () => void this.openPanel())
+
         this.timerEl = this.addStatusBarItem()
         this.timerEl.addClass('mp-timer', 'mod-clickable')
         this.timerEl.setAttr('aria-label', 'Stop the practice timer and log the session')
@@ -335,8 +348,23 @@ export class MusicPracticePlugin extends Plugin {
                     this.items.items(),
                     this.settings.rules,
                     this.settings.defaultPlanMinutes,
-                    (minutes, paths) => this.openLogPractice({ minutes, paths })
+                    (minutes, paths) => this.openLogPractice({ minutes, paths }),
+                    (paths) => void this.usePlanInPanel(paths)
                 ).open()
+            }
+        })
+        this.addCommand({
+            id: 'open-practice-panel',
+            name: 'Open practice panel',
+            callback: () => void this.openPanel()
+        })
+        this.addCommand({
+            id: 'pause-timer',
+            name: 'Pause or resume practice timer',
+            checkCallback: (checking) => {
+                if (!this.settings.timerStartedAt) return false
+                if (!checking) void this.togglePause()
+                return true
             }
         })
         this.addCommand({
@@ -502,6 +530,63 @@ export class MusicPracticePlugin extends Plugin {
     }
 
     /** The active note when it is a learning note. Cheap: the command palette calls it on every keystroke. */
+    /** Open (or reveal) the practice panel: the right sidebar, or a tab on mobile. */
+    async openPanel(): Promise<PracticePanelView | null> {
+        const { workspace } = this.app
+        let leaf = workspace.getLeavesOfType(PRACTICE_PANEL_VIEW)[0] ?? null
+        if (!leaf) {
+            leaf = Platform.isMobile ? workspace.getLeaf('tab') : workspace.getRightLeaf(false)
+            if (!leaf) return null
+            await leaf.setViewState({ type: PRACTICE_PANEL_VIEW, active: true })
+        }
+        await workspace.revealLeaf(leaf)
+        return leaf.view instanceof PracticePanelView ? leaf.view : null
+    }
+
+    private refreshPanels(): void {
+        for (const leaf of this.app.workspace.getLeavesOfType(PRACTICE_PANEL_VIEW)) {
+            if (leaf.view instanceof PracticePanelView) leaf.view.refresh()
+        }
+    }
+
+    private setPanelItems(items: PanelItem[]): Promise<void> {
+        return this.updateSettings((draft) => {
+            draft.panelItems = items
+        })
+    }
+
+    /** A practice plan's items join the panel's session list, which opens. */
+    private async usePlanInPanel(paths: string[]): Promise<void> {
+        await this.setPanelItems(withPaths(this.settings.panelItems, paths))
+        await this.openPanel()
+    }
+
+    /** Log this session from the panel; the logged items leave the list. */
+    private logPanelSession(): void {
+        const { paths, bpms } = toLog(this.settings.panelItems)
+        const onLogged = () =>
+            void this.setPanelItems(this.settings.panelItems.filter((i) => !paths.includes(i.path)))
+        if (this.settings.timerStartedAt) this.stopTimer({ paths, bpms, onLogged })
+        else this.openLogPractice({ paths, bpms, onLogged })
+    }
+
+    private panelDeps(): PracticePanelDeps {
+        return {
+            model: () => this.ensureModel(),
+            items: () => this.items.items(),
+            list: () => this.settings.panelItems,
+            setList: (items) => this.setPanelItems(items),
+            timer: () => this.timerState(),
+            startTimer: () => this.startTimer(),
+            togglePause: () => this.togglePause(),
+            logSession: () => this.logPanelSession(),
+            planIntoPanel: () =>
+                this.app.commands.executeCommandById('music-practice:practice-plan'),
+            metronome: this.metronome,
+            metronomeDeps: () => this.metronomeDeps()
+        }
+    }
+
     /** The metronome's item for a learning note. */
     private metronomeItemOf(file: TFile): MetronomeItem | null {
         const item = this.itemOf(file)
@@ -532,7 +617,10 @@ export class MusicPracticePlugin extends Plugin {
         const active = this.activeLearningNote()
         if (active && !this.metronome.state.item)
             this.metronome.setItem(this.metronomeItemOf(active.file))
-        new MetronomeModal(this.app, this.metronome, this.metronomeDeps()).open()
+        // The panel shows the metronome when it's open; a modal otherwise.
+        const panel = this.app.workspace.getLeavesOfType(PRACTICE_PANEL_VIEW)[0]
+        if (panel) void this.app.workspace.revealLeaf(panel)
+        else new MetronomeModal(this.app, this.metronome, this.metronomeDeps()).open()
     }
 
     /** Save the metronome's tempo to its item, through Set BPM (which offers "at tempo"). */
@@ -577,25 +665,53 @@ export class MusicPracticePlugin extends Plugin {
         if (this.settings.timerStartedAt) throw new Error('The practice timer is already running.')
         await this.updateSettings((draft) => {
             draft.timerStartedAt = Date.now()
+            draft.timerPausedAt = 0
+            draft.timerPausedMs = 0
         })
         this.renderTimer()
         new Notice('Practice timer started.')
     }
 
+    /** The timer as stored. */
+    timerState(): TimerState {
+        return {
+            startedAt: this.settings.timerStartedAt,
+            pausedAt: this.settings.timerPausedAt,
+            pausedMs: this.settings.timerPausedMs
+        }
+    }
+
+    /** Pause a running timer, or resume a paused one; paused time isn't practice (#52). */
+    async togglePause(): Promise<void> {
+        if (!this.settings.timerStartedAt) return
+        const now = Date.now()
+        await this.updateSettings((draft) => {
+            if (draft.timerPausedAt) {
+                draft.timerPausedMs += now - draft.timerPausedAt
+                draft.timerPausedAt = 0
+            } else draft.timerPausedAt = now
+        })
+        this.renderTimer()
+    }
+
     /** Open Log practice with the timer's minutes, date and start; the timer clears once logged. */
-    stopTimer(): void {
-        const startedAt = this.settings.timerStartedAt
-        if (!startedAt) return
-        const elapsed = Date.now() - startedAt
+    stopTimer(preset: Pick<LogPracticePreset, 'paths' | 'bpms' | 'onLogged'> = {}): void {
+        const timer = this.timerState()
+        if (!timer.startedAt) return
+        const elapsed = timerElapsed(timer, Date.now())
         if (elapsed > LONG_TIMER_MS)
             new Notice(
                 `The practice timer ran ${formatElapsed(elapsed)}: check the minutes before logging.`
             )
         this.openLogPractice({
-            minutes: Math.min(minutesBetween(startedAt, Date.now()), 1440),
-            date: isoDate(new Date(startedAt)),
-            startTime: clockTime(startedAt),
-            onLogged: () => void this.clearTimer()
+            ...preset,
+            minutes: Math.min(timerMinutes(timer, Date.now()), 1440),
+            date: isoDate(new Date(timer.startedAt)),
+            startTime: clockTime(timer.startedAt),
+            onLogged: () => {
+                void this.clearTimer()
+                preset.onLogged?.()
+            }
         })
     }
 
@@ -638,6 +754,8 @@ export class MusicPracticePlugin extends Plugin {
     async clearTimer(): Promise<void> {
         await this.updateSettings((draft) => {
             draft.timerStartedAt = 0
+            draft.timerPausedAt = 0
+            draft.timerPausedMs = 0
         })
         this.renderTimer()
     }
@@ -645,9 +763,12 @@ export class MusicPracticePlugin extends Plugin {
     private renderTimer(): void {
         const el = this.timerEl
         if (!el) return
-        const startedAt = this.settings.timerStartedAt
-        el.toggleClass('mp-is-hidden', !startedAt)
-        if (startedAt) el.setText(`♪ ${formatElapsed(Date.now() - startedAt)}`)
+        const timer = this.timerState()
+        el.toggleClass('mp-is-hidden', !timer.startedAt)
+        if (timer.startedAt)
+            el.setText(
+                `${timer.pausedAt ? '⏸' : '♪'} ${formatElapsed(timerElapsed(timer, Date.now()))}`
+            )
     }
 
     /** Open Log practice (once: a second call while it is open does nothing). */
@@ -756,6 +877,7 @@ export class MusicPracticePlugin extends Plugin {
                 next.notationLayout !== this.settings.notationLayout ||
                 next.fields !== this.settings.fields
             this.settings = next
+            this.refreshPanels()
             this.noteModel?.refresh()
             if (notationChanged) {
                 this.notation?.sync()

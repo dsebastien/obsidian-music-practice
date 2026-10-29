@@ -19,12 +19,14 @@ void mock.module('obsidian', () => ({
     Plugin: class Plugin {},
     // The What's new view (reached from plugin.ts) extends ItemView and
     // renders with MarkdownRenderer.
-    ItemView: class ItemView {},
     MarkdownRenderer: { render: async () => {} },
     // Notation blocks (plugin.ts → notation.service.ts) wrap renders in a render child.
     MarkdownRenderChild: class MarkdownRenderChild {},
     // Identify this chord asks which reading with a suggest modal.
     SuggestModal: class SuggestModal {},
+    // The practice panel.
+    ItemView: class ItemView {},
+    Platform: { isMobile: false },
     MarkdownPreviewRenderer: class MarkdownPreviewRenderer {},
     PluginSettingTab: class PluginSettingTab {},
     Setting: class Setting {},
