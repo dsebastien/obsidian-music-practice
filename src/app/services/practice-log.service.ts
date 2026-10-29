@@ -19,6 +19,8 @@ import type { LogItem, LogRequest, TimeEntryResult } from '../domain/log'
 import { expandTokens } from '../domain/local-model'
 import type { LearningType, NoteModel, SessionType } from '../domain/note-model'
 import type { LearningItem } from '../domain/practice'
+import { bodyOf, changedKeys, conflicts, revert, snapshot } from '../domain/undo'
+import type { FileChanges, UndoRecord } from '../domain/undo'
 import type { PracticeRules } from '../domain/rules'
 import { fillSection, renderTemplate } from '../domain/template-render'
 import type { ItemRepository } from './item-repository'
@@ -52,7 +54,14 @@ export interface LogResult {
     adoptedTimer: boolean
     /** Things left alone on purpose (minutes that aren't a number…). */
     warnings: string[]
+    /** What the log changed, to undo it. */
+    undo: UndoRecord
 }
+
+/** What undoing the last log did, or why it didn't. */
+export type UndoResult =
+    | { ok: true; sessionPath: string; keptKapEntry: boolean }
+    | { ok: false; reason: string }
 
 const KAP_ENTRY_TIMEOUT_MS = 10_000
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms))
@@ -77,7 +86,9 @@ export class PracticeLogService {
         private readonly app: App,
         private readonly model: () => NoteModel,
         private readonly repo: ItemRepository,
-        private readonly context: () => LogContext
+        private readonly context: () => LogContext,
+        /** Remembers the last log, to undo it (every log, from the modal or the API). */
+        private readonly onLogged: (record: UndoRecord) => void = () => {}
     ) {}
 
     /**
@@ -161,7 +172,9 @@ export class PracticeLogService {
         if (this.busy) throw new Error('A practice log is already being written.')
         this.busy = true
         try {
-            return await this.write(request, options)
+            const result = await this.write(request, options)
+            this.onLogged(result.undo)
+            return result
         } finally {
             this.busy = false
         }
@@ -242,8 +255,10 @@ export class PracticeLogService {
 
         // 3. The practiced notes, each computed from its own current frontmatter.
         const warnings: string[] = []
+        const changes: FileChanges[] = []
         for (const [n, { item, type, log, file: note }] of resolved.entries()) {
             await this.app.fileManager.processFrontMatter(note, (fm: Record<string, unknown>) => {
+                const before = snapshot(fm)
                 const current = freshItem(item, type, fm, fields)
                 const update = itemUpdate(current, type, log, {
                     date,
@@ -255,6 +270,7 @@ export class PracticeLogService {
                 })
                 for (const field of applyItemUpdate(fm, update, fields))
                     warnings.push(`${item.name}: "${field}" isn't a number, minutes not added.`)
+                changes.push({ path: note.path, keys: changedKeys(before, snapshot(fm)) })
             })
         }
 
@@ -268,6 +284,7 @@ export class PracticeLogService {
                 await this.app.fileManager.processFrontMatter(
                     activity,
                     (fm: Record<string, unknown>) => {
+                        const before = snapshot(fm)
                         result = addTimeEntry(
                             fm,
                             {
@@ -280,6 +297,10 @@ export class PracticeLogService {
                             fields,
                             adopted ? timer.startedAt : null
                         )
+                        changes.push({
+                            path: activity.path,
+                            keys: changedKeys(before, snapshot(fm))
+                        })
                     }
                 )
                 activityResult = { path: activity.path, result }
@@ -294,7 +315,56 @@ export class PracticeLogService {
             items: resolved.map(({ item }) => item.path),
             activity: activityResult,
             adoptedTimer: adopted,
-            warnings
+            warnings,
+            undo: {
+                at: Date.now(),
+                sessionPath: file.path,
+                sessionBody: bodyOf(await this.app.vault.read(file)),
+                files: changes.filter((c) => c.keys.length > 0),
+                adoptedTimer: adopted
+            }
+        }
+    }
+
+    /**
+     * Undo a log: put back the keys it changed in the practiced notes and the activity, and trash
+     * its session note. Refuses, naming the notes, when any of it changed since.
+     */
+    async undo(record: UndoRecord): Promise<UndoResult> {
+        if (this.busy) return { ok: false, reason: 'A practice log is being written.' }
+        this.busy = true
+        try {
+            const session = this.app.vault.getFileByPath(record.sessionPath)
+            const changed: string[] = []
+            if (session && bodyOf(await this.app.vault.read(session)) !== record.sessionBody)
+                changed.push(session.basename)
+            const files = record.files.map((f) => ({
+                f,
+                file: this.app.vault.getFileByPath(f.path)
+            }))
+            for (const { f, file } of files) {
+                if (!file) {
+                    changed.push(`${f.path} (moved or deleted)`)
+                    continue
+                }
+                const fm = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {}
+                if (conflicts(fm, f.keys).length) changed.push(file.basename)
+            }
+            if (changed.length)
+                return {
+                    ok: false,
+                    reason: `Changed since the log, nothing was undone: ${changed.join(', ')}.`
+                }
+            for (const { f, file } of files) {
+                await this.app.fileManager.processFrontMatter(
+                    file!,
+                    (fm: Record<string, unknown>) => revert(fm, f.keys)
+                )
+            }
+            if (session) await this.app.fileManager.trashFile(session)
+            return { ok: true, sessionPath: record.sessionPath, keptKapEntry: record.adoptedTimer }
+        } finally {
+            this.busy = false
         }
     }
 

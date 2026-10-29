@@ -9,6 +9,8 @@ import type { PracticeRules } from '../domain/rules'
 import { ORIENTATIONS } from '../domain/notation-layout'
 import type { NotationLayout } from '../domain/notation-layout'
 import type { NotationToggles } from '../services/notation.service'
+import { isUndoRecord } from '../domain/undo'
+import type { UndoRecord } from '../domain/undo'
 
 export interface PluginSettings {
     /** Every number the practice rules use (#27). */
@@ -31,6 +33,8 @@ export interface PluginSettings {
     notation: NotationToggles
     /** Default orientation per diagram, and left-handed diagrams (#32). */
     notationLayout: NotationLayout
+    /** What the last practice log changed, to undo it (#36); null when there's nothing to undo. */
+    lastLog: UndoRecord | null
 }
 
 /**
@@ -59,7 +63,8 @@ export function createDefaultSettings(): PluginSettings {
             chord: 'vertical',
             fretboard: 'horizontal',
             keyboard: 'horizontal'
-        }
+        },
+        lastLog: null
     }
 }
 
@@ -99,6 +104,8 @@ export function overlay<T>(defaults: T, loaded: unknown): T {
 /** Settings from whatever data.json holds, every field checked against the defaults. */
 export function settingsFrom(loaded: unknown): PluginSettings {
     const settings = overlay(createDefaultSettings(), loaded)
+    // An undo record edited by hand or from an older version: nothing to undo.
+    if (!isUndoRecord(settings.lastLog)) settings.lastLog = null
     // Orientations are text: anything but the known values falls back to the default.
     const layout = settings.notationLayout
     for (const key of ['chord', 'fretboard', 'keyboard'] as const) {

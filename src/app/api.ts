@@ -7,7 +7,7 @@ import { practiceNext, readyToLearn } from './domain/practice'
 import type { LearningItem } from './domain/practice'
 import type { PracticeRules } from './domain/rules'
 import type { ItemRepository } from './services/item-repository'
-import type { LogResult, PracticeLogService } from './services/practice-log.service'
+import type { LogResult, PracticeLogService, UndoResult } from './services/practice-log.service'
 
 /** A learning item as plain JSON. */
 export interface ItemSummary {
@@ -72,6 +72,8 @@ export interface MusicPracticeApi {
     startTimer(): Promise<void>
     /** Clear the timer without logging. */
     clearTimer(): Promise<void>
+    /** Undo the last practice log (see the Undo last practice log command). */
+    undoLastLog(): Promise<UndoResult>
 }
 
 export interface ApiDeps {
@@ -80,6 +82,7 @@ export interface ApiDeps {
     items: ItemRepository
     log: PracticeLogService
     timer: { get: () => number | null; start: () => Promise<void>; clear: () => Promise<void> }
+    undoLastLog: () => Promise<UndoResult>
 }
 
 export function summarize(model: NoteModel, item: LearningItem): ItemSummary {
@@ -150,6 +153,7 @@ export function createApi(deps: ApiDeps): MusicPracticeApi {
         setBpm: (path, bpm) => deps.log.setBpmAndLevel(find(path), bpm),
         timer: () => deps.timer.get(),
         startTimer: () => deps.timer.start(),
-        clearTimer: () => deps.timer.clear()
+        clearTimer: () => deps.timer.clear(),
+        undoLastLog: () => deps.undoLastLog()
     }
 }

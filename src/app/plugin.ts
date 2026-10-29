@@ -32,6 +32,7 @@ import type { LocalModelSettings } from './domain/local-model'
 import { clockTime, formatElapsed, minutesBetween } from './domain/timer'
 import { NotationBlocks } from './services/notation.service'
 import type { NoteContext } from './services/notation.service'
+import type { UndoResult } from './services/practice-log.service'
 import { learningTypeOf } from './domain/item-reader'
 import { propertyNamesOf, chordFromNotes, withAlias } from './domain/notation-note'
 import { ChooseChordModal } from './ui/choose-chord-modal'
@@ -195,7 +196,11 @@ export class MusicPracticePlugin extends Plugin {
                 ...this.effective(),
                 notesHeading: this.settings.notesHeading,
                 activityName: this.settings.activityName
-            })
+            }),
+            (record) =>
+                void this.updateSettings((draft) => {
+                    draft.lastLog = record
+                })
         )
         this.noteCreator = new NoteCreatorService(this.app, this.items, () => this.effective())
         this.api = createApi({
@@ -207,7 +212,8 @@ export class MusicPracticePlugin extends Plugin {
                 get: () => this.settings.timerStartedAt || null,
                 start: () => this.startTimer(),
                 clear: () => this.clearTimer()
-            }
+            },
+            undoLastLog: () => this.undoLastLog()
         })
 
         // The item index follows the vault: it is rebuilt after metadata changes, renames and deletions.
@@ -357,6 +363,15 @@ export class MusicPracticePlugin extends Plugin {
             }
         })
         this.addCommand({
+            id: 'undo-last-log',
+            name: 'Undo last practice log',
+            checkCallback: (checking) => {
+                if (!this.settings.lastLog) return false
+                if (!checking) void this.undoLastLog()
+                return true
+            }
+        })
+        this.addCommand({
             id: 'identify-chord',
             name: 'Identify this chord',
             checkCallback: (checking) => {
@@ -454,6 +469,42 @@ export class MusicPracticePlugin extends Plugin {
         })
     }
 
+    /** A notice with an Undo button for the log just written. */
+    private noticeWithUndo(message: string): void {
+        const fragment = createFragment((f) => {
+            f.createSpan({ text: `${message} ` })
+            const button = f.createEl('button', { text: 'Undo', cls: 'mp-notice-undo' })
+            button.addEventListener('click', () => {
+                notice.hide()
+                void this.undoLastLog()
+            })
+        })
+        const notice = new Notice(fragment, 10_000)
+    }
+
+    /** Undo the last practice log, when nothing it wrote changed since. */
+    async undoLastLog(): Promise<UndoResult> {
+        const record = this.settings.lastLog
+        if (!record) {
+            new Notice('There is no practice log to undo.')
+            return { ok: false, reason: 'There is no practice log to undo.' }
+        }
+        const result = await this.practiceLog.undo(record)
+        if (!result.ok) {
+            new Notice(result.reason)
+            return result
+        }
+        await this.updateSettings((draft) => {
+            draft.lastLog = null
+        })
+        new Notice(
+            result.keptKapEntry
+                ? 'Practice log undone. The Kanban Action Planner timer kept its time entry on the activity.'
+                : 'Practice log undone: the notes are back as they were and the session note is in the trash.'
+        )
+        return result
+    }
+
     async clearTimer(): Promise<void> {
         await this.updateSettings((draft) => {
             draft.timerStartedAt = 0
@@ -496,6 +547,7 @@ export class MusicPracticePlugin extends Plugin {
                 submit: async (request, adoptTimer) => {
                     const result = await this.practiceLog.log(request, { adoptTimer })
                     for (const warning of result.warnings) new Notice(warning)
+                    this.noticeWithUndo(`Practice logged: ${result.items.length} item(s).`)
                     if (result.activity?.result === 'missing')
                         new Notice(
                             'The Kanban Action Planner timer was stopped but its time entry did not appear: check the activity, nothing was added to avoid counting the time twice.'
