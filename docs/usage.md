@@ -71,7 +71,7 @@ The drill's length is a setting (60 seconds by default).
 
 ## Undo
 
-The notice after a log has an **Undo** button, and **Undo last practice log** does the same later: the practiced notes and the activity get back what the log changed, and its session note goes to the trash. If any of them changed since, nothing is undone and the notice says which. A Kanban Action Planner timer's own time entry stays (it's real time).
+The notice after a log has an **Undo** button, and **Undo last practice log** does the same later: the practiced notes and the activity get back what the log changed, and its session note goes to the trash. If any of them changed since, nothing is undone and the notice says which. A Kanban Action Planner timer's own time entry stays (it's real time). Dates the Obsidian Starter Kit stamps when a level changes (started, mastered) aren't part of the log, so they stay too.
 
 ## Log practice
 

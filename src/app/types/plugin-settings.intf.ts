@@ -132,8 +132,26 @@ export function settingsFrom(loaded: unknown): PluginSettings {
     if (!Number.isInteger(m.beatsPerBar) || m.beatsPerBar < 2 || m.beatsPerBar > 12)
         m.beatsPerBar = d.beatsPerBar
     if (m.volume < 0 || m.volume > 1) m.volume = d.volume
-    if (!Number.isInteger(m.trainerStep) || m.trainerStep < 1) m.trainerStep = d.trainerStep
-    if (!Number.isInteger(m.trainerBars) || m.trainerBars < 1) m.trainerBars = d.trainerBars
+    if (!Number.isInteger(m.trainerStep) || m.trainerStep < 1 || m.trainerStep > 50)
+        m.trainerStep = d.trainerStep
+    if (!Number.isInteger(m.trainerBars) || m.trainerBars < 1 || m.trainerBars > 64)
+        m.trainerBars = d.trainerBars
+    if (
+        !Number.isInteger(settings.drillSeconds) ||
+        settings.drillSeconds < 10 ||
+        settings.drillSeconds > 600
+    )
+        settings.drillSeconds = DEFAULT_SETTINGS.drillSeconds
+    // A pause from before the start, or in the future, or negative paused time: count no pause.
+    const now = Date.now()
+    if (
+        settings.timerPausedMs < 0 ||
+        (settings.timerPausedAt &&
+            (settings.timerPausedAt < settings.timerStartedAt || settings.timerPausedAt > now))
+    ) {
+        settings.timerPausedAt = 0
+        settings.timerPausedMs = 0
+    }
     // An undo record edited by hand or from an older version: nothing to undo.
     if (!isUndoRecord(settings.lastLog)) settings.lastLog = null
     // Orientations are text: anything but the known values falls back to the default.

@@ -1,4 +1,4 @@
-import { normalizePath } from 'obsidian'
+import { getFrontMatterInfo, normalizePath, parseYaml } from 'obsidian'
 import type { App, TFile } from 'obsidian'
 import { isoDate } from '../domain/dates'
 import type { FieldNames } from '../domain/fields'
@@ -88,7 +88,7 @@ export class PracticeLogService {
         private readonly repo: ItemRepository,
         private readonly context: () => LogContext,
         /** Remembers the last log, to undo it (every log, from the modal or the API). */
-        private readonly onLogged: (record: UndoRecord) => void = () => {}
+        private readonly onLogged: (record: UndoRecord) => Promise<void> | void = () => {}
     ) {}
 
     /**
@@ -173,7 +173,8 @@ export class PracticeLogService {
         this.busy = true
         try {
             const result = await this.write(request, options)
-            this.onLogged(result.undo)
+            // Saved before returning, so an undo right after sees this log.
+            await this.onLogged(result.undo)
             return result
         } finally {
             this.busy = false
@@ -319,6 +320,7 @@ export class PracticeLogService {
             undo: {
                 at: Date.now(),
                 sessionPath: file.path,
+                sessionCtime: file.stat.ctime,
                 sessionBody: bodyOf(await this.app.vault.read(file)),
                 files: changes.filter((c) => c.keys.length > 0),
                 adoptedTimer: adopted
@@ -334,38 +336,59 @@ export class PracticeLogService {
         if (this.busy) return { ok: false, reason: 'A practice log is being written.' }
         this.busy = true
         try {
+            // Checked against the notes as they are on disk now, not the metadata cache.
             const session = this.app.vault.getFileByPath(record.sessionPath)
+            if (!session || (record.sessionCtime && session.stat.ctime !== record.sessionCtime))
+                return {
+                    ok: false,
+                    reason: `The session note of that log was moved or deleted (${record.sessionPath}): nothing was undone.`
+                }
             const changed: string[] = []
-            if (session && bodyOf(await this.app.vault.read(session)) !== record.sessionBody)
+            if (bodyOf(await this.app.vault.read(session)) !== record.sessionBody)
                 changed.push(session.basename)
-            const files = record.files.map((f) => ({
-                f,
-                file: this.app.vault.getFileByPath(f.path)
-            }))
-            for (const { f, file } of files) {
+            const files: { keys: UndoRecord['files'][number]['keys']; file: TFile }[] = []
+            for (const f of record.files) {
+                const file = this.app.vault.getFileByPath(f.path)
                 if (!file) {
                     changed.push(`${f.path} (moved or deleted)`)
                     continue
                 }
-                const fm = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {}
-                if (conflicts(fm, f.keys).length) changed.push(file.basename)
+                if (conflicts(await this.frontmatterOf(file), f.keys).length)
+                    changed.push(file.basename)
+                files.push({ keys: f.keys, file })
             }
             if (changed.length)
                 return {
                     ok: false,
                     reason: `Changed since the log, nothing was undone: ${changed.join(', ')}.`
                 }
-            for (const { f, file } of files) {
-                await this.app.fileManager.processFrontMatter(
-                    file!,
-                    (fm: Record<string, unknown>) => revert(fm, f.keys)
-                )
+            try {
+                for (const { keys, file } of files) {
+                    await this.app.fileManager.processFrontMatter(
+                        file,
+                        (fm: Record<string, unknown>) => revert(fm, keys)
+                    )
+                }
+                await this.app.fileManager.trashFile(session)
+            } catch (error: unknown) {
+                // What was put back stays put back; undoing again finishes the job.
+                return {
+                    ok: false,
+                    reason: `The undo stopped halfway (${error instanceof Error ? error.message : String(error)}): run it again to finish.`
+                }
             }
-            if (session) await this.app.fileManager.trashFile(session)
             return { ok: true, sessionPath: record.sessionPath, keptKapEntry: record.adoptedTimer }
         } finally {
             this.busy = false
         }
+    }
+
+    /** A note's frontmatter read from the file itself (the metadata cache can lag a write). */
+    private async frontmatterOf(file: TFile): Promise<Record<string, unknown>> {
+        const info = getFrontMatterInfo(await this.app.vault.read(file))
+        if (!info.exists) return {}
+        const parsed: unknown = parseYaml(info.frontmatter)
+        return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {}
     }
 
     /** Wait until the stopped Kanban Action Planner timer's entry shows up on the activity. */

@@ -1,4 +1,4 @@
-import { Notice, Platform, Plugin } from 'obsidian'
+import { Notice, Platform, Plugin, debounce } from 'obsidian'
 import type { TFile } from 'obsidian'
 import { createDefaultSettings, settingsFrom } from './types/plugin-settings.intf'
 import type { PluginSettings } from './types/plugin-settings.intf'
@@ -34,6 +34,7 @@ import type { TimerState } from './domain/timer'
 import { NotationBlocks } from './services/notation.service'
 import type { NoteContext } from './services/notation.service'
 import type { UndoResult } from './services/practice-log.service'
+import type { UndoRecord } from './domain/undo'
 import { Metronome } from './services/metronome.service'
 import type { MetronomeItem } from './services/metronome.service'
 import { MetronomeModal } from './ui/metronome-view'
@@ -216,7 +217,7 @@ export class MusicPracticePlugin extends Plugin {
                 activityName: this.settings.activityName
             }),
             (record) =>
-                void this.updateSettings((draft) => {
+                this.updateSettings((draft) => {
                     draft.lastLog = record
                 })
         )
@@ -236,6 +237,10 @@ export class MusicPracticePlugin extends Plugin {
             log: this.practiceLog,
             timer: {
                 get: () => this.settings.timerStartedAt || null,
+                minutes: () =>
+                    this.settings.timerStartedAt
+                        ? Math.floor(timerElapsed(this.timerState(), Date.now()) / 60_000)
+                        : 0,
                 start: () => this.startTimer(),
                 clear: () => this.clearTimer()
             },
@@ -281,9 +286,13 @@ export class MusicPracticePlugin extends Plugin {
             this.app.metadataCache.on('changed', (file) => this.notation?.redrawNote(file.path))
         )
         this.registerEvent(
-            this.app.vault.on('rename', (file, oldPath) =>
+            this.app.vault.on('rename', (file, oldPath) => {
                 this.notation?.renamed(oldPath, file.path)
-            )
+                this.panelPathChanged(oldPath, file.path)
+            })
+        )
+        this.registerEvent(
+            this.app.vault.on('delete', (file) => this.panelPathChanged(file.path, null))
         )
         this.app.workspace.onLayoutReady(() => this.notation.sync())
 
@@ -335,6 +344,8 @@ export class MusicPracticePlugin extends Plugin {
         this.notation?.sync()
         if (JSON.stringify(this.settings.notation) !== notation) this.notation?.refreshOpenNotes()
         if (JSON.stringify(this.settings.notationLayout) !== layout) this.notation?.redrawLayout()
+        this.refreshPanels()
+        this.renderTimer()
     }
 
     private registerCommands(): void {
@@ -354,18 +365,7 @@ export class MusicPracticePlugin extends Plugin {
         this.addCommand({
             id: 'practice-plan',
             name: 'Plan a practice session',
-            callback: () => {
-                const model = this.ensureModel()
-                new PracticePlanModal(
-                    this.app,
-                    model,
-                    this.items.items(),
-                    this.settings.rules,
-                    this.settings.defaultPlanMinutes,
-                    (minutes, paths) => this.openLogPractice({ minutes, paths }),
-                    (paths) => void this.usePlanInPanel(paths)
-                ).open()
-            }
+            callback: () => this.openPlan()
         })
         this.addCommand({
             id: 'open-practice-panel',
@@ -562,6 +562,20 @@ export class MusicPracticePlugin extends Plugin {
     }
 
     /** The active note when it is a learning note. Cheap: the command palette calls it on every keystroke. */
+    /** Plan a practice session (from the command and the panel). */
+    private openPlan(): void {
+        const model = this.ensureModel()
+        new PracticePlanModal(
+            this.app,
+            model,
+            this.items.items(),
+            this.settings.rules,
+            this.settings.defaultPlanMinutes,
+            (minutes, paths) => this.openLogPractice({ minutes, paths }),
+            (paths) => void this.usePlanInPanel(paths)
+        ).open()
+    }
+
     /** Open (or reveal) the practice panel: the right sidebar, or a tab on mobile. */
     async openPanel(): Promise<PracticePanelView | null> {
         const { workspace } = this.app
@@ -575,21 +589,37 @@ export class MusicPracticePlugin extends Plugin {
         return leaf.view instanceof PracticePanelView ? leaf.view : null
     }
 
-    private refreshPanels(): void {
-        for (const leaf of this.app.workspace.getLeavesOfType(PRACTICE_PANEL_VIEW)) {
-            if (leaf.view instanceof PracticePanelView) leaf.view.refresh()
-        }
+    /** Redraw open panels, at most twice a second (metadata changes come in bursts). */
+    private readonly refreshPanels = debounce(
+        () => {
+            for (const leaf of this.app.workspace.getLeavesOfType(PRACTICE_PANEL_VIEW)) {
+                if (leaf.view instanceof PracticePanelView) leaf.view.refresh()
+            }
+        },
+        500,
+        true
+    )
+
+    /** Change the panel's list from its latest state (quick clicks never lose one another). */
+    private setPanelItems(change: (items: PanelItem[]) => PanelItem[]): Promise<void> {
+        return this.updateSettings((draft) => {
+            draft.panelItems = change(draft.panelItems)
+        })
     }
 
-    private setPanelItems(items: PanelItem[]): Promise<void> {
-        return this.updateSettings((draft) => {
-            draft.panelItems = items
-        })
+    /** A listed note was renamed (follow it) or deleted (drop it). */
+    private panelPathChanged(oldPath: string, newPath: string | null): void {
+        if (!this.settings.panelItems.some((i) => i.path === oldPath)) return
+        void this.setPanelItems((items) =>
+            newPath === null
+                ? items.filter((i) => i.path !== oldPath)
+                : items.map((i) => (i.path === oldPath ? { ...i, path: newPath } : i))
+        )
     }
 
     /** A practice plan's items join the panel's session list, which opens. */
     private async usePlanInPanel(paths: string[]): Promise<void> {
-        await this.setPanelItems(withPaths(this.settings.panelItems, paths))
+        await this.setPanelItems((items) => withPaths(items, paths))
         await this.openPanel()
     }
 
@@ -597,23 +627,22 @@ export class MusicPracticePlugin extends Plugin {
     private logPanelSession(): void {
         const { paths, bpms } = toLog(this.settings.panelItems)
         const onLogged = () =>
-            void this.setPanelItems(this.settings.panelItems.filter((i) => !paths.includes(i.path)))
+            void this.setPanelItems((items) => items.filter((i) => !paths.includes(i.path)))
         if (this.settings.timerStartedAt) this.stopTimer({ paths, bpms, onLogged })
         else this.openLogPractice({ paths, bpms, onLogged })
     }
 
     private panelDeps(): PracticePanelDeps {
         return {
-            model: () => this.ensureModel(),
+            model: () => this.noteModel.get(),
             items: () => this.items.items(),
             list: () => this.settings.panelItems,
-            setList: (items) => this.setPanelItems(items),
+            setList: (change) => this.setPanelItems(change),
             timer: () => this.timerState(),
             startTimer: () => this.startTimer(),
             togglePause: () => this.togglePause(),
             logSession: () => this.logPanelSession(),
-            planIntoPanel: () =>
-                this.app.commands.executeCommandById('music-practice:practice-plan'),
+            planIntoPanel: () => this.openPlan(),
             drill: () => this.openDrill(),
             metronome: this.metronome,
             metronomeDeps: () => this.metronomeDeps()
@@ -786,24 +815,28 @@ export class MusicPracticePlugin extends Plugin {
     }
 
     /** A notice with an Undo button for the log just written. */
-    private noticeWithUndo(message: string): void {
+    private noticeWithUndo(message: string, record: UndoRecord): void {
         const fragment = createFragment((f) => {
             f.createSpan({ text: `${message} ` })
             const button = f.createEl('button', { text: 'Undo', cls: 'mp-notice-undo' })
             button.addEventListener('click', () => {
                 notice.hide()
-                void this.undoLastLog()
+                void this.undoLastLog(record)
             })
         })
         const notice = new Notice(fragment, 10_000)
     }
 
     /** Undo the last practice log, when nothing it wrote changed since. */
-    async undoLastLog(): Promise<UndoResult> {
+    async undoLastLog(expected?: UndoRecord): Promise<UndoResult> {
         const record = this.settings.lastLog
-        if (!record) {
-            new Notice('There is no practice log to undo.')
-            return { ok: false, reason: 'There is no practice log to undo.' }
+        // A notice's Undo undoes its own log only, never a later one.
+        if (!record || (expected && expected.at !== record.at)) {
+            const reason = record
+                ? 'Another log was written since: use Undo last practice log for that one.'
+                : 'There is no practice log to undo.'
+            new Notice(reason)
+            return { ok: false, reason }
         }
         const result = await this.practiceLog.undo(record)
         if (!result.ok) {
@@ -868,7 +901,10 @@ export class MusicPracticePlugin extends Plugin {
                 submit: async (request, adoptTimer) => {
                     const result = await this.practiceLog.log(request, { adoptTimer })
                     for (const warning of result.warnings) new Notice(warning)
-                    this.noticeWithUndo(`Practice logged: ${result.items.length} item(s).`)
+                    this.noticeWithUndo(
+                        `Practice logged: ${result.items.length} item(s).`,
+                        result.undo
+                    )
                     if (result.activity?.result === 'missing')
                         new Notice(
                             'The Kanban Action Planner timer was stopped but its time entry did not appear: check the activity, nothing was added to avoid counting the time twice.'

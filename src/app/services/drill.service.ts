@@ -15,8 +15,14 @@ import type { NewLearningNote } from './note-creator.service'
 /** A chord note's title without its type's suffix ("A Major - Open"). */
 const bare = (name: string) => name.replace(/\s*\([^)]*\)\s*$/, '').trim()
 
-const numberOf = (value: unknown): number | null =>
-    typeof value === 'number' && Number.isFinite(value) ? value : null
+/** A count as stored: a number, or a number typed as text ("30"). */
+const numberOf = (value: unknown): number | null => {
+    const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value
+    return typeof n === 'number' && Number.isFinite(n) ? n : null
+}
+
+/** Pair notes are titled "<chord> ↔ <chord>": other exercises training two chords aren't pairs. */
+const PAIR_TITLE = / ↔ /
 
 export class DrillService {
     constructor(
@@ -79,7 +85,7 @@ export class DrillService {
         const { changesBest, changesLast } = this.fields()
         return this.repo
             .items()
-            .filter((i) => i.typeId === type.id)
+            .filter((i) => i.typeId === type.id && PAIR_TITLE.test(i.name))
             .flatMap((i) => {
                 const file = this.app.vault.getFileByPath(i.path)
                 if (!file) return []
@@ -158,12 +164,20 @@ export class DrillService {
                 'This vault has no guitar exercise type to keep chord change drills in.'
             )
         const { trains, changesBest, changesLast } = this.fields()
-        for (const field of [changesBest, changesLast])
+        for (const field of [trains, changesBest, changesLast])
             if (!type.fields.has(field))
                 throw new Error(
                     `The guitar exercise type has no "${field}" property: add it to keep drill results.`
                 )
         let path = pair.note
+        if (!path || !this.app.vault.getFileByPath(path)) {
+            const title = safeTitle(pairTitle(this.nameOf(pair.a), this.nameOf(pair.b)))
+            // Created moments ago and not indexed yet, or created by hand: use it.
+            const existing = this.app.vault
+                .getMarkdownFiles()
+                .find((f) => f.basename === title || f.basename.startsWith(`${title} (`))
+            if (existing) path = existing.path
+        }
         if (!path || !this.app.vault.getFileByPath(path)) {
             const title = safeTitle(pairTitle(this.nameOf(pair.a), this.nameOf(pair.b)))
             const link = (p: string) =>

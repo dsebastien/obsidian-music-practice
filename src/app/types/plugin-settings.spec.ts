@@ -87,3 +87,39 @@ describe('layout settings from data.json', () => {
         expect(settingsFrom({}).notationLayout.chord).toBe('vertical')
     })
 })
+
+describe('0.5 settings from a 0.4 data.json', () => {
+    it('keeps the old settings and fills in the new ones', () => {
+        const settings = settingsFrom({ defaultPlanMinutes: 45, notation: { chord: false } })
+        expect(settings.defaultPlanMinutes).toBe(45)
+        expect(settings.notation.chord).toBe(false)
+        expect(settings.lastLog).toBeNull()
+        expect(settings.panelItems).toEqual([])
+        expect(settings.drillSeconds).toBe(60)
+        expect(settings.metronome.beatsPerBar).toBe(4)
+        expect(settings.timerPausedAt).toBe(0)
+    })
+
+    it('drops malformed or out-of-range 0.5 values', () => {
+        const settings = settingsFrom({
+            lastLog: { at: 'yesterday' },
+            panelItems: [{ path: 'A.md', done: true }, { nope: 1 }],
+            drillSeconds: -5,
+            metronome: { subdivision: 7, volume: 3, trainerStep: 500 },
+            timerStartedAt: 1000,
+            timerPausedAt: 500,
+            timerPausedMs: -3
+        })
+        expect(settings.lastLog).toBeNull()
+        expect(settings.panelItems).toEqual([{ path: 'A.md', done: true }])
+        expect(settings.drillSeconds).toBe(60)
+        expect(settings.metronome).toEqual({
+            beatsPerBar: 4,
+            subdivision: 1,
+            volume: 0.7,
+            trainerStep: 2,
+            trainerBars: 4
+        })
+        expect([settings.timerPausedAt, settings.timerPausedMs]).toEqual([0, 0])
+    })
+})

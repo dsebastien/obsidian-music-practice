@@ -67,7 +67,10 @@ export function renderMetronome(
     for (let n = 2; n <= 12; n++)
         beatsSelect.createEl('option', { text: String(n), value: String(n) })
     beatsSelect.addEventListener('change', () => {
-        void deps.saveSettings({ beatsPerBar: Number(beatsSelect.value) }).then(update)
+        void deps.saveSettings({ beatsPerBar: Number(beatsSelect.value) }).then(() => {
+            lastControls = ''
+            update()
+        })
     })
     const subField = options.createEl('label', { cls: 'mp-field', text: 'Clicks' })
     const subSelect = subField.createEl('select', { cls: 'dropdown' })
@@ -101,19 +104,40 @@ export function renderMetronome(
     const save = el.createEl('button', { text: 'Save BPM to the note' })
     save.addEventListener('click', () => deps.saveBpm())
 
-    const update = () => {
+    // The beat moves up to 20 times a second: only the beat dots follow it; the controls are set
+    // when something else changed, and never while you're using one.
+    let lastBeat = -1
+    const showBeat = () => {
         const s = metronome.state
         const settings = deps.settings()
-        if (el.ownerDocument.activeElement !== bpmInput) bpmInput.value = String(s.bpm)
-        play.setText(s.running ? 'Stop' : 'Start')
-        beatsSelect.value = String(settings.beatsPerBar)
-        subSelect.value = String(settings.subdivision)
-        volume.value = String(settings.volume)
-        beats.empty()
-        for (let n = 0; n < settings.beatsPerBar; n++) {
-            const dot = beats.createSpan({ cls: 'mp-metronome-dot' })
-            if (s.running && n === s.beat) dot.addClass(n === 0 ? 'is-accent' : 'is-on')
+        if (beats.childElementCount !== settings.beatsPerBar) {
+            beats.empty()
+            for (let n = 0; n < settings.beatsPerBar; n++)
+                beats.createSpan({ cls: 'mp-metronome-dot' })
         }
+        Array.from(beats.children).forEach((dot: Element, n) => {
+            const on = s.running && n === s.beat
+            dot.classList.toggle('is-accent', on && n === 0)
+            dot.classList.toggle('is-on', on && n !== 0)
+        })
+    }
+    const update = () => {
+        const s = metronome.state
+        if (s.running && s.beat !== lastBeat && lastControls === key(s)) {
+            lastBeat = s.beat
+            showBeat()
+            return
+        }
+        lastBeat = s.beat
+        lastControls = key(s)
+        const settings = deps.settings()
+        const focused = el.ownerDocument.activeElement
+        if (focused !== bpmInput) bpmInput.value = String(s.bpm)
+        play.setText(s.running ? 'Stop' : 'Start')
+        if (focused !== beatsSelect) beatsSelect.value = String(settings.beatsPerBar)
+        if (focused !== subSelect) subSelect.value = String(settings.subdivision)
+        if (focused !== volume) volume.value = String(settings.volume)
+        showBeat()
         itemEl.setText(
             s.item
                 ? `${s.item.name}${s.item.bpmCurrent || s.item.bpmTarget ? ` · ${s.item.bpmCurrent ?? '?'} → ${s.item.bpmTarget ?? '?'} BPM` : ''}`
@@ -122,12 +146,16 @@ export function renderMetronome(
         trainerBox.checked = s.trainer !== null
         trainerInfo.setText(
             s.trainer
-                ? ` +${s.trainer.step} every ${s.trainer.everyBars} bars${s.trainer.target ? `, up to ${s.trainer.target}` : ''}`
+                ? ` +${s.trainer.step} every ${s.trainer.everyBars} bars${s.trainer.target && s.trainer.target > s.trainer.start ? `, up to ${s.trainer.target}` : ''}`
                 : ''
         )
         stepUp.toggle(s.trainer !== null)
         save.toggle(s.item !== null)
     }
+    // Everything but the beat: when it changes, the controls are set again.
+    const key = (s: typeof metronome.state) =>
+        JSON.stringify([s.running, s.bpm, s.trainer, s.item, deps.settings()])
+    let lastControls = ''
     const unsubscribe = metronome.subscribe(update)
     update()
     return () => {

@@ -1,7 +1,7 @@
 import { FuzzySuggestModal, ItemView } from 'obsidian'
 import type { App, WorkspaceLeaf } from 'obsidian'
 import type { NoteModel } from '../domain/note-model'
-import type { PanelItem } from '../domain/panel'
+import { withPaths, type PanelItem } from '../domain/panel'
 import type { LearningItem } from '../domain/practice'
 import { formatElapsed, timerElapsed, type TimerState } from '../domain/timer'
 import type { Metronome } from '../services/metronome.service'
@@ -15,7 +15,8 @@ export interface PracticePanelDeps {
     model: () => NoteModel
     items: () => LearningItem[]
     list: () => readonly PanelItem[]
-    setList: (items: PanelItem[]) => Promise<void>
+    /** Change the list from its latest state. */
+    setList: (change: (items: PanelItem[]) => PanelItem[]) => Promise<void>
     timer: () => TimerState
     startTimer: () => Promise<void>
     togglePause: () => Promise<void>
@@ -78,7 +79,7 @@ export class PracticePanelView extends ItemView {
             .addEventListener('click', () => this.deps.drill())
         tools
             .createEl('button', { text: 'Clear' })
-            .addEventListener('click', () => void this.deps.setList([]))
+            .addEventListener('click', () => void this.deps.setList(() => []))
         this.listEl = session.createDiv({ cls: 'mp-list' })
         session
             .createEl('button', { cls: 'mod-cta mp-panel-log', text: 'Log this session' })
@@ -138,7 +139,6 @@ export class PracticePanelView extends ItemView {
         if (!el) return
         el.empty()
         const list = this.deps.list()
-        const byPath = new Map(this.deps.items().map((i) => [i.path, i]))
         if (!list.length) {
             el.createDiv({
                 cls: 'mp-muted',
@@ -147,9 +147,10 @@ export class PracticePanelView extends ItemView {
             return
         }
         const model = this.deps.model()
+        const byPath = new Map(this.deps.items().map((i) => [i.path, i]))
         const update = (path: string, change: Partial<PanelItem>) =>
-            void this.deps.setList(
-                this.deps.list().map((i) => (i.path === path ? { ...i, ...change } : i))
+            void this.deps.setList((items) =>
+                items.map((i) => (i.path === path ? { ...i, ...change } : i))
             )
         for (const entry of list) {
             const item = byPath.get(entry.path)
@@ -165,9 +166,14 @@ export class PracticePanelView extends ItemView {
                 cls: 'internal-link',
                 text: item?.name ?? entry.path.replace(/^.*\//, '').replace(/\.md$/, '')
             })
+            link.tabIndex = 0
+            const open = () => void this.app.workspace.openLinkText(entry.path, '', false)
             link.addEventListener('click', (event) => {
                 event.preventDefault()
-                void this.app.workspace.openLinkText(entry.path, '', false)
+                open()
+            })
+            link.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') open()
             })
             if (item) renderBadge(body, model, item)
             if (item && (item.bpmCurrent !== null || item.bpmTarget !== null)) {
@@ -211,8 +217,8 @@ export class PracticePanelView extends ItemView {
                 .addEventListener(
                     'click',
                     () =>
-                        void this.deps.setList(
-                            this.deps.list().filter((i) => i.path !== entry.path)
+                        void this.deps.setList((items) =>
+                            items.filter((i) => i.path !== entry.path)
                         )
                 )
         }
@@ -223,8 +229,7 @@ export class PracticePanelView extends ItemView {
         new ItemSuggestModal(
             this.app,
             this.deps.items().filter((i) => !listed.has(i.path)),
-            (item) =>
-                void this.deps.setList([...this.deps.list(), { path: item.path, done: false }])
+            (item) => void this.deps.setList((items) => withPaths(items, [item.path]))
         ).open()
     }
 }

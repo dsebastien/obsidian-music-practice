@@ -57,12 +57,17 @@ export interface Trainer {
 export function trainerBpm(trainer: Trainer, bars: number, taps = 0): number {
     const steps = Math.floor(bars / Math.max(1, trainer.everyBars)) + taps
     const bpm = trainer.start + steps * trainer.step
-    return clampBpm(trainer.target !== null ? Math.min(trainer.target, bpm) : bpm)
+    // A target at or below the start isn't a ceiling: the trainer never slows down.
+    const cap = trainer.target !== null && trainer.target > trainer.start ? trainer.target : null
+    return clampBpm(cap !== null ? Math.min(cap, bpm) : bpm)
 }
 
 /** Tap tempo: the BPM of the last taps (epoch ms), from their average gap; null with too few. */
 export function bpmFromTaps(taps: readonly number[]): number | null {
-    const recent = taps.slice(-5)
+    // Taps before a pause longer than 2 s belong to an earlier tempo.
+    let from = 0
+    for (let i = 1; i < taps.length; i++) if (taps[i]! - taps[i - 1]! > 2000) from = i
+    const recent = taps.slice(from).slice(-5)
     if (recent.length < 2) return null
     const gaps = recent.slice(1).map((t, i) => t - recent[i]!)
     // A pause longer than 2 s starts over.

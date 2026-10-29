@@ -34,7 +34,42 @@ describe('undo', () => {
         expect(conflicts(snapshot(after), changes)).toEqual([])
         expect(conflicts({ ...after, time_spent: 50 }, changes)).toEqual(['time_spent'])
         const { date_last_practiced: _gone, ...without } = after
-        expect(conflicts(without, changes)).toEqual(['date_last_practiced'])
+        // A key the log added and that's gone again is already as before: no conflict.
+        expect(conflicts(without, changes)).toEqual([])
+    })
+
+    it('lets an undo that stopped halfway run again', () => {
+        const changes = changedKeys(before, after)
+        // Already reverted: no conflict, and reverting again changes nothing.
+        expect(conflicts(snapshot(before), changes)).toEqual([])
+        const fm = snapshot(before)
+        revert(fm, changes)
+        expect(fm).toEqual(before)
+    })
+
+    it('keeps only the item a log appended to a list, and removes just that one', () => {
+        const entries = [{ start: 'a' }, { start: 'b' }]
+        const changes = changedKeys(
+            { time_entries: entries },
+            { time_entries: [...entries, { start: 'c' }] }
+        )
+        expect(changes).toEqual([
+            {
+                key: 'time_entries',
+                existed: true,
+                before: null,
+                after: null,
+                appended: { start: 'c' }
+            }
+        ])
+        const fm: Record<string, unknown> = { time_entries: [...entries, { start: 'c' }] }
+        expect(conflicts(fm, changes)).toEqual([])
+        revert(fm, changes)
+        expect(fm).toEqual({ time_entries: entries })
+        // Another entry added since: the log's isn't last anymore.
+        expect(
+            conflicts({ time_entries: [...entries, { start: 'c' }, { start: 'd' }] }, changes)
+        ).toEqual(['time_entries'])
     })
 
     it('survives being stored as JSON (keys the log removed have no value after)', () => {

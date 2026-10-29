@@ -36,4 +36,9 @@ describe('metronome', () => {
         expect(bpmFromTaps([0])).toBeNull()
         expect(bpmFromTaps([0, 3000])).toBeNull()
     })
+
+    it('never slows down toward a target below the start, and reads taps after a pause', () => {
+        expect(trainerBpm({ start: 100, step: 2, everyBars: 1, target: 80 }, 3)).toBe(106)
+        expect(bpmFromTaps([0, 500, 5000, 5500, 6000])).toBe(120)
+    })
 })

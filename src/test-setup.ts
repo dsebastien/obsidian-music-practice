@@ -26,6 +26,8 @@ void mock.module('obsidian', () => ({
     SuggestModal: class SuggestModal {},
     // The practice panel.
     ItemView: class ItemView {},
+    getFrontMatterInfo: () => ({ exists: false, frontmatter: '' }),
+    parseYaml: () => ({}),
     Platform: { isMobile: false },
     MarkdownPreviewRenderer: class MarkdownPreviewRenderer {},
     PluginSettingTab: class PluginSettingTab {},

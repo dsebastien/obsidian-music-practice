@@ -45,6 +45,7 @@ export class Metronome {
     private taps = 0
     private readonly listeners = new Set<() => void>()
     private readonly pending = new Set<number>()
+    private meter = { beats: 0, subdivision: 0 }
 
     constructor(
         private readonly win: Window,
@@ -107,9 +108,13 @@ export class Metronome {
         const Context = (this.win as Window & { AudioContext?: typeof AudioContext }).AudioContext
         if (!Context) throw new Error('This device has no Web Audio: the metronome cannot play.')
         this.context ??= new Context()
-        void this.context.resume()
+        this.context.resume().catch(() => {})
         this.tick = 0
         this.bars = 0
+        this.taps = 0
+        // The trainer goes on from the tempo it reached, not from where it first started.
+        if (this.state.trainer)
+            this.state.trainer = { ...this.state.trainer, start: this.state.bpm }
         this.nextAt = this.context.currentTime + 0.05
         this.state.running = true
         this.timer = this.win.setInterval(() => this.schedule(), INTERVAL_MS)
@@ -124,6 +129,8 @@ export class Metronome {
         this.pending.clear()
         this.state.running = false
         this.state.beat = 0
+        // Let the audio device rest until the next start.
+        this.context?.suspend().catch(() => {})
         this.changed()
     }
 
@@ -145,6 +152,13 @@ export class Metronome {
         const context = this.context
         if (!context || !this.state.running) return
         const { beatsPerBar, subdivision, volume } = this.settings()
+        // Beats per bar or clicks changed while playing: start a new bar, so accents stay on beat one.
+        if (beatsPerBar !== this.meter.beats || subdivision !== this.meter.subdivision) {
+            this.meter = { beats: beatsPerBar, subdivision }
+            this.tick = 0
+        }
+        // After a stall (a busy window, a throttled tab), go on from now: never play the missed clicks at once.
+        if (this.nextAt < context.currentTime) this.nextAt = context.currentTime + 0.02
         while (this.nextAt < context.currentTime + LOOKAHEAD_S) {
             const kind = tickKind(this.tick, beatsPerBar, subdivision)
             if (kind === 'accent' && this.tick > 0) {

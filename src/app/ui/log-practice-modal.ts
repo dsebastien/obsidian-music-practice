@@ -84,6 +84,8 @@ export class LogPracticeModal extends Modal {
         let subject: string | null = null
         for (const path of preset.paths ?? []) {
             const item = deps.items.find((i) => i.path === path)
+            // Not (or no longer) a learning note: it can't be logged.
+            if (!item) continue
             const itemSubject = item ? (this.typeOf(item)?.subject ?? null) : null
             if (itemSubject && subject && itemSubject !== subject) continue
             subject ??= itemSubject
