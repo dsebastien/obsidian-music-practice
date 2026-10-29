@@ -33,6 +33,10 @@ import { clockTime, formatElapsed, minutesBetween } from './domain/timer'
 import { NotationBlocks } from './services/notation.service'
 import type { NoteContext } from './services/notation.service'
 import type { UndoResult } from './services/practice-log.service'
+import { Metronome } from './services/metronome.service'
+import type { MetronomeItem } from './services/metronome.service'
+import { MetronomeModal } from './ui/metronome-view'
+import type { MetronomeViewDeps } from './ui/metronome-view'
 import { learningTypeOf } from './domain/item-reader'
 import { propertyNamesOf, chordFromNotes, withAlias } from './domain/notation-note'
 import { ChooseChordModal } from './ui/choose-chord-modal'
@@ -58,6 +62,9 @@ export class MusicPracticePlugin extends Plugin {
     private noteCreator!: NoteCreatorService
     private notation!: NotationBlocks
     private timerEl: HTMLElement | null = null
+    private metronomeEl: HTMLElement | null = null
+    /** One metronome for the panel, the modal and the commands. */
+    metronome!: Metronome
     private logModal: LogPracticeModal | null = null
     /** Settings found invalid on load and replaced by the defaults, to report once the UI is up. */
     private loadProblem: string | null = null
@@ -261,6 +268,21 @@ export class MusicPracticePlugin extends Plugin {
         this.app.workspace.onLayoutReady(() => this.notation.sync())
 
         // Practice timer: persisted start, elapsed time in the status bar, stop opens Log practice.
+        // Metronome: plays on while its modal is closed; the status bar shows it and stops it.
+        this.metronome = new Metronome(window, () => this.settings.metronome)
+        this.metronomeEl = this.addStatusBarItem()
+        this.metronomeEl.addClass('mp-timer', 'mod-clickable')
+        this.metronomeEl.setAttr('aria-label', 'Open the metronome')
+        this.metronomeEl.addEventListener('click', () => this.openMetronome())
+        this.register(
+            this.metronome.subscribe(() => {
+                const s = this.metronome.state
+                this.metronomeEl?.toggleClass('mp-is-hidden', !s.running)
+                this.metronomeEl?.setText(`♩ ${s.bpm}`)
+            })
+        )
+        this.metronomeEl.addClass('mp-is-hidden')
+
         this.timerEl = this.addStatusBarItem()
         this.timerEl.addClass('mp-timer', 'mod-clickable')
         this.timerEl.setAttr('aria-label', 'Stop the practice timer and log the session')
@@ -272,7 +294,9 @@ export class MusicPracticePlugin extends Plugin {
         this.addSettingTab(new MusicPracticeSettingTab(this.app, this))
     }
 
-    override onunload() {}
+    override onunload() {
+        this.metronome?.destroy()
+    }
 
     /** Another device (sync) changed data.json: reload, so a save here never wipes its changes. */
     override async onExternalSettingsChange(): Promise<void> {
@@ -388,6 +412,51 @@ export class MusicPracticePlugin extends Plugin {
             }
         })
         this.addCommand({
+            id: 'start-metronome',
+            name: 'Start metronome',
+            callback: () => {
+                this.openMetronome()
+                try {
+                    this.metronome.start()
+                } catch (error: unknown) {
+                    new Notice(error instanceof Error ? error.message : String(error))
+                }
+            }
+        })
+        this.addCommand({
+            id: 'stop-metronome',
+            name: 'Stop metronome',
+            checkCallback: (checking) => {
+                if (!this.metronome.state.running) return false
+                if (!checking) this.metronome.stop()
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'speed-trainer',
+            name: 'Speed trainer for the current note',
+            checkCallback: (checking) => {
+                const active = this.activeLearningNote()
+                if (!active) return false
+                if (!checking) {
+                    this.metronome.stop()
+                    this.metronome.setItem(this.metronomeItemOf(active.file))
+                    this.metronome.setTrainer(true)
+                    this.openMetronome()
+                }
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'save-metronome-bpm',
+            name: 'Save metronome BPM to its note',
+            checkCallback: (checking) => {
+                if (!this.metronome.state.item) return false
+                if (!checking) this.saveMetronomeBpm()
+                return true
+            }
+        })
+        this.addCommand({
             id: 'set-bpm',
             name: 'Set BPM of the current note',
             checkCallback: (checking) => {
@@ -433,6 +502,67 @@ export class MusicPracticePlugin extends Plugin {
     }
 
     /** The active note when it is a learning note. Cheap: the command palette calls it on every keystroke. */
+    /** The metronome's item for a learning note. */
+    private metronomeItemOf(file: TFile): MetronomeItem | null {
+        const item = this.itemOf(file)
+        return item
+            ? {
+                  path: item.path,
+                  name: item.name,
+                  bpmCurrent: item.bpmCurrent,
+                  bpmTarget: item.bpmTarget
+              }
+            : null
+    }
+
+    /** What the metronome views need from the plugin. */
+    metronomeDeps(): MetronomeViewDeps {
+        return {
+            settings: () => this.settings.metronome,
+            saveSettings: (change) =>
+                this.updateSettings((draft) => {
+                    Object.assign(draft.metronome, change)
+                }),
+            saveBpm: () => this.saveMetronomeBpm()
+        }
+    }
+
+    /** Open the metronome (the practice note becomes its item when none is set). */
+    openMetronome(): void {
+        const active = this.activeLearningNote()
+        if (active && !this.metronome.state.item)
+            this.metronome.setItem(this.metronomeItemOf(active.file))
+        new MetronomeModal(this.app, this.metronome, this.metronomeDeps()).open()
+    }
+
+    /** Save the metronome's tempo to its item, through Set BPM (which offers "at tempo"). */
+    saveMetronomeBpm(): void {
+        const target = this.metronome.state.item
+        const item = target ? this.items.items().find((i) => i.path === target.path) : null
+        if (!item) {
+            new Notice('The metronome has no note to save the BPM to.')
+            return
+        }
+        new BpmModal(
+            this.app,
+            item,
+            this.settings.rules.levels.tempo,
+            async (bpm) => {
+                await this.practiceLog.setBpmAndLevel(
+                    item,
+                    bpm,
+                    bpm.atTempo ? this.settings.rules.levels.tempo : undefined
+                )
+                this.metronome.setItem({
+                    ...target!,
+                    bpmCurrent: bpm.current ?? target!.bpmCurrent,
+                    bpmTarget: bpm.target ?? target!.bpmTarget
+                })
+            },
+            this.metronome.state.bpm
+        ).open()
+    }
+
     private activeLearningNote(): { file: TFile; type: LearningType } | null {
         const file = this.app.workspace.getActiveFile()
         const type = file ? this.items.typeOf(file) : null

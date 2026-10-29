@@ -50,7 +50,21 @@ const MINIMUMS: Record<string, { min: number; integer: boolean }> = {
     'rules.score.maxUnlocks': { min: 0, integer: true },
     'rules.plan.minMinutesPerItem': { min: 1, integer: true },
     'rules.plan.maxItemsPerBlock': { min: 1, integer: true },
-    'local.topPriority': { min: 0, integer: true }
+    'local.topPriority': { min: 0, integer: true },
+    'metronome.beatsPerBar': { min: 2, integer: true },
+    'metronome.subdivision': { min: 1, integer: true },
+    'metronome.volume': { min: 0, integer: false },
+    'metronome.trainerStep': { min: 1, integer: true },
+    'metronome.trainerBars': { min: 1, integer: true }
+}
+
+/** Upper bounds, for the settings that have one. */
+const MAXIMUMS: Record<string, number> = {
+    'metronome.beatsPerBar': 12,
+    'metronome.subdivision': 4,
+    'metronome.volume': 1,
+    'metronome.trainerStep': 50,
+    'metronome.trainerBars': 64
 }
 
 /** Text settings that may be left empty; every other text setting needs a value. */
@@ -80,6 +94,8 @@ export function parseSetting(key: string, raw: unknown): Parsed {
             return { ok: false, error: `Enter a number of at least ${bound.min}.` }
         if (bound.integer && !Number.isInteger(n))
             return { ok: false, error: 'Enter a whole number.' }
+        const max = MAXIMUMS[key]
+        if (max !== undefined && n > max) return { ok: false, error: `Enter at most ${max}.` }
         return { ok: true, value: n }
     }
     if (typeof def === 'string') {

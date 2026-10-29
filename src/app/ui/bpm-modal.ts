@@ -20,10 +20,12 @@ export class BpmModal extends Modal {
         app: App,
         private readonly item: LearningItem,
         private readonly tempoLevel: number,
-        private readonly save: (result: BpmResult) => Promise<void>
+        private readonly save: (result: BpmResult) => Promise<void>,
+        /** A tempo reached elsewhere (the metronome), offered as the current BPM. */
+        reached?: number
     ) {
         super(app)
-        this.current = item.bpmCurrent ?? undefined
+        this.current = reached ?? item.bpmCurrent ?? undefined
         this.target = item.bpmTarget ?? undefined
     }
 

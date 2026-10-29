@@ -350,3 +350,44 @@
     height: auto;
     max-height: 160px;
 }
+
+/* Metronome (#39): tempo, beat dots, controls. */
+.mp-metronome {
+    @apply flex flex-col gap-3;
+}
+
+.mp-metronome-item {
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+}
+
+.mp-metronome-tempo,
+.mp-metronome-actions,
+.mp-metronome-trainer {
+    @apply flex flex-wrap items-center gap-2;
+}
+
+.mp-metronome-tempo .mp-metronome-bpm {
+    width: 5.5em;
+    font-size: 1.6em;
+    text-align: center;
+}
+
+.mp-metronome-beats {
+    @apply flex gap-2;
+}
+
+.mp-metronome-dot {
+    width: 0.9em;
+    height: 0.9em;
+    border-radius: 50%;
+    background: var(--background-modifier-border);
+}
+
+.mp-metronome-dot.is-on {
+    background: var(--interactive-accent);
+}
+
+.mp-metronome-dot.is-accent {
+    background: var(--text-error);
+}

@@ -10,6 +10,8 @@ import { ORIENTATIONS } from '../domain/notation-layout'
 import type { NotationLayout } from '../domain/notation-layout'
 import type { NotationToggles } from '../services/notation.service'
 import { isUndoRecord } from '../domain/undo'
+import { createDefaultMetronomeSettings } from '../domain/metronome'
+import type { MetronomeSettings } from '../domain/metronome'
 import type { UndoRecord } from '../domain/undo'
 
 export interface PluginSettings {
@@ -35,6 +37,8 @@ export interface PluginSettings {
     notationLayout: NotationLayout
     /** What the last practice log changed, to undo it (#36); null when there's nothing to undo. */
     lastLog: UndoRecord | null
+    /** Metronome and speed trainer defaults (#39). */
+    metronome: MetronomeSettings
 }
 
 /**
@@ -64,7 +68,8 @@ export function createDefaultSettings(): PluginSettings {
             fretboard: 'horizontal',
             keyboard: 'horizontal'
         },
-        lastLog: null
+        lastLog: null,
+        metronome: createDefaultMetronomeSettings()
     }
 }
 
@@ -104,6 +109,15 @@ export function overlay<T>(defaults: T, loaded: unknown): T {
 /** Settings from whatever data.json holds, every field checked against the defaults. */
 export function settingsFrom(loaded: unknown): PluginSettings {
     const settings = overlay(createDefaultSettings(), loaded)
+    // Metronome values out of range fall back to the defaults.
+    const m = settings.metronome
+    const d = DEFAULT_SETTINGS.metronome
+    if (![1, 2, 3, 4].includes(m.subdivision)) m.subdivision = d.subdivision
+    if (!Number.isInteger(m.beatsPerBar) || m.beatsPerBar < 2 || m.beatsPerBar > 12)
+        m.beatsPerBar = d.beatsPerBar
+    if (m.volume < 0 || m.volume > 1) m.volume = d.volume
+    if (!Number.isInteger(m.trainerStep) || m.trainerStep < 1) m.trainerStep = d.trainerStep
+    if (!Number.isInteger(m.trainerBars) || m.trainerBars < 1) m.trainerBars = d.trainerBars
     // An undo record edited by hand or from an older version: nothing to undo.
     if (!isUndoRecord(settings.lastLog)) settings.lastLog = null
     // Orientations are text: anything but the known values falls back to the default.

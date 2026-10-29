@@ -173,6 +173,42 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                 ]
             },
             {
+                type: 'group',
+                heading: 'Metronome',
+                items: [
+                    this.num(
+                        'metronome.beatsPerBar',
+                        'Beats per bar',
+                        'From 2 to 12; the first is accented.'
+                    ),
+                    {
+                        name: 'Clicks',
+                        desc: 'Per beat: quarter notes, eighths, triplets or sixteenths.',
+                        control: {
+                            type: 'dropdown',
+                            key: 'metronome.subdivision',
+                            options: {
+                                '1': 'Quarter notes',
+                                '2': 'Eighths',
+                                '3': 'Triplets',
+                                '4': 'Sixteenths'
+                            }
+                        }
+                    },
+                    this.num('metronome.volume', 'Volume', 'From 0 to 1.'),
+                    this.num(
+                        'metronome.trainerStep',
+                        'Speed trainer step',
+                        'BPM added at each step.'
+                    ),
+                    this.num(
+                        'metronome.trainerBars',
+                        'Speed trainer bars',
+                        'Bars between two steps (the "+" button steps at once).'
+                    )
+                ]
+            },
+            {
                 type: 'page',
                 name: 'Rules',
                 desc: 'Mastery levels, spaced review, practice score and practice plans.',
