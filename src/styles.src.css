@@ -433,3 +433,30 @@
 .mp-panel-log {
     @apply mt-2 w-full;
 }
+
+/* Chord change drills (#40). */
+.mp-drill-pair {
+    @apply flex w-full items-center justify-between gap-3;
+    height: auto;
+    padding: 0.5rem 0.75rem;
+    white-space: normal;
+    text-align: start;
+}
+
+.mp-drill-title {
+    font-size: 1.2em;
+    font-weight: 600;
+}
+
+.mp-drill-clock {
+    font-size: 2em;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
+.mp-drill-count {
+    @apply w-full;
+    height: auto;
+    padding: 1rem;
+    font-size: 1.6em;
+}

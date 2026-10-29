@@ -205,6 +205,11 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         'metronome.trainerBars',
                         'Speed trainer bars',
                         'Bars between two steps (the "+" button steps at once).'
+                    ),
+                    this.num(
+                        'drillSeconds',
+                        'Chord change drill length',
+                        'Seconds, from 10 to 600 (a minute is the classic drill).'
                     )
                 ]
             },
@@ -413,6 +418,21 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             ),
                             this.text('fields.pitches', 'Pitches', 'Piano chords: "A3 C#4 E4".'),
                             this.text('fields.fingering', 'Fingering', 'Piano chords: "5 3 1".'),
+                            this.text(
+                                'fields.trains',
+                                'Trains',
+                                'Exercises: what they train (links).'
+                            ),
+                            this.text(
+                                'fields.changesBest',
+                                'Best changes',
+                                'Chord change drills: best changes per minute.'
+                            ),
+                            this.text(
+                                'fields.changesLast',
+                                'Last changes',
+                                'Chord change drills: changes in the last drill.'
+                            ),
                             this.text('fields.scaleRoot', 'Scale root', 'Scales: "A".'),
                             this.text(
                                 'fields.scaleType',

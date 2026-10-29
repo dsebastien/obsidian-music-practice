@@ -59,7 +59,7 @@ export interface NewLearningNote {
     /** Guitar chords: the voicing picked from the notation library, stored as frets and fingers. */
     voicing?: FrettedVoicing
     /** Scales and other notes: more properties, by name (scale root and type). */
-    properties?: Record<string, string>
+    properties?: Record<string, unknown>
     /** An empty notation block the note gets (```chord, ```fretboard, ```keyboard): it draws from the properties. */
     block?: string
 }

@@ -55,7 +55,8 @@ const MINIMUMS: Record<string, { min: number; integer: boolean }> = {
     'metronome.subdivision': { min: 1, integer: true },
     'metronome.volume': { min: 0, integer: false },
     'metronome.trainerStep': { min: 1, integer: true },
-    'metronome.trainerBars': { min: 1, integer: true }
+    'metronome.trainerBars': { min: 1, integer: true },
+    'drillSeconds': { min: 10, integer: true }
 }
 
 /** Upper bounds, for the settings that have one. */
@@ -64,7 +65,8 @@ const MAXIMUMS: Record<string, number> = {
     'metronome.subdivision': 4,
     'metronome.volume': 1,
     'metronome.trainerStep': 50,
-    'metronome.trainerBars': 64
+    'metronome.trainerBars': 64,
+    'drillSeconds': 600
 }
 
 /** Text settings that may be left empty; every other text setting needs a value. */

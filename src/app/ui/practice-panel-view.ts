@@ -22,6 +22,7 @@ export interface PracticePanelDeps {
     /** Log this session: the ticked items (or all), their BPMs, the timer's minutes when it runs. */
     logSession: () => void
     planIntoPanel: () => void
+    drill: () => void
     metronome: Metronome
     metronomeDeps: () => MetronomeViewDeps
 }
@@ -72,6 +73,9 @@ export class PracticePanelView extends ItemView {
         tools
             .createEl('button', { text: 'Plan' })
             .addEventListener('click', () => this.deps.planIntoPanel())
+        tools
+            .createEl('button', { text: 'Drill', attr: { 'aria-label': 'Chord change drill' } })
+            .addEventListener('click', () => this.deps.drill())
         tools
             .createEl('button', { text: 'Clear' })
             .addEventListener('click', () => void this.deps.setList([]))

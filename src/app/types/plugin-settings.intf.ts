@@ -47,6 +47,8 @@ export interface PluginSettings {
     metronome: MetronomeSettings
     /** The practice panel's session list, kept until it's logged (#37). */
     panelItems: PanelItem[]
+    /** Length of a chord change drill, in seconds (#40). */
+    drillSeconds: number
 }
 
 /**
@@ -80,7 +82,8 @@ export function createDefaultSettings(): PluginSettings {
         },
         lastLog: null,
         metronome: createDefaultMetronomeSettings(),
-        panelItems: []
+        panelItems: [],
+        drillSeconds: 60
     }
 }
 

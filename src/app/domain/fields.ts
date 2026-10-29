@@ -23,6 +23,10 @@ export interface FieldNames {
     /** Piano chords: pitches ("A3 C#4 E4") and fingering ("5 3 1"). */
     pitches: string
     fingering: string
+    /** Exercises: the items they train (links); chord change drills: best and last counts. */
+    trains: string
+    changesBest: string
+    changesLast: string
     /** Scales: root ("A"), type ("Minor pentatonic"), right-hand fingering (piano). */
     scaleRoot: string
     scaleType: string
@@ -61,6 +65,9 @@ export function createDefaultFieldNames(): FieldNames {
         position: 'position',
         pitches: 'pitches',
         fingering: 'fingering',
+        trains: 'trains',
+        changesBest: 'changes_best',
+        changesLast: 'changes_last',
         scaleRoot: 'scale_root',
         scaleType: 'scale_type',
         fingeringRight: 'fingering_rh',

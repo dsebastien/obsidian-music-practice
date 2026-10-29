@@ -39,6 +39,11 @@ import type { MetronomeItem } from './services/metronome.service'
 import { MetronomeModal } from './ui/metronome-view'
 import type { MetronomeViewDeps } from './ui/metronome-view'
 import { PRACTICE_PANEL_VIEW, PracticePanelView } from './ui/practice-panel-view'
+import { DrillModal } from './ui/drill-modal'
+import { DrillService } from './services/drill.service'
+import type { DrillPair } from './domain/drill'
+import { blockFromProperties } from '@dsebastien/music-notation'
+import { lookupGuitarVoicing } from '@dsebastien/music-notation/voicings'
 import type { PracticePanelDeps } from './ui/practice-panel-view'
 import { toLog, withPaths } from './domain/panel'
 import type { PanelItem } from './domain/panel'
@@ -68,6 +73,7 @@ export class MusicPracticePlugin extends Plugin {
     private notation!: NotationBlocks
     private timerEl: HTMLElement | null = null
     private metronomeEl: HTMLElement | null = null
+    private drills!: DrillService
     /** One metronome for the panel, the modal and the commands. */
     metronome!: Metronome
     private logModal: LogPracticeModal | null = null
@@ -215,6 +221,14 @@ export class MusicPracticePlugin extends Plugin {
                 })
         )
         this.noteCreator = new NoteCreatorService(this.app, this.items, () => this.effective())
+        this.drills = new DrillService(
+            this.app,
+            () => this.ensureModel(),
+            this.items,
+            () => this.effective().fields,
+            () => this.settings.rules,
+            (type, spec) => this.noteCreator.create(type, spec)
+        )
         this.api = createApi({
             model: () => this.noteModel.refresh(),
             rules: () => this.settings.rules,
@@ -424,6 +438,24 @@ export class MusicPracticePlugin extends Plugin {
             }
         })
         this.addCommand({
+            id: 'chord-change-drill',
+            name: 'Chord change drill',
+            callback: () => this.openDrill()
+        })
+        this.addCommand({
+            id: 'chord-change-drill-current',
+            name: 'Chord change drill for the current note',
+            checkCallback: (checking) => {
+                const active = this.activeLearningNote()
+                if (!active) return false
+                const pair = this.drills.pairOfNote(active.file.path)
+                const isChord = active.type.kind === 'chord' && active.type.subject === 'guitar'
+                if (!pair && !isChord) return false
+                if (!checking) this.openDrill(pair, pair ? undefined : active.file.path)
+                return true
+            }
+        })
+        this.addCommand({
             id: 'identify-chord',
             name: 'Identify this chord',
             checkCallback: (checking) => {
@@ -582,9 +614,47 @@ export class MusicPracticePlugin extends Plugin {
             logSession: () => this.logPanelSession(),
             planIntoPanel: () =>
                 this.app.commands.executeCommandById('music-practice:practice-plan'),
+            drill: () => this.openDrill(),
             metronome: this.metronome,
             metronomeDeps: () => this.metronomeDeps()
         }
+    }
+
+    /** A chord change drill: from the pair picker, or on a given pair (#40). */
+    openDrill(pair: DrillPair | null = null, withChord?: string): void {
+        if (!this.drills.exerciseType()) {
+            new Notice(
+                'Chord change drills need a guitar exercise note type to keep their results.'
+            )
+            return
+        }
+        const fields = this.effective().fields
+        new DrillModal(
+            this.app,
+            {
+                suggestions: () => this.drills.suggestions(withChord),
+                chords: () => this.drills.chords(),
+                nameOf: (path) => this.drills.nameOf(path),
+                chordSource: (path) => {
+                    const file = this.app.vault.getFileByPath(path)
+                    const fm = file ? this.app.metadataCache.getFileCache(file)?.frontmatter : null
+                    return fm
+                        ? blockFromProperties('chord', fm, {
+                              names: propertyNamesOf(fields),
+                              instrument: 'guitar'
+                          })
+                        : null
+                },
+                renderOptions: () => ({
+                    ...layoutDefaults(this.settings.notationLayout),
+                    voicings: lookupGuitarVoicing
+                }),
+                seconds: () => this.settings.drillSeconds,
+                save: (p, count) => this.drills.save(p, count),
+                log: (path, minutes, note) => this.openLogPractice({ minutes, paths: [path], note })
+            },
+            pair
+        ).open()
     }
 
     /** The metronome's item for a learning note. */

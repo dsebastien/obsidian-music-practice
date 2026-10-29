@@ -23,6 +23,8 @@ export interface LogPracticePreset {
     paths?: string[]
     /** BPMs reached, by path (the practice panel's nudges). */
     bpms?: Record<string, number>
+    /** The session's note (a chord change drill's result). */
+    note?: string
     /** Called after a successful log (the practice timer clears itself). */
     onLogged?: () => void
 }
@@ -76,6 +78,7 @@ export class LogPracticeModal extends Modal {
     ) {
         super(app)
         this.minutes = preset.minutes ?? 0
+        this.note = preset.note ?? ''
         this.date = preset.date ?? isoDate()
         // Planned items of several instruments: keep the first instrument's (one log, one session).
         let subject: string | null = null
@@ -151,6 +154,7 @@ export class LogPracticeModal extends Modal {
 
         const noteField = contentEl.createEl('label', { cls: 'mp-field', text: 'Note (optional)' })
         const note = noteField.createEl('textarea', { attr: { rows: '2' } })
+        note.value = this.note
         note.addEventListener('input', () => (this.note = note.value))
 
         const actions = contentEl.createDiv({ cls: 'mp-actions' })
