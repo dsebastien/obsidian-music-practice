@@ -65,6 +65,31 @@ export const isTextTab = (source: string): boolean => {
 const asCode = (el: HTMLElement, language: string, source: string) =>
     el.createEl('pre').createEl('code', { cls: `language-${language}`, text: source })
 
+/** The block line an alphaTab message points at (`line 3, column 5: …`, from 1); null without one. */
+export const errorLineOf = (message: string | null): number | null => {
+    const m = /^line (\d+), column \d+:/.exec(message ?? '')
+    return m ? Number(m[1]) : null
+}
+
+/**
+ * Under a tab or score error: the block's text, folded, with the line the message points at
+ * marked (#61). Without it, the text stays hidden until the note is edited.
+ */
+export function showSource(el: HTMLElement, source: string, error: string | null): HTMLElement {
+    const details = el.createEl('details', { cls: 'mp-tab-source' })
+    details.createEl('summary', { text: 'Block text' })
+    const code = details.createEl('pre').createEl('code')
+    const marked = errorLineOf(error)
+    source.split('\n').forEach((line, i) => {
+        code.createSpan({
+            cls: i + 1 === marked ? 'mp-tab-source-line mp-tab-source-error' : 'mp-tab-source-line',
+            // A space keeps an empty line's height.
+            text: line.length ? line : ' '
+        })
+    })
+    return details
+}
+
 /**
  * A tab or score block: alphaTab is loaded on the first one, then the score draws and plays.
  * It draws once the block is on the page, in the window it shows in: alphaTab, its font and its
@@ -117,9 +142,10 @@ class TabChild extends MarkdownRenderChild {
                     resolveFile: (link) => this.host.resolveFile(link, this.sourcePath)
                 })
                 const result = this.result
-                void result.ready.then(({ ok }) => {
-                    if (ok && !this.gone && result === this.result)
-                        this.host.decorate?.(result, this.sourcePath)
+                void result.ready.then(({ ok, error }) => {
+                    if (this.gone || result !== this.result) return
+                    if (ok) this.host.decorate?.(result, this.sourcePath)
+                    else showSource(result.el, this.source, error)
                 })
             })
             .catch((error: unknown) => {
@@ -128,6 +154,7 @@ class TabChild extends MarkdownRenderChild {
                     `${this.language}: ${error instanceof Error ? error.message : String(error)}`
                 )
                 loading.addClass('mn-error-message')
+                showSource(loading, this.source, null)
             })
     }
 

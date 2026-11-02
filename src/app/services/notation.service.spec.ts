@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test'
-import { NotationBlocks, isTextTab, processorExists } from './notation.service'
+import {
+    NotationBlocks,
+    errorLineOf,
+    isTextTab,
+    processorExists,
+    showSource
+} from './notation.service'
 import type { NotationHost, NotationToggles, TabHost } from './notation.service'
 import type {
     LayoutDefaults,
@@ -390,5 +396,98 @@ describe('isTextTab', () => {
     it('reads alphaTex with a text tab in a comment as alphaTex', () => {
         const tex = '/*\ne|---0---|\nB|---1---|\nG|---0---|\nD|---2---|\n*/\n:4 0.6 2.5 | 3.6'
         expect(isTextTab(tex)).toBe(false)
+    })
+})
+
+/** A DOM node recording what's made in it (Obsidian's createEl helpers). */
+interface Node {
+    tag: string
+    cls?: string
+    text?: string
+    children: Node[]
+}
+
+function nodeEl(tag = 'div', options: { cls?: string; text?: string } = {}) {
+    const node: Node = { tag, ...options, children: [] }
+    const make = (t: string, o: { cls?: string; text?: string } = {}) => {
+        const child = nodeEl(t, o)
+        node.children.push(child.node)
+        return child.el
+    }
+    const el = {
+        isConnected: true,
+        ownerDocument: { defaultView: {} },
+        createEl: make,
+        createDiv: (o: { cls?: string; text?: string } = {}) => make('div', o),
+        createSpan: (o: { cls?: string; text?: string } = {}) => make('span', o),
+        setText: (text: string) => (node.text = text),
+        addClass: (cls: string) => (node.cls = `${node.cls ?? ''} ${cls}`.trim()),
+        remove: () => {},
+        onWindowMigrated: () => () => {}
+    }
+    return { el: fake<HTMLElement>(el), node }
+}
+
+const textOf = (node: Node): string[] =>
+    node.children.flatMap((child) => [...(child.text ? [child.text] : []), ...textOf(child)])
+
+describe('Tab and score errors show the block text', () => {
+    it('reads the line an alphaTab message points at', () => {
+        expect(errorLineOf("line 3, column 5: Unexpected token ')'")).toBe(3)
+        expect(errorLineOf("staves: use tab, score or both, got 'x'")).toBeNull()
+        expect(errorLineOf(null)).toBeNull()
+    })
+
+    it('folds the text under the message, the error line marked', () => {
+        const { el, node } = nodeEl()
+        showSource(el, ':4 0.6\n\n:4 zz.6', 'line 3, column 4: Unexpected value')
+        const details = node.children[0]!
+        expect(details.tag).toBe('details')
+        expect(details.children[0]).toMatchObject({ tag: 'summary', text: 'Block text' })
+        const lines = details.children[1]!.children[0]!.children
+        expect(lines.map((l) => l.text)).toEqual([':4 0.6', ' ', ':4 zz.6'])
+        expect(lines.map((l) => l.cls?.includes('mp-tab-source-error'))).toEqual([
+            false,
+            false,
+            true
+        ])
+    })
+
+    it("shows the text when alphaTab can't load", async () => {
+        const processors = new Map<
+            string,
+            Parameters<NotationHost['registerMarkdownCodeBlockProcessor']>[1]
+        >()
+        const plugin: NotationHost = {
+            registerMarkdownCodeBlockProcessor: (language, processor) => {
+                processors.set(language, processor)
+                return fake(undefined)
+            },
+            app: { workspace: { getLeavesOfType: () => [] } }
+        }
+        const tabs: TabHost = {
+            runtime: fake({ module: () => Promise.reject(new Error('no alphaTab')) }),
+            resolveFile: () => Promise.resolve(null)
+        }
+        const blocks = new NotationBlocks(
+            plugin,
+            allOn,
+            undefined,
+            () => false,
+            undefined,
+            undefined,
+            undefined,
+            tabs
+        )
+        blocks.sync()
+        const { el, node } = nodeEl()
+        const ctx = {
+            sourcePath: 'Song.md',
+            addChild: (child: MarkdownRenderChild) => child.onload()
+        }
+        void processors.get('tab')!(':4 0.6 (', el, fake(ctx))
+        await Promise.resolve()
+        await Promise.resolve()
+        expect(textOf(node)).toEqual(['tab: no alphaTab', 'Block text', ':4 0.6 ('])
     })
 })

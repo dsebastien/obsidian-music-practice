@@ -162,6 +162,7 @@ The sound comes from a soundfont of recorded instruments, bundled with the plugi
 - `file: [[Song.gp]]` draws a Guitar Pro (3–8), MusicXML or Capella file from your vault instead. `tracks: 1 2` picks the tracks.
 - Hover the music (tap it on a phone) for the player: play / pause, stop, loop, metronome, count-in, speed, volume, and **Export** (Guitar Pro 7 or MIDI, saved in your attachments folder, or print in black on white). The sound loads at the first Play.
 - Tabs work in popout windows too, and when you drag a note to another window.
+- When a block has a mistake, it shows the message. Open **Block text** under it to see what you wrote, with the line of the mistake marked.
 - **Insert a tab block** starts one at the cursor, on its own lines. The [imports](usage.md#imports) turn files and pasted tabs into blocks.
 - A ` ```tab ` or ` ```score ` block that holds a plain-text tab (`e|---0---|` lines) stays text, as it was before. To play it, paste it into **Import a text tab**.
 

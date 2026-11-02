@@ -410,6 +410,31 @@
     font-size: var(--font-ui-smaller);
 }
 
+/* Under a tab or score error (#61): the block's text, folded, the error line marked. */
+.mp-tab-source {
+    @apply mt-2;
+    color: var(--text-normal);
+    font-size: var(--font-ui-smaller);
+}
+
+.mp-tab-source summary {
+    @apply cursor-pointer;
+    color: var(--text-muted);
+}
+
+.mp-tab-source pre {
+    @apply mt-1 mb-0;
+}
+
+.mp-tab-source-line {
+    @apply block;
+}
+
+.mp-tab-source-error {
+    background-color: var(--background-modifier-error);
+    color: var(--text-on-accent);
+}
+
 /* Metronome (#39): tempo, beat dots, controls. */
 .mp-metronome {
     @apply flex flex-col gap-3;
