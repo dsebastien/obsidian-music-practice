@@ -156,14 +156,42 @@ export function applyChange(lines: string[], change: LineChange): string[] {
     return [...lines.slice(0, change.from), ...change.lines, ...lines.slice(change.to)]
 }
 
+/** A tab block's setting line, as the library reads them at the top of the block. */
+const SETTING = /^\s*(staves|file|tracks?)\s*:/i
+
 /**
- * A text tab block's new text: the library's alphaTex, then the text tab in a comment (a block
- * comment, or line comments when the tab holds one); null when the library can't read the tab.
+ * A tab block's settings (`staves:`, `file:`, `tracks:` lines at the top, with the blank lines and
+ * `//` comments among them) and the text after them; no settings when it has none.
+ */
+export function splitSettings(source: string): { settings: string[]; rest: string } {
+    const lines = source.split('\n')
+    let last = -1
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!
+        if (!line.trim() || /^\s*\/\//.test(line)) continue
+        if (!SETTING.test(line)) break
+        last = i
+    }
+    if (last < 0) return { settings: [], rest: source }
+    return {
+        settings: lines.slice(0, last + 1),
+        rest: lines
+            .slice(last + 1)
+            .join('\n')
+            .replace(/^(?:[ \t]*\n)+/, '')
+    }
+}
+
+/**
+ * A text tab block's new text: its settings lines, the library's alphaTex, then the text tab in a
+ * comment (a block comment, or line comments when the tab holds one); null when the library can't
+ * read the tab.
  */
 export function convertedTab(source: string): string | null {
-    const tex = textTabOf(source)
+    const { settings, rest } = splitSettings(source)
+    const tex = textTabOf(rest)
     if (tex === null) return null
-    const original = source.trimEnd()
+    const original = rest.trimEnd()
     const comment =
         original.includes('*/') || original.includes('/*')
             ? `// Converted from this text tab:\n${original
@@ -171,7 +199,7 @@ export function convertedTab(source: string): string | null {
                   .map((l) => `// ${l}`)
                   .join('\n')}`
             : `/* Converted from this text tab:\n${original}\n*/`
-    return `${tex}\n\n${comment}`
+    return [...settings, `${tex}\n\n${comment}`].join('\n')
 }
 
 export const isTabLanguage = (language: string): language is TabLanguage =>

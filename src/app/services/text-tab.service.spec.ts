@@ -14,6 +14,7 @@ import {
     undoConversion
 } from './text-tab.service'
 import type { NoteText } from './text-tab.service'
+import { parseTabSource } from '@dsebastien/music-notation/tab'
 import { isTextTab } from './notation.service'
 
 /** A test double typed as what it stands in for (it only has what the code under test reads). */
@@ -154,6 +155,16 @@ describe('convertedTab', () => {
         const converted = convertedTab(`/* intro */\n${TAB}`)!
         expect(converted).toContain('// /* intro */\n// e|-----0---|')
         expect(isTextTab(converted)).toBe(false)
+    })
+
+    it("keeps the block's settings lines above the alphaTex", () => {
+        const source = `staves: both\n// from the book\ntracks: 1\n\n${TAB}`
+        const converted = convertedTab(source)!
+        expect(converted.startsWith('staves: both\n// from the book\ntracks: 1\n:8 ')).toBe(true)
+        expect(converted).toContain(`/* Converted from this text tab:\n${TAB}\n*/`)
+        const read = parseTabSource('tab', converted)
+        expect([read.staves, read.tracks, read.tex.startsWith(':8 ')]).toEqual(['both', [1], true])
+        expect(convertedTab(`file: [[Song.gp]]\n${TAB}`)!.split('\n')[0]).toBe('file: [[Song.gp]]')
     })
 
     it("refuses what the library can't read", () => {
