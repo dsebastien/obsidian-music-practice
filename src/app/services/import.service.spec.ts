@@ -5,7 +5,6 @@ import {
     fenced,
     isChordPro,
     linkableName,
-    regionEnd,
     tabBlockInsertion,
     TAB_STARTER
 } from './import.service'
@@ -37,50 +36,6 @@ describe('tabBlockInsertion', () => {
 
     it('starts the fence at the margin after indentation', () => {
         expect(tabBlockInsertion('    ', '')).toBe(`\n${block}\n`)
-    })
-})
-
-describe('regionEnd', () => {
-    const note = [
-        '---',
-        'tags: []',
-        '---',
-        '# Title',
-        '```chords',
-        '[G]Hi',
-        '```',
-        'text',
-        '~~~',
-        'x'
-    ]
-
-    it('moves a cursor out of the properties and code blocks', () => {
-        expect(regionEnd(note, 0)).toBe(2)
-        expect(regionEnd(note, 1)).toBe(2)
-        expect(regionEnd(note, 5)).toBe(6)
-        expect(regionEnd(note, 6)).toBe(6)
-    })
-
-    it('leaves a cursor in the text where it is', () => {
-        expect(regionEnd(note, 3)).toBeNull()
-        expect(regionEnd(note, 7)).toBeNull()
-    })
-
-    it('puts a block before a fence that is never closed', () => {
-        expect(regionEnd(note, 9)).toBe(7)
-        expect(regionEnd(['```', 'code'], 1)).toBe(-1)
-    })
-
-    it('reads inline code as text, and fences in lists and callouts as fences', () => {
-        expect(regionEnd(['```npm i``` to install', '', 'text', 'more'], 2)).toBeNull()
-        expect(regionEnd(['- a', '  - b', '    ```js', '    code', '    ```', 'after'], 3)).toBe(4)
-        expect(regionEnd(['> [!note]', '> ```js', '> code', '> ```', 'after'], 2)).toBe(3)
-    })
-
-    it('closes a fence only with the same character, at least as long', () => {
-        const lines = ['````md', '```tab', '```', '````', 'after']
-        expect(regionEnd(lines, 2)).toBe(3)
-        expect(regionEnd(lines, 4)).toBeNull()
     })
 })
 

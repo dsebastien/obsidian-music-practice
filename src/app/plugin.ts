@@ -660,8 +660,11 @@ export class MusicPracticePlugin extends Plugin {
         this.addCommand({
             id: 'insert-tab-block',
             name: 'Insert a tab block',
-            editorCallback: (editor) => {
-                insertBlock(editor, fenced('tab', TAB_STARTER))
+            editorCallback: (editor, ctx) => {
+                const sections = ctx.file
+                    ? this.app.metadataCache.getFileCache(ctx.file)?.sections
+                    : null
+                insertBlock(editor, fenced('tab', TAB_STARTER), sections)
             }
         })
         this.addCommand({

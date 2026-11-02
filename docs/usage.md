@@ -123,7 +123,7 @@ Clean changes come from the right voicing and the fingers that can stay down. **
 - **Import a text tab**: paste a tab from the web (lines of dashes and frets). It becomes a tab block you can play. Text tabs have no rhythm, so every note is an eighth note.
 - **Import a chord sheet**: paste a sheet with chords over the lyrics. It becomes a chord chart you can transpose.
 
-The block goes at the cursor of the note you're editing. When the cursor is in the properties or in a code block, the block goes after them. When you aren't editing a note, it goes into a new arrangement note. If an import fails, that new note and any copied file are removed.
+The block goes at the cursor of the note you're editing. When the cursor is in the properties, or in a code, math or HTML block, the block goes after it. When you aren't editing a note, it goes into a new arrangement note. If an import fails, that new note and any copied file are removed.
 
 ## Undo
 

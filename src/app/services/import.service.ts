@@ -4,6 +4,8 @@ import { chordSheetToChordPro, readChord } from '@dsebastien/music-notation'
 import { scoreToAlphaTex } from '@dsebastien/music-notation/tab'
 import type { FieldNames } from '../domain/fields'
 import { insertUnderTitle } from '../domain/notation-note'
+import { blockInsertion, blockTarget } from '../domain/block-placement'
+import type { NoteSection } from '../domain/block-placement'
 import { safeTitle } from '../domain/chord'
 import type { AlphaTabRuntime } from './alphatab.service'
 
@@ -28,85 +30,33 @@ const extensionOf = (name: string) => name.slice(name.lastIndexOf('.') + 1).toLo
 /** The starter block of Insert a tab block. */
 export const TAB_STARTER = '\\title "Title"\n\\tempo 90\n.\n:4 0.6 2.5 2.4 1.3 | 3.6 2.5 0.4 0.3'
 
-/**
- * A block's text for a cursor between `before` and `after` (the rest of their lines): a fence
- * must start its own line at the margin and end its own line, so text around the cursor (even
- * indentation) moves to its own lines.
- */
-export function blockInsertion(before: string, after: string, block: string): string {
-    return `${before.length ? '\n' : ''}${block}\n${after.trim() ? '\n' : ''}`
-}
-
 /** Insert a tab block's text for a cursor between `before` and `after`. */
 export const tabBlockInsertion = (before: string, after: string): string =>
     blockInsertion(before, after, fenced('tab', TAB_STARTER))
 
-/** A line without its callout or blockquote markers (`> `), where fences may sit too. */
-const unquoted = (line: string) => line.replace(/^(\s*>)+ ?/, '')
-
 /**
- * A code fence that opens a block: three backticks or tildes, at any indentation (lists, callouts);
- * a backtick fence's info string has no backtick (else it's inline code).
+ * Puts a block at the cursor of `editor`, on its own lines; after the properties, the code, math
+ * or HTML block the cursor is in, rather than inside them. `sections` is the note's section map
+ * (the metadata cache's); the line scan stands in when it's missing or behind the editor.
  */
-const openingFence = (line: string): string | null => {
-    const m = /^\s*(`{3,}|~{3,})(.*)$/.exec(unquoted(line))
-    if (!m) return null
-    return m[1]![0] === '`' && m[2]!.includes('`') ? null : m[1]!
-}
-
-/** Whether a line closes a block opened with `fence` (same character, at least as long). */
-const closes = (line: string, fence: string): boolean => {
-    const m = /^\s*([`~]{3,})\s*$/.exec(unquoted(line))
-    return !!m && m[1]!.length >= fence.length && [...m[1]!].every((c) => c === fence[0])
-}
-
-/**
- * Where a block can't go: the properties (frontmatter) and fenced code blocks, fences included.
- * For a cursor on `line` inside one, the line after which the block goes instead (the region's
- * last line; for a fence never closed, the line before it, -1 for the top of the note); else null.
- */
-export function regionEnd(lines: string[], line: number): number | null {
-    let start = 0
-    if (lines[0]?.trim() === '---') {
-        const close = lines.findIndex((l, i) => i > 0 && /^(---|\.\.\.)\s*$/.test(l))
-        if (close > 0) {
-            if (line <= close) return close
-            start = close + 1
-        }
-    }
-    let open: { line: number; fence: string } | null = null
-    for (let i = start; i < lines.length; i++) {
-        if (!open) {
-            const fence = openingFence(lines[i]!)
-            if (fence) open = { line: i, fence }
-        } else if (closes(lines[i]!, open.fence)) {
-            if (line >= open.line && line <= i) return i
-            open = null
-        }
-        if (i > line && !open) break
-    }
-    // A fence never closed runs to the end of the note: the block goes before it.
-    return open && line >= open.line ? open.line - 1 : null
-}
-
-/**
- * Puts a block at the cursor of `editor`, on its own lines; after the properties or the code
- * block the cursor is in, rather than inside them.
- */
-export function insertBlock(editor: Editor, block: string): void {
+export function insertBlock(
+    editor: Editor,
+    block: string,
+    sections?: readonly NoteSection[] | null
+): void {
     const from = editor.getCursor('from')
     const to = editor.getCursor('to')
-    const lines = editor.getValue().split('\n')
-    const end = regionEnd(lines, from.line) ?? regionEnd(lines, to.line)
+    const text = editor.getValue()
+    const end = blockTarget(text, from.line, to.line, sections)
     if (end === -1) {
         editor.setCursor({ line: 0, ch: 0 })
         editor.replaceSelection(`${block}\n`)
         return
     }
     if (end !== null) {
-        const ch = lines[end]!.length
-        editor.setCursor({ line: end, ch })
-        editor.replaceSelection(blockInsertion(lines[end]!, '', block))
+        const line = editor.getLine(end)
+        editor.setCursor({ line: end, ch: line.length })
+        editor.replaceSelection(blockInsertion(line, '', block))
         return
     }
     editor.replaceSelection(
@@ -213,10 +163,11 @@ export class ImportService {
     editing(): { file: TFile; insert: (text: string) => void } | null {
         const view = this.app.workspace.getActiveViewOfType(MarkdownView)
         if (!view?.file || view.getMode() !== 'source') return null
-        const editor = view.editor
+        const { editor, file } = view
         return {
-            file: view.file,
-            insert: (text) => insertBlock(editor, text)
+            file,
+            insert: (text) =>
+                insertBlock(editor, text, this.app.metadataCache.getFileCache(file)?.sections)
         }
     }
 
