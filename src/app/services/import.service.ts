@@ -120,8 +120,9 @@ const decodeStrict = (encoding: string, bytes: Uint8Array): string | null => {
 /**
  * A text file's characters whatever its encoding and script: UTF-8 (BOM or not); UTF-16 with a
  * BOM; UTF-16 without one (little- or big-endian, whichever reads as text with ASCII in it: chord
- * files in Cyrillic, Greek or CJK too); else Windows-1252 (older ChordPro files from Windows).
- * Throws when none of them reads as text.
+ * files in Cyrillic, Greek or CJK too; a stray last byte dropped); else valid UTF-8 with
+ * multi-byte characters even when a few are unreadable; else Windows-1252 (older ChordPro files
+ * from Windows). Throws when none of them reads as text.
  */
 export function decodeText(bytes: Uint8Array): string {
     if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder('utf-16le').decode(bytes)
@@ -129,12 +130,17 @@ export function decodeText(bytes: Uint8Array): string {
     const utf8 = decodeStrict('utf-8', bytes)
     // UTF-16 read as UTF-8 is full of NULs and other controls.
     if (utf8 !== null && readable(utf8)) return utf8
+    // UTF-16 code units are byte pairs: a stray last byte (a truncated or padded file) is dropped.
+    const units = bytes.length % 2 ? bytes.subarray(0, -1) : bytes
     const utf16 = (['utf-16le', 'utf-16be'] as const)
-        .map((encoding) => decodeStrict(encoding, bytes))
+        .map((encoding) => decodeStrict(encoding, units))
         .filter((text): text is string => text !== null && readable(text) && count(text, ASCII) > 0)
         .map((text) => ({ text, unreadable: count(text, UNREADABLE), ascii: count(text, ASCII) }))
         .sort((a, b) => a.unreadable - b.unreadable || b.ascii - a.ascii)[0]
     if (utf16) return utf16.text
+    // Valid multi-byte UTF-8 is UTF-8, a few private-use or unassigned characters notwithstanding:
+    // Windows-1252 would turn every other accent into two characters.
+    if (utf8 !== null && bytes.some((b) => b >= 0x80)) return utf8
     const windows = new TextDecoder('windows-1252').decode(bytes)
     if (readable(windows)) return windows
     throw new Error("its text can't be read (it isn't UTF-8, UTF-16 or Windows-1252 text).")

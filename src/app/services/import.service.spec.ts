@@ -90,6 +90,19 @@ describe('decodeText', () => {
                 expect([name, order, decodeText(utf16(song, order))]).toEqual([name, order, song])
     })
 
+    it('keeps valid UTF-8 with a few private-use or unassigned characters', () => {
+        const text = '{title: Café} [Am]déjà \uE000 vu \uF8FF'
+        expect(decodeText(new TextEncoder().encode(text))).toBe(text)
+    })
+
+    it('reads UTF-16 without a BOM with one stray byte at the end', () => {
+        for (const order of ['le', 'be'] as const) {
+            const song = '{title: Катюша}\n[Am]Расцветали яблони\n'
+            const bytes = new Uint8Array([...utf16(song, order), 0x0a])
+            expect([order, decodeText(bytes)]).toEqual([order, song])
+        }
+    })
+
     it("says when a file's text can't be read", () => {
         const binary = new Uint8Array(1024).map((_, i) => i % 256)
         expect(() => decodeText(binary)).toThrow("can't be read")
