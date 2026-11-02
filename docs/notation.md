@@ -137,7 +137,7 @@ An empty ` ```chord ` block in a chord note, or an empty ` ```fretboard ` / ` ``
 
 ## Hear the diagrams
 
-Hover a chord, keyboard or fretboard diagram (tap it on a phone or tablet): a bar at its bottom plays it. Chords strum from the low string up and ring; scales go up and down. Loop, speed (when several notes play), volume and sound (guitar or piano) are there too, and a click on a dot or a key plays that note. The sound is a soundfont of recorded instruments, bundled with the plugin, so it works offline; **Settings → Playback** switches to a lighter synthesizer or turns the bar off.
+Hover a chord, keyboard or fretboard diagram (tap it on a phone or tablet): a bar at its bottom plays it. Chords strum from the low string up and ring; scales go up and down, from their lowest root to their highest. Loop, speed (when several notes play), volume and sound (guitar or piano) are there too, and a click on a dot or a key plays that note. The sound is a soundfont of recorded instruments, bundled with the plugin, so it works offline; **Settings → Playback** switches to a lighter synthesizer or turns the bar off.
 
 **Play this chord or scale** plays the current chord or scale note.
 
@@ -158,8 +158,10 @@ Hover a chord, keyboard or fretboard diagram (tap it on a phone or tablet): a ba
 
 - `staves: tab | score | both` on the first line; `tab` blocks show tablature, `score` blocks notation.
 - `file: [[Song.gp]]` draws a Guitar Pro (3–8), MusicXML or Capella file from your vault instead; `tracks: 1 2` picks tracks.
-- Hover the music: play / pause, stop, loop, metronome, count-in, speed, volume, and **Export** (Guitar Pro 7 or MIDI, saved in your attachments folder, or print).
-- **Insert a tab block** starts one at the cursor; the [imports](usage.md#imports) turn files and pasted tabs into blocks.
+- Hover the music (tap it on a phone): play / pause, stop, loop, metronome, count-in, speed, volume, and **Export** (Guitar Pro 7 or MIDI, saved in your attachments folder, or print in black on white). The sound loads at the first Play.
+- Tabs work in popout windows too, and when you drag a note to another window.
+- **Insert a tab block** starts one at the cursor, on its own lines; the [imports](usage.md#imports) turn files and pasted tabs into blocks.
+- A ` ```tab ` block that holds a plain-text tab (`e|---0---|` lines) stays text, as it was before. To play it, paste it into **Import a text tab**.
 
 The full syntax, with triads, chord transitions and every option, is in the [library's guide](https://dsebastien.github.io/music-notation/blocks.html).
 

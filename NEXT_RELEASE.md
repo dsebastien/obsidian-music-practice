@@ -6,4 +6,6 @@ Tabs, scores, triads and chord transitions, and every diagram plays.
 - **Chord transitions**: **Easiest way between these chords** (on a pair note, or in a drill) shows the next chord's voicings that move your hand least, with the fingers that stay or slide marked and tips in plain words. **Smooth this progression** does it for a song's chord chart.
 - **Imports**: Guitar Pro, MusicXML, Capella and ChordPro files (linked, or as editable text), and pasted text tabs and chord sheets.
 
-The plugin is bigger (about 3 MB): alphaTab, its music font and a soundfont are inside, so nothing is ever downloaded.
+Tabs, playback and exports work in popout windows. A `tab` block you wrote as plain text (`e|---0---|` lines) stays text.
+
+The plugin is bigger (about 3 MB): alphaTab, its music font and a soundfont are inside, so nothing is ever downloaded. Their licenses (MPL-2.0, OFL, Apache-2.0) are at the end of main.js.

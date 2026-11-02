@@ -36,8 +36,8 @@ A block's own `orientation:` or `hand:` wins over these. Diagrams on screen redr
 | Play the diagrams | On        | A playback bar at the bottom of chord, keyboard and fretboard diagrams, on hover (a tap on touch screens).                       |
 | Sound             | Soundfont | Soundfont: recorded instruments, the same as tabs and scores. Light synthesizer: a small computed sound, as on Obsidian Publish. |
 | Volume            | 80        | From 0 to 100.                                                                                                                   |
-| Scale tempo       | 90        | Notes per minute when a scale plays.                                                                                             |
-| Strum             | 40        | Milliseconds between two strings when a chord is strummed.                                                                       |
+| Scale tempo       | 90        | Notes per minute when a scale plays, from 20 to 240.                                                                             |
+| Strum             | 40        | Milliseconds between two strings when a chord is strummed, from 0 to 200.                                                        |
 
 Each diagram's bar can change the speed, volume and sound for that diagram.
 

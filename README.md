@@ -6,7 +6,7 @@ Every chord, scale, technique, exercise and piece you learn is a note with a mas
 
 I built this because I'm learning guitar and piano again, and I wanted my practice to live next to the rest of my notes, with a system that tells me what to work on instead of a pile of tabs.
 
-> **Version 0.7** adds tabs and scores with playback, triads, chord transitions, imports, and a play button on every diagram, on top of every way to play a chord, the practice panel, metronome, chord change drills, the practice engine and notation blocks that chord and scale notes draw from their own properties. Follow progress in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones) and [issues](https://github.com/dsebastien/obsidian-music-practice/issues).
+What changed in each version is in the [changelog](./CHANGELOG.md); what's coming, in the [milestones](https://github.com/dsebastien/obsidian-music-practice/milestones) and [issues](https://github.com/dsebastien/obsidian-music-practice/issues).
 
 ## Screenshots
 
@@ -28,66 +28,45 @@ Add a chord from its symbol:
 
 ## Features
 
-### 0.1: practice engine (available)
+### Practice
 
-- **Log practice**: minutes (or the timer), the items you worked on, a quality rating, BPM and review results, an optional note. One session note per practice, no duplicates.
-- **Practice timer** in the status bar, recovered after a restart.
+- **Log practice**: minutes (or the timer), the items you worked on, a quality rating, BPM and review results, an optional note. One session note per practice, no duplicates. **Undo the last log**, from the notice or a command.
+- **Practice timer** in the status bar (with pause), recovered after a restart.
 - **Practice plan**: "I have 30 minutes" gives a warm-up, a focus block, due reviews and something fun.
 - **Practice next**: everything ranked by priority, staleness, BPM gap and what it unlocks.
-- **Mastery and spaced review**: a rubric per kind of item, a light SM-2 review that catches what's getting rusty.
-- **Skill tree**: prerequisites between items; see what's ready to learn.
-- **Works with the [Obsidian Starter Kit](https://store.dsebastien.net/)** (note types, folders, templates and statuses come from it) or on its own: tag your notes `type/music/guitar/chord` and give them a mastery level.
-- **Every rule is a setting**: mastery levels, review intervals, score weights, plan blocks, the rubric, property names. Sensible defaults on install.
-- **Public API** so scripts and AI assistants can log and plan practice with the same rules.
-
-### 0.2: notation (available)
-
-- **Notation blocks**: ` ```chord ` (guitar diagrams, piano chords), ` ```keyboard `, ` ```fretboard ` and ` ```chords ` (ChordPro charts, transposable), drawn by the [Music Notation](https://github.com/dsebastien/music-notation) library. On Obsidian Publish through the library's loader.
-- **New chord notes** get a voicing (frets, fingers and a diagram) picked from the built-in database (about 1,800 voicings).
-
-![Chord chart](docs/images/notation-chord-chart.png)
-
-### 0.3: layout (available)
-
-- **Several diagrams in one block**, separated by `---`: a song's chords or a scale's positions side by side, or in a grid.
-- **Orientation**: guitar chords sideways, fretboards standing up, keyboards with low notes at the bottom. **Left-handed** diagrams. Defaults for both in the settings.
-- **Add a learning note** shows the top voicings of a guitar chord side by side: click one to pick it.
-
-![Chords side by side](docs/images/notation-row.png)
-
-### 0.4: chords and scales (available)
-
-- **Notes draw their own diagram**: an empty block in a chord or scale note draws from the note's properties (chord, frets, fingers; scale root, type and shape), in Obsidian and on Publish. Nothing is written twice.
-- **Chords in words or frets**: `A Major`, `F Sharp Minor 7`, or `x02220` (recognized). **Identify this chord** names a chord note from its frets.
-- **Scales and modes**: positions (boxes, CAGED, 3NPS), characteristic notes, comparisons, every mode of a key. **Add a learning note** picks a scale's root, type and shape, with a preview.
-
-![A scale note drawing its fretboard](docs/images/notation-from-properties.png)
-
-### 0.5: practice (available)
-
-- **Practice panel**: the timer (with pause), your session list from a plan, BPM nudges, the metronome, Log this session.
+- **Practice panel**: the timer, your session list from a plan, BPM nudges, the metronome, Log this session.
 - **Metronome and speed trainer**: accents, subdivisions, tap tempo; steps up to the note's target BPM; Save BPM.
 - **Chord change drills**: count the changes between two chords in a minute; best and last on the pair's note.
-- **Undo the last log**, from the notice or a command.
+- **Mastery and spaced review**: a rubric per kind of item, a light SM-2 review that catches what's getting rusty.
+- **Skill tree**: prerequisites between items; see what's ready to learn.
 
 ![The practice panel](docs/images/practice-panel.png)
 
-### 0.6: voicings (available)
+### Chords, scales and voicings
 
-- **All the ways to play a chord**: every playable voicing, easiest first, by neck area and root string; switch a chord note to one, or add it as its own note. Also in Add a learning note (**More voicings…**).
-- Frets typed without fingers get their fingers worked out.
+- **Notation blocks**: ` ```chord ` (guitar diagrams, piano chords), ` ```keyboard `, ` ```fretboard ` and ` ```chords ` (ChordPro charts, transposable), drawn by the [Music Notation](https://github.com/dsebastien/music-notation) library; several diagrams side by side (`---`), any orientation, left-handed. On Obsidian Publish through the library's loader.
+- **Notes draw their own diagram**: an empty block in a chord or scale note draws from the note's properties (chord, frets, fingers; scale root, type and shape), in Obsidian and on Publish. Nothing is written twice.
+- **Chords in words or frets**: `A Major`, `F Sharp Minor 7`, or `x02220` (recognized). **Identify this chord** names a chord note from its frets.
+- **All the ways to play a chord**: every playable voicing, easiest first, by neck area and root string; switch a chord note to one, or add it as its own note.
+- **Triads** on string sets, as learning notes (titled with their string set and inversion, after their root position).
+- **Chord transitions**: the easiest way from one chord to the next, fingers that stay or slide marked, with tips; the smoothest voicings for a whole progression.
+- **Scales and modes**: positions (boxes, CAGED, 3NPS), characteristic notes, comparisons, every mode of a key.
 
 ![Every voicing of A](docs/images/voicings.png)
 
-### 0.7: tabs, scores, triads, transitions (available)
+### Tabs, scores and sound
 
-- **Tabs and scores** with playback: play, slow down, loop, metronome, count-in; from alphaTex or a Guitar Pro / MusicXML file; export to Guitar Pro 7 or MIDI, or print. Everything is bundled: it works offline.
+- **Tabs and scores** with playback: play, slow down, loop, metronome, count-in; from alphaTex or a Guitar Pro / MusicXML file; export to Guitar Pro 7 or MIDI, or print. Everything is bundled: it works offline, in popout windows too.
 - **Hear the diagrams**: a play bar on every chord, keyboard and fretboard diagram (on hover); chords strum, scales go up and down, a click plays a note.
-- **Triads** on string sets, as learning notes (titled with their string set and inversion, after their root position).
-- **Chord transitions**: the easiest way from one chord to the next, fingers that stay or slide marked, with tips; the smoothest voicings for a whole progression.
 - **Imports**: Guitar Pro, MusicXML, Capella and ChordPro files, pasted text tabs and chord sheets.
 
 ![Tabs with a player](docs/images/tab.png)
+
+### Your notes, your rules
+
+- **Works with the [Obsidian Starter Kit](https://store.dsebastien.net/)** (note types, folders, templates and statuses come from it) or on its own: tag your notes `type/music/guitar/chord` and give them a mastery level.
+- **Every rule is a setting**: mastery levels, review intervals, score weights, plan blocks, the rubric, property names, playback. Sensible defaults on install.
+- **Commands for everything**, and a **public API** so scripts and AI assistants can log and plan practice with the same rules.
 
 ## Documentation
 
@@ -107,6 +86,8 @@ Built with Bun and TypeScript from my [Obsidian plugin template](https://github.
 ## License
 
 MIT License, see [LICENSE](./LICENSE).
+
+The plugin embeds, unmodified: [alphaTab](https://github.com/CoderLine/alphaTab) (MPL-2.0), the [Bravura](https://github.com/steinbergmedia/bravura) music font (SIL Open Font License 1.1) and the SONiVOX soundfont shipped with alphaTab (Apache-2.0). Their notices and license texts are at the end of `main.js`.
 
 <!-- support-cta -->
 
