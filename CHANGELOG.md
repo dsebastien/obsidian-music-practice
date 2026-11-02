@@ -6,10 +6,10 @@ All notable changes to this project will be documented in this file.
 
 Tabs, scores, triads and chord transitions, and every diagram plays.
 
-- **Tabs and scores**: `tab and `score blocks in alphaTex, or a Guitar Pro / MusicXML file from your vault (`file: [[Song.gp]]`), drawn and played with alphaTab: play, slow down, loop, metronome, count-in. Export to Guitar Pro 7 or MIDI, or print. Everything is bundled with the plugin, so it works offline.
-- **Hear the diagrams**: hover a chord, keyboard or fretboard diagram for a play bar (tap on phones): chords strum, scales go up and down, a click plays a note; speed, loop, volume and sound right there. Recorded instruments by default (Settings → Playback). **Play this chord or scale** for the current note.
-- **Triads**: a chord's or a key's triads on a string set, with R, 3, 5 in the dots. Add them as notes ("G Major - Triad (strings 1-3, 1st inversion)"); an inversion comes after its root position.
-- **Chord transitions**: **Easiest way between these chords** (on a pair note, or in a drill) shows the next chord's voicings that move your hand least, with the fingers that stay or slide marked and tips in plain words. **Smooth this progression** does it for a song's chord chart.
+- **Tabs and scores**: `tab` and `score` blocks in alphaTex, or a Guitar Pro / MusicXML file from your vault (`file: [[Song.gp]]`), drawn and played with alphaTab. Play, slow down and loop, with a metronome and a count-in. Export to Guitar Pro 7 or MIDI, or print. Everything is bundled with the plugin, so it works offline.
+- **Hear the diagrams**: hover a chord, keyboard or fretboard diagram (tap it on a phone) and a play bar shows up. Chords strum, scales go up and down, and a click plays a note. Speed, loop, volume and sound are right there on the bar. The sound is recorded instruments by default (Settings → Playback). **Play this chord or scale** plays the current note.
+- **Triads**: a chord's or a key's triads on a string set, with R, 3, 5 in the dots. Add them as notes ("G Major - Triad (strings 1-3, 1st inversion)"). An inversion comes after its root position.
+- **Chord transitions**: **Easiest way between these chords** (on a chord pair note, or in a drill) shows the next chord's voicings that move your hand least. The fingers that stay or slide are marked, with tips in plain words. **Smooth this progression** does the same for a song's chord chart.
 - **Imports**: Guitar Pro, MusicXML, Capella and ChordPro files (linked, or as editable text), and pasted text tabs and chord sheets.
 
 Tabs, playback and exports work in popout windows. A `tab` block you wrote as plain text (`e|---0---|` lines) stays text.

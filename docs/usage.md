@@ -101,9 +101,9 @@ The shapes are matched to your chord note type's shape values (Open, E-shape bar
 
 ![Triads of G on the three highest strings](images/triads.png)
 
-Triads on three strings next to each other, in their three inversions, are how guitarists learn the neck. **Triads of a chord or key** shows a chord's triads on a string set (1-3, 2-4, 3-5, 4-6), up the neck, all inversions or one; or a key's seven triads in one inversion. The dots say which chord tone each note is (R, 3, 5); each diagram plays. **Metronome** opens the metronome to drill them.
+Triads on three strings next to each other, in their three inversions, are how guitarists learn the neck. **Triads of a chord or key** shows a chord's triads on a string set (1-3, 2-4, 3-5, 4-6), up the neck, in all inversions or in one. It also shows a key's seven triads in one inversion. The dots say which chord tone each note is (R, 3, 5), and each diagram plays. **Metronome** opens the metronome to drill them.
 
-**Add as note** makes the triad a chord note of its own, titled "G Major - Triad (strings 1-3, 1st inversion)", with its frets, fingers and the shape Triad. An inversion gets its root position as a prerequisite when that note exists, so practice next suggests the root position first. In **Add a learning note**, **Triads…** picks one for the new note (with the same prerequisite).
+**Add as note** makes the triad a chord note of its own, titled "G Major - Triad (strings 1-3, 1st inversion)", with its frets, its fingers and Triad as its shape. An inversion gets its root position as a prerequisite when that note exists, so practice next suggests the root position first. In **Add a learning note**, **Triads…** picks one for the new note (with the same prerequisite).
 
 ## Chord transitions
 
@@ -111,19 +111,19 @@ Triads on three strings next to each other, in their three inversions, are how g
 
 Clean changes come from the right voicing and the fingers that can stay down. **Easiest way between these chords** (on a chord pair note, or **Easiest way** in a chord change drill) shows the chord you hold, then the next chord's voicings that move the hand least:
 
-- fingers that stay on their fret have a ring, fingers that slide along their string a dashed ring;
-- tips in plain words: "Keep your middle finger on the D string's 2nd fret", "Slide your ring finger along the B string from fret 2 to 3";
-- **Other way round** switches the direction; **Add as note** adds a voicing as its own chord note.
+- Fingers that stay on their fret have a ring. Fingers that slide along their string have a dashed ring.
+- Tips in plain words: "Keep your middle finger on the D string's 2nd fret", "Slide your ring finger along the B string from fret 2 to 3".
+- **Other way round** switches the direction, and **Add as note** adds a voicing as its own chord note.
 
-**Smooth this progression** reads the chords of the note's chord charts (` ```chords `) in order (transposed when a chart has `{transpose}`) and shows the voicings that make the whole progression easiest, the moves marked. It says which ones you already have as notes, and adds the missing ones.
+**Smooth this progression** reads the chords of the note's chord charts (` ```chords `) in order, transposed when a chart has `{transpose}`. It shows the voicings that make the whole progression easiest, with the moves marked. It says which ones you already have as notes, and adds the missing ones.
 
 ## Imports
 
-- **Import a score or chord file**: a Guitar Pro (3–8), MusicXML or Capella file becomes a tab block (notation and tablature for guitar files): either a **link to the file** (copied to your attachments folder and added to the note's `sources`; nothing is lost) or **inline alphaTex** you can edit. A ChordPro file becomes a chord chart; a chord file with chords over the lyrics (section labels such as `[Verse 1]` included) is converted to one. Older files saved in Windows encodings keep their accents.
-- **Import a text tab**: paste a tab from the web (lines of dashes and frets); it becomes a tab block you can play. Text tabs have no rhythm, so every note is an eighth.
-- **Import a chord sheet**: paste chords-over-lyrics; it becomes a chord chart you can transpose.
+- **Import a score or chord file**: a Guitar Pro (3–8), MusicXML or Capella file becomes a tab block, with notation and tablature for guitar files. The block holds either a **link to the file** (the file is copied to your attachments folder and added to the note's `sources`, so nothing is lost) or **inline alphaTex** you can edit. A ChordPro file becomes a chord chart. A chord file with chords over the lyrics (section labels such as `[Verse 1]` included) is converted to one. Older files saved in Windows encodings keep their accents.
+- **Import a text tab**: paste a tab from the web (lines of dashes and frets). It becomes a tab block you can play. Text tabs have no rhythm, so every note is an eighth note.
+- **Import a chord sheet**: paste a sheet with chords over the lyrics. It becomes a chord chart you can transpose.
 
-The block goes at the cursor of the note you're editing (after the properties or a code block when the cursor is in one); without one, into a new arrangement note. If an import fails, that new note and any copied file are removed again.
+The block goes at the cursor of the note you're editing. When the cursor is in the properties or in a code block, the block goes after them. When you aren't editing a note, it goes into a new arrangement note. If an import fails, that new note and any copied file are removed.
 
 ## Undo
 

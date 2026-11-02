@@ -124,7 +124,7 @@ The blocks accept chords in words and recognize chords from their frets, and dra
 - ` ```chord ` with `F Sharp Minor 7`, or only `frets: x02220` (named A).
 - Modes mark their characteristic note in a third color; `compare: major` shows what changes from the major scale.
 - Fretboards draw one position (`position: 2`, `shape: E`, `shape: 3nps`) or all of them in a row (`positions: all`); `modes: C major` draws every mode of a key.
-- ` ```chord ` with `triads: 1-3` draws a chord's triads on a string set (or `key: G major` a key's), with R, 3, 5 in the dots; `from: C x32010` with `to: Am` the easiest ways from one chord to the next, fingers that stay or slide marked; `progression: G D Em C` the smoothest voicings of a progression.
+- ` ```chord ` with `triads: 1-3` draws a chord's triads on a string set (or `key: G major` a key's), with R, 3, 5 in the dots. `from: C x32010` with `to: Am` draws the easiest ways from one chord to the next, with the fingers that stay or slide marked. `progression: G D Em C` draws the smoothest voicings of a progression.
 - ` ```chord ` with `voicings: all` (or `voicings: 6`) draws every playable voicing of the chord, the easiest first; `area: 5-9`, `root-string: 5`, `strings: 1-3`, `inversion: any` narrow them down (see the [guide](https://dsebastien.github.io/music-notation/blocks.html#all-the-ways-to-play-a-chord)). The **Voicings of this chord** command does the same for a chord note, and adds the one you pick as its own note.
 
 ## Notes draw their own diagram
@@ -137,13 +137,15 @@ An empty ` ```chord ` block in a chord note, or an empty ` ```fretboard ` / ` ``
 
 ## Hear the diagrams
 
-Hover a chord, keyboard or fretboard diagram (tap it on a phone or tablet): a bar at its bottom plays it. Chords strum from the low string up and ring; scales go up and down, from their lowest root to their highest. Loop, speed (when several notes play), volume and sound (guitar or piano) are there too, and a click on a dot or a key plays that note. The sound is a soundfont of recorded instruments, bundled with the plugin, so it works offline; **Settings → Playback** switches to a lighter synthesizer or turns the bar off.
+Hover a chord, keyboard or fretboard diagram (tap it on a phone or tablet) and a bar at its bottom plays it. Chords strum from the low string up and ring. Scales go up and down, from their lowest root to their highest. The bar also has loop, speed (when several notes play), volume and sound (guitar or piano). A click on a dot or a key plays that note.
+
+The sound comes from a soundfont of recorded instruments, bundled with the plugin, so it works offline. **Settings → Playback** switches to a lighter synthesizer or turns the bar off.
 
 **Play this chord or scale** plays the current chord or scale note.
 
 ## Tabs and scores
 
-` ```tab ` and ` ```score ` blocks are written in [alphaTex](https://alphatab.net/docs/alphatex/introduction) and drawn by [alphaTab](https://alphatab.net), bundled with the plugin (offline, nothing downloaded):
+` ```tab ` and ` ```score ` blocks are written in [alphaTex](https://alphatab.net/docs/alphatex/introduction) and drawn by [alphaTab](https://alphatab.net). alphaTab is bundled with the plugin, so nothing is downloaded and it works offline:
 
 ````markdown
 ```tab
@@ -156,11 +158,11 @@ Hover a chord, keyboard or fretboard diagram (tap it on a phone or tablet): a ba
 
 ![A tab with its player](images/tab.png)
 
-- `staves: tab | score | both` on the first line; `tab` blocks show tablature, `score` blocks notation.
-- `file: [[Song.gp]]` draws a Guitar Pro (3–8), MusicXML or Capella file from your vault instead; `tracks: 1 2` picks tracks.
-- Hover the music (tap it on a phone): play / pause, stop, loop, metronome, count-in, speed, volume, and **Export** (Guitar Pro 7 or MIDI, saved in your attachments folder, or print in black on white). The sound loads at the first Play.
+- `staves: tab | score | both` goes on the first line. By default, `tab` blocks show tablature and `score` blocks show notation.
+- `file: [[Song.gp]]` draws a Guitar Pro (3–8), MusicXML or Capella file from your vault instead. `tracks: 1 2` picks the tracks.
+- Hover the music (tap it on a phone) for the player: play / pause, stop, loop, metronome, count-in, speed, volume, and **Export** (Guitar Pro 7 or MIDI, saved in your attachments folder, or print in black on white). The sound loads at the first Play.
 - Tabs work in popout windows too, and when you drag a note to another window.
-- **Insert a tab block** starts one at the cursor, on its own lines; the [imports](usage.md#imports) turn files and pasted tabs into blocks.
+- **Insert a tab block** starts one at the cursor, on its own lines. The [imports](usage.md#imports) turn files and pasted tabs into blocks.
 - A ` ```tab ` or ` ```score ` block that holds a plain-text tab (`e|---0---|` lines) stays text, as it was before. To play it, paste it into **Import a text tab**.
 
 The full syntax, with triads, chord transitions and every option, is in the [library's guide](https://dsebastien.github.io/music-notation/blocks.html).

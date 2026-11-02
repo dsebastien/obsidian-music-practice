@@ -18,7 +18,7 @@ Every rule the plugin applies is a setting, with defaults that work on install. 
 
 ## Notation blocks
 
-One switch per kind of [notation block](notation.md), all on by default: chord diagrams (` ```chord `), chord charts (` ```chords `), keyboards, fretboards, tabs (` ```tab `) and scores (` ```score `). A block turned off shows as code; reload the plugin to let another plugin draw it. The status line says when another plugin already draws one of them.
+One switch per kind of [notation block](notation.md), all on by default: chord diagrams (` ```chord `), chord charts (` ```chords `), keyboards, fretboards, tabs (` ```tab `) and scores (` ```score `). A block turned off shows as code. Reload the plugin to let another plugin draw it. The status line says when another plugin already draws one of them.
 
 | Setting                   | Default    | What it does                                                                                        |
 | ------------------------- | ---------- | --------------------------------------------------------------------------------------------------- |
