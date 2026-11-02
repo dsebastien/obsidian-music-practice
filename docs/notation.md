@@ -162,9 +162,9 @@ The sound comes from a soundfont of recorded instruments, bundled with the plugi
 - `file: [[Song.gp]]` draws a Guitar Pro (3–8), MusicXML or Capella file from your vault instead. `tracks: 1 2` picks the tracks.
 - Hover the music (tap it on a phone) for the player: play / pause, stop, loop, metronome, count-in, speed, volume, and **Export** (Guitar Pro 7 or MIDI, saved in your attachments folder, or print in black on white). The sound loads at the first Play.
 - Tabs work in popout windows too, and when you drag a note to another window.
-- When a block has a mistake, it shows the message. Open **Block text** under it to see what you wrote, with the line of the mistake marked.
+- A block with a mistake shows an error message. Open **Block text** under it to see what you wrote; the line with the mistake is marked.
 - **Insert a tab block** starts one at the cursor, on its own lines. The [imports](usage.md#imports) turn files and pasted tabs into blocks.
-- A ` ```tab ` or ` ```score ` block that holds a plain-text tab (`e|---0---|` lines) stays text, as it was before. To play it, select **Convert to a playable tab** under it, or run **Convert this text tab into a playable tab** with the cursor in the block. The block becomes alphaTex, and your text tab stays in a comment at its end. The notice has an **Undo** button; in editing view, Ctrl+Z (Cmd+Z) works too. Text tabs have no rhythm, so every note is an eighth note.
+- A ` ```tab ` or ` ```score ` block that holds a plain-text tab (`e|---0---|` lines) stays text, as it was before. To play it, select **Convert to a playable tab** under the block, or put the cursor in the block and run **Convert this text tab into a playable tab**. The block becomes alphaTex, and your original text tab is kept in a comment at its end. To go back, select **Undo** in the notice, or press Ctrl+Z (Cmd+Z) in editing view. Text tabs have no rhythm, so every note is an eighth note.
 
 The full syntax, with triads, chord transitions and every option, is in the [library's guide](https://dsebastien.github.io/music-notation/blocks.html).
 
