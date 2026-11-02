@@ -164,7 +164,7 @@ The sound comes from a soundfont of recorded instruments, bundled with the plugi
 - Tabs work in popout windows too, and when you drag a note to another window.
 - A block with a mistake shows an error message. Open **Block text** under it to see what you wrote; the line with the mistake is marked.
 - **Insert a tab block** starts one at the cursor, on its own lines. The [imports](usage.md#imports) turn files and pasted tabs into blocks.
-- A ` ```tab ` or ` ```score ` block that holds a plain-text tab (`e|---0---|` lines) stays text, as it was before. To play it, select **Convert to a playable tab** under the block, or put the cursor in the block and run **Convert this text tab into a playable tab**. The block becomes alphaTex, and your original text tab is kept in a comment at its end. To go back, select **Undo** in the notice, or press Ctrl+Z (Cmd+Z) in editing view. Text tabs have no rhythm, so every note is an eighth note.
+- A ` ```tab ` or ` ```score ` block that holds a plain-text tab (`e|---0---|` lines) stays text, as it was before. To play it, select **Convert to a playable tab** under the block, or put the cursor in the block and run **Convert this text tab into a playable tab**. The block becomes alphaTex, and your original text tab is kept in a comment at its end. Settings lines at the top (`staves:`, `tracks:`, `file:`) stay as they are, and a block in a list or callout stays in it. The button doesn't show on canvas cards. To go back, select **Undo** in the notice, or press Ctrl+Z (Cmd+Z) in editing view. Text tabs have no rhythm, so every note is an eighth note.
 
 The full syntax, with triads, chord transitions and every option, is in the [library's guide](https://dsebastien.github.io/music-notation/blocks.html).
 
