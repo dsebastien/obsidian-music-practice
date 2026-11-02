@@ -37,12 +37,15 @@ export interface TabHost {
     decorate?: (result: TabResult, sourcePath: string) => void
 }
 
-/** alphaTex comments: a tab written in one (for reference) doesn't make the block a text tab. */
-const COMMENTS = /\/\*[\s\S]*?\*\/|\/\/[^\n]*/g
+/**
+ * alphaTex comments: a tab written in one (for reference) doesn't make the block a text tab.
+ * `//` only at a line start or after a space (text tabs use `5//7` for slides).
+ */
+const COMMENTS = /\/\*[\s\S]*?\*\/|(^|\s)\/\/[^\n]*/gm
 
-/** A text tab line: a short string or drum name, a bar line, then mostly dashes. */
+/** A text tab line: a string name or number, or a drum's name, a bar line, then mostly dashes. */
 const isStaffLine = (line: string): boolean => {
-    if (!/^\s*[A-Za-z#]{0,3}\s*[|:]/.test(line)) return false
+    if (!/^\s*[A-Za-z0-9#-]{0,8}\s*[|:]/.test(line)) return false
     const dashes = line.match(/-/g)?.length ?? 0
     return dashes >= 4 && dashes * 3 >= line.replace(/\s/g, '').length
 }

@@ -140,8 +140,11 @@ describe('third-party notices', () => {
         for await (const file of glob.scan('.')) {
             if (file.endsWith('.spec.ts')) continue
             const text = await Bun.file(file).text()
-            for (const dep of Object.keys(NOT_BUNDLED))
-                expect(text.includes(`from '${dep}'`)).toBe(false)
+            for (const dep of Object.keys(NOT_BUNDLED)) {
+                // from 'zod', 'zod/v4', import('zod'), require('zod')
+                const used = new RegExp(`(from|import\\(|require\\()\\s*['"]${dep}(/|['"])`)
+                expect(used.test(text)).toBe(false)
+            }
         }
     })
 

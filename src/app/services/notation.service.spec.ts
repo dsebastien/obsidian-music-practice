@@ -354,6 +354,9 @@ describe('isTextTab', () => {
         expect(isTextTab('HH|x-x-x-x-x-x-x-x-|\nSD|----o-------o---|\nBD|o-------o-------|')).toBe(
             true
         )
+        expect(isTextTab('e|--5//7--5//7--|\nB|--------------|')).toBe(true)
+        expect(isTextTab('Crash |x---------------|\nHi-hat|--x-x-x-x-x-x-x-|')).toBe(true)
+        expect(isTextTab('1|-----0-----|\n2|---1---1---|')).toBe(true)
     })
 
     it('reads alphaTex with a text tab in a comment as alphaTex', () => {

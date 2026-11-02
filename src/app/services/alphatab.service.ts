@@ -100,12 +100,22 @@ export class AlphaTabRuntime {
             }
             const tag = win.document.head.createEl('script')
             state.tag = tag
+            // alphaTab's UMD registers with an AMD loader instead of `window.alphaTab` when one is
+            // on the page (Monaco-based plugins): hidden while our script runs.
+            const amd = win as AlphaTabWindow & { define?: { amd?: unknown } }
+            const define = amd.define?.amd ? amd.define : undefined
+            if (define) amd.define = undefined
+            const restore = () => {
+                if (define && amd.define === undefined) amd.define = define
+            }
             const failed = (message: string) => {
+                restore()
                 tag.remove()
                 if (state.tag === tag) delete state.tag
                 reject(new Error(message))
             }
             tag.onload = () => {
+                restore()
                 const loaded = win.alphaTab
                 if (!loaded) {
                     failed('alphaTab did not load')

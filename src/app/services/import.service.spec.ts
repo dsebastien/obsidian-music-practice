@@ -66,8 +66,15 @@ describe('regionEnd', () => {
         expect(regionEnd(note, 7)).toBeNull()
     })
 
-    it('runs an unclosed fence to the end of the note', () => {
-        expect(regionEnd(note, 9)).toBe(9)
+    it('puts a block before a fence that is never closed', () => {
+        expect(regionEnd(note, 9)).toBe(7)
+        expect(regionEnd(['```', 'code'], 1)).toBe(-1)
+    })
+
+    it('reads inline code as text, and fences in lists and callouts as fences', () => {
+        expect(regionEnd(['```npm i``` to install', '', 'text', 'more'], 2)).toBeNull()
+        expect(regionEnd(['- a', '  - b', '    ```js', '    code', '    ```', 'after'], 3)).toBe(4)
+        expect(regionEnd(['> [!note]', '> ```js', '> code', '> ```', 'after'], 2)).toBe(3)
     })
 
     it('closes a fence only with the same character, at least as long', () => {
@@ -109,6 +116,11 @@ describe('chord files', () => {
         expect(isChordPro('G       D\nHello world')).toBe(false)
     })
 
+    it('reads a letter label alone on its line as a section, not a chord', () => {
+        expect(isChordPro('[A]\nC   G\nhello there\n')).toBe(false)
+        expect(isChordPro('[G]Hello [D]world')).toBe(true)
+    })
+
     it('reads section labels in brackets as a chord sheet', () => {
         const sheet = '[Verse 1]\nG       D\nHello world\n[Chorus]\nC\nYeah'
         expect(isChordPro(sheet)).toBe(false)
@@ -116,7 +128,9 @@ describe('chord files', () => {
     })
 
     it('makes file names safe for wikilinks', () => {
-        expect(linkableName('Riff #1 | live [take 2].gp')).toBe('Riff 1 live take 2 .gp')
+        expect(linkableName('Riff #1 | live [take 2].gp')).toBe('Riff 1 live take 2.gp')
+        expect(linkableName('#.gp')).toBe('Score.gp')
+        expect(linkableName('[live].gp')).toBe('live.gp')
     })
 
     it('keeps ChordPro as it is and converts chords over lyrics', () => {

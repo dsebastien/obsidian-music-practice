@@ -1054,7 +1054,12 @@ export class MusicPracticePlugin extends Plugin {
             const { file, created } = await this.imports.place(block, () =>
                 this.newArrangementNote(title)
             )
-            if (created) await this.app.workspace.getLeaf(false).openFile(file)
+            // Imported: a note that can't be opened is still a good import.
+            if (created)
+                await this.app.workspace
+                    .getLeaf(false)
+                    .openFile(file)
+                    .catch((error: unknown) => log(`Couldn't open ${file.path}`, 'warn', error))
             new Notice(`Imported ${what === 'it' ? '' : `${what} `}into ${file.basename}.`)
         } catch (error: unknown) {
             new Notice(

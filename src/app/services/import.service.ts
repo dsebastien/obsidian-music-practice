@@ -4,6 +4,7 @@ import { chordSheetToChordPro, readChord } from '@dsebastien/music-notation'
 import { scoreToAlphaTex } from '@dsebastien/music-notation/tab'
 import type { FieldNames } from '../domain/fields'
 import { insertUnderTitle } from '../domain/notation-note'
+import { safeTitle } from '../domain/chord'
 import type { AlphaTabRuntime } from './alphatab.service'
 
 /** Score files alphaTab reads; ChordPro files become chord charts. */
@@ -40,9 +41,29 @@ export function blockInsertion(before: string, after: string, block: string): st
 export const tabBlockInsertion = (before: string, after: string): string =>
     blockInsertion(before, after, fenced('tab', TAB_STARTER))
 
+/** A line without its callout or blockquote markers (`> `), where fences may sit too. */
+const unquoted = (line: string) => line.replace(/^(\s*>)+ ?/, '')
+
+/**
+ * A code fence that opens a block: three backticks or tildes, at any indentation (lists, callouts);
+ * a backtick fence's info string has no backtick (else it's inline code).
+ */
+const openingFence = (line: string): string | null => {
+    const m = /^\s*(`{3,}|~{3,})(.*)$/.exec(unquoted(line))
+    if (!m) return null
+    return m[1]![0] === '`' && m[2]!.includes('`') ? null : m[1]!
+}
+
+/** Whether a line closes a block opened with `fence` (same character, at least as long). */
+const closes = (line: string, fence: string): boolean => {
+    const m = /^\s*([`~]{3,})\s*$/.exec(unquoted(line))
+    return !!m && m[1]!.length >= fence.length && [...m[1]!].every((c) => c === fence[0])
+}
+
 /**
  * Where a block can't go: the properties (frontmatter) and fenced code blocks, fences included.
- * For a cursor on `line`, the last line of the region it's in, else null.
+ * For a cursor on `line` inside one, the line after which the block goes instead (the region's
+ * last line; for a fence never closed, the line before it, -1 for the top of the note); else null.
  */
 export function regionEnd(lines: string[], line: number): number | null {
     let start = 0
@@ -55,22 +76,17 @@ export function regionEnd(lines: string[], line: number): number | null {
     }
     let open: { line: number; fence: string } | null = null
     for (let i = start; i < lines.length; i++) {
-        const fence = /^\s{0,3}(`{3,}|~{3,})/.exec(lines[i]!)?.[1]
         if (!open) {
+            const fence = openingFence(lines[i]!)
             if (fence) open = { line: i, fence }
-        } else if (
-            fence &&
-            fence[0] === open.fence[0] &&
-            fence.length >= open.fence.length &&
-            /^\s{0,3}[`~]+\s*$/.test(lines[i]!)
-        ) {
+        } else if (closes(lines[i]!, open.fence)) {
             if (line >= open.line && line <= i) return i
             open = null
         }
         if (i > line && !open) break
     }
-    // An unclosed fence runs to the end of the note.
-    return open && line >= open.line ? lines.length - 1 : null
+    // A fence never closed runs to the end of the note: the block goes before it.
+    return open && line >= open.line ? open.line - 1 : null
 }
 
 /**
@@ -82,6 +98,11 @@ export function insertBlock(editor: Editor, block: string): void {
     const to = editor.getCursor('to')
     const lines = editor.getValue().split('\n')
     const end = regionEnd(lines, from.line) ?? regionEnd(lines, to.line)
+    if (end === -1) {
+        editor.setCursor({ line: 0, ch: 0 })
+        editor.replaceSelection(`${block}\n`)
+        return
+    }
     if (end !== null) {
         const ch = lines[end]!.length
         editor.setCursor({ line: end, ch })
@@ -128,18 +149,28 @@ export function decodeText(bytes: Uint8Array): string {
 
 /**
  * Whether a song's text is ChordPro (directives, or chords in brackets) rather than a chord sheet.
- * Bracketed words that aren't chords (`[Verse 1]`, `[Chorus]`) are a chord sheet's section labels.
+ * Bracketed words that aren't chords (`[Verse 1]`, `[Chorus]`), and a bracket alone on its line
+ * (`[A]`), are a chord sheet's section labels.
  */
 export const isChordPro = (text: string): boolean =>
     /^\s*\{[a-z_]+[:}]/im.test(text) ||
-    [...text.matchAll(/\[([^\]\n]{1,16})\]/g)].some((m) => readChord(m[1]!.trim()) !== null)
+    text.split('\n').some((line) => {
+        const brackets = [...line.matchAll(/\[([^\]\n]{1,16})\]/g)]
+        // A bracket alone on its line is a section label ([A], [Verse 1]), not a chord.
+        if (!line.replace(/\[[^\]\n]*\]/g, '').trim() && brackets.length < 2) return false
+        return brackets.some((m) => readChord(m[1]!.trim()) !== null)
+    })
 
-/** A file name a wikilink can point to: no `#`, `|`, `^` or brackets (they cut the link). */
-export const linkableName = (name: string): string =>
-    name
-        .replace(/[#|^[\]]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim() || 'Score'
+/**
+ * A file name a wikilink can point to: the name without `#`, `|`, `^`, brackets or path
+ * characters (they cut the link), "Score" when nothing is left; the extension kept.
+ */
+export const linkableName = (name: string): string => {
+    const dot = name.lastIndexOf('.')
+    const base = dot > 0 ? name.slice(0, dot) : name
+    const ext = dot > 0 ? name.slice(dot) : ''
+    return `${safeTitle(base) || 'Score'}${ext}`
+}
 
 /** A song file's chord chart: ChordPro as it is, a chord sheet (chords over lyrics) converted. */
 export function chordChartOf(text: string): string {
