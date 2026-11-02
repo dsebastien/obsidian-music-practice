@@ -81,7 +81,10 @@ const closesFence = (line: string, fence: string): boolean => {
     return !!m && m[1]!.length >= fence.length && [...m[1]!].every((c) => c === fence[0])
 }
 
-/** The note's fenced code blocks; a fence never closed isn't a block. Properties are skipped. */
+/**
+ * The note's fenced code blocks, in one pass over its lines (the convert command checks the
+ * note on every keystroke); a fence never closed isn't a block. Properties are skipped.
+ */
 export function codeBlocks(lines: string[]): CodeBlock[] {
     let i = 0
     if (lines[0]?.trim() === '---') {
@@ -89,25 +92,31 @@ export function codeBlocks(lines: string[]): CodeBlock[] {
         if (close > 0) i = close + 1
     }
     const blocks: CodeBlock[] = []
+    let open: (Omit<CodeBlock, 'close'> & { fence: string }) | null = null
     for (; i < lines.length; i++) {
         const line = lines[i]!
+        if (open) {
+            const inner = withoutPrefix(line, open.prefix)
+            if (!closesFence(inner, open.fence)) {
+                open.body.push(inner)
+                continue
+            }
+            const { fence: _fence, ...block } = open
+            blocks.push({ ...block, close: i })
+            open = null
+            continue
+        }
         const fence = openingFence(line)
         if (!fence) continue
         const at = line.indexOf(fence)
-        const prefix = continuationPrefix(line.slice(0, at))
-        const close = lines.findIndex(
-            (l, n) => n > i && closesFence(withoutPrefix(l, prefix), fence)
-        )
-        if (close < 0) break
         const info = line.slice(at + fence.length).trim()
-        blocks.push({
+        open = {
             language: (info.split(/\s/)[0] ?? '').toLowerCase(),
             open: i,
-            close,
-            prefix,
-            body: lines.slice(i + 1, close).map((l) => withoutPrefix(l, prefix))
-        })
-        i = close
+            prefix: continuationPrefix(line.slice(0, at)),
+            body: [],
+            fence
+        }
     }
     return blocks
 }

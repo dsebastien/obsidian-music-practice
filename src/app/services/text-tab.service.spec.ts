@@ -117,6 +117,19 @@ describe('codeBlocks', () => {
         expect(codeBlocks(lines)[0]).toMatchObject({ prefix: '\t  ', body: ['e|---0---|'] })
     })
 
+    it('reads the note in one pass, however many blocks it has', () => {
+        const lines = Array.from({ length: 300 }, (_, n) => ['```tab', `e|--${n}--|`, '```']).flat()
+        let reads = 0
+        const counted = new Proxy(lines, {
+            get: (target, key, receiver): unknown => {
+                if (typeof key === 'string' && /^\d+$/.test(key)) reads++
+                return Reflect.get(target, key, receiver) as unknown
+            }
+        })
+        expect(codeBlocks(counted)).toHaveLength(300)
+        expect(reads).toBeLessThanOrEqual(2 * lines.length)
+    })
+
     it('skips a fence never closed, and tells which block holds a line', () => {
         expect(codeBlocks(['```tab', 'e|---|'])).toEqual([])
         const lines = ['x', '```tab', TAB, '```', 'y'].join('\n').split('\n')
