@@ -155,6 +155,8 @@ describe('third-party notices', () => {
             expect(notices).toContain(expected)
         // zod is a dependency the plugin doesn't import: not in the bundle, so no notice.
         expect(notices).not.toContain('zod')
+        // Some bun-types say the metafile is its JSON text: read the same.
+        expect(await thirdPartyNotices(JSON.stringify(metafile))).toBe(notices)
     }, 120_000)
 
     test('a build without a metafile fails instead of shipping without notices', async () => {

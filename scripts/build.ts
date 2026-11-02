@@ -180,11 +180,19 @@ export const NOTICES: NoticesConfig = {
         '@tonaljs/progression': ['node_modules/tonal/LICENSE'],
         '@tonaljs/rhythm-pattern': ['node_modules/tonal/LICENSE']
     },
-    nodeModules: 'node_modules'
+    nodeModules: 'node_modules',
+    // The plugin's own code and the manifest it imports; anything else outside node_modules fails.
+    ownInputs: [`${SRC}/`, 'manifest.json']
 }
 
-/** The notices of a build as one block comment for the end of main.js. */
-export async function thirdPartyNotices(metafile: BuildMetafile | undefined): Promise<string> {
+/**
+ * The notices of a build as one block comment for the end of main.js. The metafile as Bun gives
+ * it: an object, or its JSON text (bun-types disagree between releases).
+ */
+export async function thirdPartyNotices(
+    metafile: BuildMetafile | string | undefined
+): Promise<string> {
+    if (typeof metafile === 'string') metafile = JSON.parse(metafile) as BuildMetafile
     if (!metafile)
         throw new Error(
             'Third-party notices: Bun.build returned no metafile, so the bundled packages are unknown. Use a Bun that supports `metafile` (1.3.14 and 1.4.x do).'

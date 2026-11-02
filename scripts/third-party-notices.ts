@@ -5,8 +5,8 @@ import type { BuildMetafile } from 'bun'
  * Third-party notices built from what the bundle really holds: every input of the Bun.build
  * metafile that comes from node_modules is a package whose license must ship in main.js, so a new
  * transitive dependency can't ship without its notice. A package without a license file of its own
- * is accepted only when another bundled package's THIRD_PARTY_LICENSES.md names it; anything else
- * fails the build.
+ * is accepted only when another bundled package's THIRD_PARTY_LICENSES.md names it; an input that is
+ * neither in node_modules nor the plugin's own, and anything else, fails the build.
  */
 
 /** A notice written as given: a name, a license and the files holding its text. */
@@ -32,6 +32,12 @@ export interface NoticesConfig {
     extraLicenseFiles: Record<string, string[]>
     /** Where packages named by a virtual input are found. */
     nodeModules: string
+    /**
+     * The plugin's own inputs, from the repository root: folders (ending with `/`) and files. Any
+     * other input that isn't under node_modules (a library brought in through `bun link` or a
+     * `file:` dependency) fails the build, as it would ship without its notice.
+     */
+    ownInputs: string[]
 }
 
 /** One entry of the notices: a title line and the license texts under it. */
@@ -68,6 +74,12 @@ export function packageOfInput(input: string): { name: string; dir: string } | n
     if (!first) return null
     const name = first.startsWith('@') && second ? `${first}/${second}` : first
     return { name, dir: path.slice(0, at + 'node_modules/'.length + name.length) }
+}
+
+/** Whether an input is one of the plugin's own: in one of `own`'s folders, or one of its files. */
+export function isOwnInput(input: string, own: readonly string[]): boolean {
+    const path = input.replaceAll('\\', '/').replace(/^\.\//, '')
+    return own.some((o) => (o.endsWith('/') ? path.startsWith(o) : path === o))
 }
 
 /** Every input that put bytes into an output of the build, in metafile order. */
@@ -148,6 +160,10 @@ export async function collectNotices(
         }
         const pkg = packageOfInput(input)
         if (pkg) addPackage(pkg.name, pkg.dir, input)
+        else if (!isOwnInput(input, config.ownInputs))
+            problems.push(
+                `${input}: neither under node_modules nor the plugin's own files (a \`bun link\` or \`file:\` package?), so its license is unknown`
+            )
     }
 
     // What the bundled packages' own notices files name (the libraries they embed).

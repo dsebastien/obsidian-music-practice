@@ -8,6 +8,7 @@ import {
     collectNotices,
     findLicenseFiles,
     formatNotices,
+    isOwnInput,
     namedInNoticesFile,
     packageOfInput,
     type NoticesConfig
@@ -83,6 +84,7 @@ describe('notices from a package tree', () => {
         descriptions: {},
         extraLicenseFiles: {},
         nodeModules: nm,
+        ownInputs: ['src/', 'manifest.json'],
         ...over
     })
     const pkg = async (dir: string, json: object, files: Record<string, string> = {}) => {
@@ -234,6 +236,19 @@ describe('notices from a package tree', () => {
             'a 1.0.0 (MIT)'
         ])
         expect(notices[1]?.texts).toEqual(['Font license'])
+    })
+
+    test("an input neither in node_modules nor the plugin's own fails the build", async () => {
+        const linked = '../music-notation/dist/index.js'
+        const run = collectNotices(
+            metafileOf({ 'src/main.ts': 9, 'manifest.json': 1, [linked]: 5, 'srcx/a.ts': 2 }),
+            config()
+        )
+        await expect(run).rejects.toThrow(`${linked}: neither under node_modules`)
+        await expect(run).rejects.toThrow('srcx/a.ts: neither under node_modules')
+        expect(isOwnInput('./src/app/plugin.ts', ['src/'])).toBe(true)
+        expect(isOwnInput('src\\main.ts', ['src/'])).toBe(true)
+        expect(isOwnInput('manifest.json.bak', ['manifest.json'])).toBe(false)
     })
 
     test('a virtual input with no declared notice fails the build', async () => {
