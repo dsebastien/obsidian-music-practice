@@ -52,11 +52,49 @@ describe('decodeText', () => {
         expect(decodeText(bytes)).toBe('Cé')
     })
 
-    it('reads UTF-16 without a BOM', () => {
-        const le = new Uint8Array([...'[G]Hello'].flatMap((c) => [c.charCodeAt(0), 0]))
-        expect(decodeText(le)).toBe('[G]Hello')
-        const be = new Uint8Array([...'[G]Hello'].flatMap((c) => [0, c.charCodeAt(0)]))
-        expect(decodeText(be)).toBe('[G]Hello')
+    /** UTF-16 without a BOM, little- or big-endian. */
+    const utf16 = (text: string, order: 'le' | 'be') =>
+        new Uint8Array(
+            [...Array(text.length).keys()].flatMap((i) => {
+                const unit = text.charCodeAt(i)
+                return order === 'le' ? [unit & 0xff, unit >> 8] : [unit >> 8, unit & 0xff]
+            })
+        )
+
+    it('reads Latin UTF-16 without a BOM', () => {
+        for (const order of ['le', 'be'] as const) {
+            expect(decodeText(utf16('[G]Hello', order))).toBe('[G]Hello')
+            expect(decodeText(utf16('{title: Café}\n[Am]déjà vu\n', order))).toBe(
+                '{title: Café}\n[Am]déjà vu\n'
+            )
+        }
+    })
+
+    it('reads UTF-16 without a BOM in other scripts', () => {
+        const songs = {
+            cyrillic:
+                '{title: Катюша}\n[Am]Расцветали яблони и груши,\n[E]Поплыли туманы над рекой.\n',
+            // Lyrics with few chords: far from half NUL bytes.
+            cyrillicLyrics:
+                'Расцветали яблони и груши,\nПоплыли туманы над рекой.\nВыходила на берег Катюша\n',
+            greek: "{title: Σαν απόψε}\n[Dm]Σαν απόψε θα 'ρθεις [A]πάλι,\nκαι θα μείνεις ως το πρωί\n",
+            cjk: '{title: 月亮代表我的心}\n[C]你问我爱你有[E7]多深\n[F]我爱你有几[G]分\n',
+            cjkLyrics: '你问我爱你有多深\n我爱你有几分\n我的情也真\n我的爱也真\n',
+            japanese: '[C]さくら　さくら\n[Am]やよいの空は\n'
+        }
+        for (const [name, song] of Object.entries(songs))
+            for (const order of ['le', 'be'] as const)
+                expect([name, order, decodeText(utf16(song, order))]).toEqual([name, order, song])
+    })
+
+    it("says when a file's text can't be read", () => {
+        const binary = new Uint8Array(1024).map((_, i) => i % 256)
+        expect(() => decodeText(binary)).toThrow("can't be read")
+        const png = new Uint8Array([
+            0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48,
+            0x44, 0x52, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x08, 0x06, 0x00, 0x00
+        ])
+        expect(() => decodeText(png)).toThrow("can't be read")
     })
 
     it('falls back to Windows-1252 for older files', () => {

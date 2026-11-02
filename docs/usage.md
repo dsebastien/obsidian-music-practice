@@ -119,7 +119,7 @@ Clean changes come from the right voicing and the fingers that can stay down. **
 
 ## Imports
 
-- **Import a score or chord file**: a Guitar Pro (3–8), MusicXML or Capella file becomes a tab block, with notation and tablature for guitar files. The block holds either a **link to the file** (the file is copied to your attachments folder and added to the note's `sources`, so nothing is lost) or **inline alphaTex** you can edit. A ChordPro file becomes a chord chart. A chord file with chords over the lyrics (section labels such as `[Verse 1]` included) is converted to one. Older files saved in Windows encodings keep their accents.
+- **Import a score or chord file**: a Guitar Pro (3–8), MusicXML or Capella file becomes a tab block, with notation and tablature for guitar files. The block holds either a **link to the file** (the file is copied to your attachments folder and added to the note's `sources`, so nothing is lost) or **inline alphaTex** you can edit. A ChordPro file becomes a chord chart. A chord file with chords over the lyrics (section labels such as `[Verse 1]` included) is converted to one. Older files saved in Windows encodings keep their accents, and UTF-16 files are read in any script (Cyrillic, Greek, Chinese, Japanese…), with or without a byte order mark. A file that isn't text in any of these encodings is refused with a message.
 - **Import a text tab**: paste a tab from the web (lines of dashes and frets). It becomes a tab block you can play. Text tabs have no rhythm, so every note is an eighth note.
 - **Import a chord sheet**: paste a sheet with chords over the lyrics. It becomes a chord chart you can transpose.
 

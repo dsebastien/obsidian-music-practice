@@ -68,33 +68,50 @@ export function insertBlock(
     )
 }
 
+/** Characters text doesn't hold: controls (but tabs and line breaks), unassigned, private use. */
+const UNREADABLE = /(?![\t\n\r\f])[\p{Cc}\p{Cn}\p{Co}\p{Cs}\uFFFD]/gu
+
 /**
- * A text file's characters whatever its encoding: UTF-8 (BOM or not), UTF-16 (with a BOM, or
- * without one when NUL bytes fill every other byte, as in mostly-ASCII text), else Windows-1252
- * (older ChordPro files from Windows).
+ * ASCII text and spaces: chord names, brackets, spaces and line breaks, which UTF-16 chord files
+ * hold in any script. Bytes read as UTF-16 by mistake (or in the wrong byte order) rarely do:
+ * every one of them needs a NUL byte in the right place.
+ */
+const ASCII = /[\t\n\r\u0020-\u007e\u3000]/g
+
+const count = (text: string, re: RegExp) => text.match(re)?.length ?? 0
+
+/** Whether decoded text reads as text: at most 1% of unreadable characters (one in a short text). */
+const readable = (text: string) => count(text, UNREADABLE) <= Math.max(1, text.length / 100)
+
+const decodeStrict = (encoding: string, bytes: Uint8Array): string | null => {
+    try {
+        return new TextDecoder(encoding, { fatal: true }).decode(bytes)
+    } catch {
+        return null
+    }
+}
+
+/**
+ * A text file's characters whatever its encoding and script: UTF-8 (BOM or not); UTF-16 with a
+ * BOM; UTF-16 without one (little- or big-endian, whichever reads as text with ASCII in it: chord
+ * files in Cyrillic, Greek or CJK too); else Windows-1252 (older ChordPro files from Windows).
+ * Throws when none of them reads as text.
  */
 export function decodeText(bytes: Uint8Array): string {
     if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder('utf-16le').decode(bytes)
     if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder('utf-16be').decode(bytes)
-    const sample = bytes.subarray(0, 4096)
-    const pairs = Math.floor(sample.length / 2)
-    if (pairs >= 2) {
-        let even = 0
-        let odd = 0
-        for (let i = 0; i < pairs * 2; i += 2) {
-            if (sample[i] === 0) even++
-            if (sample[i + 1] === 0) odd++
-        }
-        if (odd > pairs * 0.4 && even < pairs * 0.1)
-            return new TextDecoder('utf-16le').decode(bytes)
-        if (even > pairs * 0.4 && odd < pairs * 0.1)
-            return new TextDecoder('utf-16be').decode(bytes)
-    }
-    try {
-        return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    } catch {
-        return new TextDecoder('windows-1252').decode(bytes)
-    }
+    const utf8 = decodeStrict('utf-8', bytes)
+    // UTF-16 read as UTF-8 is full of NULs and other controls.
+    if (utf8 !== null && readable(utf8)) return utf8
+    const utf16 = (['utf-16le', 'utf-16be'] as const)
+        .map((encoding) => decodeStrict(encoding, bytes))
+        .filter((text): text is string => text !== null && readable(text) && count(text, ASCII) > 0)
+        .map((text) => ({ text, unreadable: count(text, UNREADABLE), ascii: count(text, ASCII) }))
+        .sort((a, b) => a.unreadable - b.unreadable || b.ascii - a.ascii)[0]
+    if (utf16) return utf16.text
+    const windows = new TextDecoder('windows-1252').decode(bytes)
+    if (readable(windows)) return windows
+    throw new Error("its text can't be read (it isn't UTF-8, UTF-16 or Windows-1252 text).")
 }
 
 /**
