@@ -34,11 +34,13 @@ import type { TimerState } from './domain/timer'
 import { NotationBlocks } from './services/notation.service'
 import type { BlockLanguage } from './services/notation.service'
 import { AlphaTabRuntime } from './services/alphatab.service'
-import { ImportService, fenced } from './services/import.service'
+import { ImportService, fenced, tabBlockInsertion } from './services/import.service'
+import type { PreparedScore } from './services/import.service'
 import { PasteImportModal, ScoreImportModeModal } from './ui/import-modals'
 import { chordSheetToChordPro, textTabToAlphaTex } from '@dsebastien/music-notation/tab'
 import { playOptions } from './domain/playback'
 import type { PlayOptions, RenderOptions } from '@dsebastien/music-notation'
+import { printTab } from '@dsebastien/music-notation/tab'
 import type { TabResult } from '@dsebastien/music-notation/tab'
 import type { NoteContext } from './services/notation.service'
 import type { UndoResult } from './services/practice-log.service'
@@ -72,13 +74,7 @@ import { toLog, withPaths } from './domain/panel'
 import type { PanelItem } from './domain/panel'
 import { learningTypeOf } from './domain/item-reader'
 import { safeTitle } from './domain/chord'
-import {
-    propertyNamesOf,
-    chordFromNotes,
-    formatFrets,
-    insertUnderTitle,
-    withAlias
-} from './domain/notation-note'
+import { propertyNamesOf, chordFromNotes, formatFrets, withAlias } from './domain/notation-note'
 import { ChooseChordModal } from './ui/choose-chord-modal'
 import { parseChord, readChord } from '@dsebastien/music-notation'
 import type { GeneratedVoicing } from '@dsebastien/music-notation'
@@ -345,6 +341,12 @@ export class MusicPracticePlugin extends Plugin {
             this.app.vault.on('delete', (file) => this.panelPathChanged(file.path, null))
         )
         this.app.workspace.onLayoutReady(() => this.notation.sync())
+        // A popout window closed: free the alphaTab it loaded and its hidden player.
+        this.registerEvent(
+            this.app.workspace.on('window-close', (_workspaceWindow, win) =>
+                this.alphaTab.release(win)
+            )
+        )
 
         // Practice timer: persisted start, elapsed time in the status bar, stop opens Log practice.
         // Metronome: plays on while its modal is closed; the status bar shows it and stops it.
@@ -382,6 +384,8 @@ export class MusicPracticePlugin extends Plugin {
 
     override onunload() {
         this.metronome?.destroy()
+        // Drawings stay on screen after a plugin unloads: stop and free them first.
+        this.notation?.unload()
         this.alphaTab?.unload()
     }
 
@@ -393,7 +397,8 @@ export class MusicPracticePlugin extends Plugin {
     /** A score's export menu in its player bar (#20): Guitar Pro 7, MIDI, print. */
     private decorateScore(result: TabResult, sourcePath: string): void {
         const bar = result.el.querySelector('.mn-tab-bar')
-        if (!(bar instanceof HTMLElement) || !result.api) return
+        // instanceOf: the score may be in a popout window, with its own HTMLElement.
+        if (!bar?.instanceOf(HTMLElement) || !result.api) return
         const button = bar.createEl('button', {
             cls: 'mp-score-export',
             attr: { 'type': 'button', 'aria-label': 'Export', 'title': 'Export' }
@@ -417,7 +422,15 @@ export class MusicPracticePlugin extends Plugin {
                 item
                     .setTitle('Print')
                     .setIcon('printer')
-                    .onClick(() => result.api?.print())
+                    .onClick(() => {
+                        try {
+                            printTab(result)
+                        } catch (error: unknown) {
+                            new Notice(
+                                `Couldn't print the score: ${error instanceof Error ? error.message : String(error)}`
+                            )
+                        }
+                    })
             )
             menu.showAtMouseEvent(event)
         })
@@ -433,7 +446,9 @@ export class MusicPracticePlugin extends Plugin {
         const score = api?.score
         if (!api || !score) return
         try {
-            const alphaTab = await this.alphaTab.module(activeWindow)
+            // The alphaTab of the block's window: its score was made there (popouts).
+            const win = result.el.ownerDocument.defaultView ?? window
+            const alphaTab = await this.alphaTab.module(win)
             let bytes: Uint8Array
             if (ext === 'gp') {
                 bytes = new alphaTab.exporter.Gp7Exporter().export(score, api.settings)
@@ -607,7 +622,8 @@ export class MusicPracticePlugin extends Plugin {
                     },
                     () => layoutDefaults(this.settings.notationLayout),
                     (symbol, pick) => this.openVoicings({ symbol, pick }),
-                    (symbol, pick) => this.openTriads({ symbol, pick })
+                    (symbol, pick) => this.openTriads({ symbol, pick }),
+                    (type, title) => this.voicingNotes.existingName(type, title)
                 ).open()
             }
         })
@@ -631,8 +647,13 @@ export class MusicPracticePlugin extends Plugin {
             id: 'insert-tab-block',
             name: 'Insert a tab block',
             editorCallback: (editor) => {
+                const from = editor.getCursor('from')
+                const to = editor.getCursor('to')
                 editor.replaceSelection(
-                    `${fenced('tab', '\\title "Title"\n\\tempo 90\n.\n:4 0.6 2.5 2.4 1.3 | 3.6 2.5 0.4 0.3')}\n`
+                    tabBlockInsertion(
+                        editor.getLine(from.line).slice(0, from.ch),
+                        editor.getLine(to.line).slice(to.ch)
+                    )
                 )
             }
         })
@@ -1001,7 +1022,7 @@ export class MusicPracticePlugin extends Plugin {
         ).open()
     }
 
-    /** A new arrangement note for an import, when no note is being edited. */
+    /** A new arrangement note for an import, when no note is being edited (not opened yet). */
     private async newArrangementNote(title: string): Promise<TFile> {
         const types = this.ensureModel().learningTypes
         const type =
@@ -1013,46 +1034,71 @@ export class MusicPracticePlugin extends Plugin {
         const base = safeTitle(title) || 'Imported'
         let name = base
         for (let n = 2; this.noteCreator.exists(type, name); n++) name = `${base} ${n}`
-        const file = await this.noteCreator.create(type, { title: name })
-        await this.app.workspace.getLeaf(false).openFile(file)
-        return file
+        return this.noteCreator.create(type, { title: name })
     }
 
     /** Puts an imported block at the cursor, else in a new arrangement note. */
-    private async placeImported(block: string, title: string): Promise<void> {
+    private async placeImported(
+        block: string | ((note: TFile) => Promise<string>),
+        title: string,
+        what = 'it'
+    ): Promise<void> {
         try {
-            const file = await this.imports.place(block, () => this.newArrangementNote(title))
-            new Notice(`Imported into ${file.basename}.`)
+            const { file, created } = await this.imports.place(block, () =>
+                this.newArrangementNote(title)
+            )
+            if (created) await this.app.workspace.getLeaf(false).openFile(file)
+            new Notice(`Imported ${what === 'it' ? '' : `${what} `}into ${file.basename}.`)
         } catch (error: unknown) {
-            new Notice(`Couldn't import: ${error instanceof Error ? error.message : String(error)}`)
+            new Notice(
+                `Couldn't import${what === 'it' ? '' : ` ${what}`}: ${error instanceof Error ? error.message : String(error)}`
+            )
             throw error
         }
     }
 
-    /** Import a score file (link or inline alphaTex) or a ChordPro file (#19). */
+    /**
+     * Import a score file (link or inline alphaTex) or a ChordPro file (#19). The file is read and
+     * checked before any note is made; a new note is removed again when the import fails.
+     */
     private async importFile(): Promise<void> {
         const file = await this.imports.pickFile()
         if (!file) return
         const title = file.name.replace(/\.[^.]+$/, '')
         if (this.imports.isChordPro(file)) {
-            await this.placeImported(await this.imports.chordProBlock(file), title).catch(() => {})
+            await this.imports
+                .chordProBlock(file)
+                .then((block) => this.placeImported(block, title, file.name))
+                .catch((error: unknown) => {
+                    log(`Import of ${file.name} failed`, 'warn', error)
+                })
+            return
+        }
+        let score: PreparedScore
+        try {
+            score = await this.imports.prepareScore(file)
+        } catch (error: unknown) {
+            new Notice(
+                `Couldn't import ${file.name}: ${error instanceof Error ? error.message : String(error)}`
+            )
             return
         }
         new ScoreImportModeModal(this.app, (mode) => {
-            void (async () => {
-                try {
-                    const editing = this.imports.editing()
-                    const note = editing?.file ?? (await this.newArrangementNote(title))
-                    const block = await this.imports.scoreBlock(file, mode, note)
-                    if (editing) editing.insert(block)
-                    else await this.app.vault.process(note, (text) => insertUnderTitle(text, block))
-                    new Notice(`Imported ${file.name} into ${note.basename}.`)
-                } catch (error: unknown) {
-                    new Notice(
-                        `Couldn't import ${file.name}: ${error instanceof Error ? error.message : String(error)}`
-                    )
-                }
-            })()
+            let block: string | ((note: TFile) => Promise<string>)
+            try {
+                block =
+                    mode === 'inline'
+                        ? this.imports.inlineBlock(score)
+                        : (note: TFile) => this.imports.linkBlock(score, note)
+            } catch (error: unknown) {
+                new Notice(
+                    `Couldn't import ${file.name}: ${error instanceof Error ? error.message : String(error)}`
+                )
+                return
+            }
+            this.placeImported(block, title, file.name).catch((error: unknown) => {
+                log(`Import of ${file.name} failed`, 'warn', error)
+            })
         }).open()
     }
 

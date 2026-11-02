@@ -72,8 +72,8 @@ const MAXIMUMS: Record<string, number> = {
     'metronome.trainerBars': 64,
     'drillSeconds': 600,
     'playback.volume': 100,
-    'playback.bpm': 400,
-    'playback.strum': 500
+    'playback.bpm': 240,
+    'playback.strum': 200
 }
 
 /** Text settings that may be left empty; every other text setting needs a value. */

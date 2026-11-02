@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { NotationBlocks, processorExists } from './notation.service'
-import type { NotationHost, NotationToggles } from './notation.service'
+import { NotationBlocks, isTextTab, processorExists } from './notation.service'
+import type { NotationHost, NotationToggles, TabHost } from './notation.service'
 import type {
     LayoutDefaults,
     NotationLanguage,
@@ -243,5 +243,107 @@ describe('NotationBlocks and note properties', () => {
         blocks.redrawNote('B.md')
         expect(drawn).toHaveLength(2)
         expect(drawn[1]!.properties).toEqual(notes['B.md'])
+    })
+})
+
+/** A test double typed as what it stands in for (it only has what the code under test reads). */
+const fake = <T>(value: unknown): T => value as T
+
+describe('NotationBlocks: tabs and scores', () => {
+    type Register = NotationHost['registerMarkdownCodeBlockProcessor']
+    type Processor = Parameters<Register>[1]
+    type Context = Parameters<Processor>[2]
+
+    /** An element recording what's created in it (Obsidian's createEl). */
+    function fakeEl() {
+        const made: { tag: string; cls?: string; text?: string }[] = []
+        const el = {
+            createEl: (tag: string, options: { cls?: string; text?: string } = {}) => {
+                made.push({ tag, ...options })
+                return el
+            }
+        }
+        return { el: fake<HTMLElement>(el), made }
+    }
+
+    function setup(toggles: NotationToggles = allOn(), taken: string[] = []) {
+        const processors = new Map<string, Processor>()
+        const plugin: NotationHost = {
+            registerMarkdownCodeBlockProcessor: (language: string, processor: Processor) => {
+                processors.set(language, processor)
+                return () => {}
+            },
+            app: { workspace: { getLeavesOfType: () => [] } }
+        }
+        const tabs = {
+            runtime: {} as TabHost['runtime'],
+            resolveFile: () => Promise.resolve(null)
+        }
+        const blocks = new NotationBlocks(
+            plugin,
+            () => toggles,
+            undefined,
+            (l) => taken.includes(l),
+            undefined,
+            undefined,
+            undefined,
+            tabs
+        )
+        blocks.sync()
+        const children: MarkdownRenderChild[] = []
+        const draw = (language: string, source: string) => {
+            const { el, made } = fakeEl()
+            const ctx: Pick<Context, 'addChild' | 'sourcePath'> = {
+                sourcePath: 'Song.md',
+                addChild: (child) => children.push(child)
+            }
+            void processors.get(language)!(source, el, ctx as Context)
+            return made
+        }
+        return { blocks, processors, draw, children }
+    }
+
+    it('registers tab and score only with a tab host, unless another plugin has them', () => {
+        expect([...setup().processors.keys()]).toContain('score')
+        const { blocks, processors } = setup(allOn(), ['tab'])
+        expect(processors.has('tab')).toBe(false)
+        expect(blocks.status('tab')).toBe('taken')
+        const { plugin, calls } = fakePlugin()
+        new NotationBlocks(plugin, allOn, undefined, () => false).sync()
+        expect(calls).not.toContain('tab')
+    })
+
+    it('draws alphaTex through alphaTab', () => {
+        const { draw, children } = setup()
+        const made = draw('tab', ':4 0.6 2.5 2.4 1.3')
+        expect(made).toEqual([])
+        expect(children).toHaveLength(1)
+    })
+
+    it('shows a plain-text tab as code, as it was before tabs were drawn', () => {
+        const { draw, children } = setup()
+        const text =
+            'e|-----0---|\nB|---1-----|\nG|-2-------|\nD|---------|\nA|---------|\nE|---------|'
+        const made = draw('tab', text)
+        expect(made).toEqual([{ tag: 'pre' }, { tag: 'code', cls: 'language-tab', text }])
+        expect(children).toHaveLength(0)
+    })
+
+    it('shows a block as code when its language is turned off', () => {
+        const toggles = allOn()
+        const { draw } = setup(toggles)
+        toggles.score = false
+        expect(draw('score', ':4 C4')[1]).toEqual({
+            tag: 'code',
+            cls: 'language-score',
+            text: ':4 C4'
+        })
+    })
+})
+
+describe('isTextTab', () => {
+    it('tells a plain-text tab from alphaTex', () => {
+        expect(isTextTab('e|---0---|\nB|---1---|\nG|---0---|\nD|---2---|')).toBe(true)
+        expect(isTextTab('\\title "Song"\n.\n:4 0.6 2.5 | 3.6')).toBe(false)
     })
 })

@@ -126,6 +126,50 @@ const alphaTabAssets: import('bun').BunPlugin = {
     }
 }
 
+/**
+ * Third-party software embedded in main.js, with its license (a release ships main.js alone, so
+ * the notices travel inside it). alphaTab is used unmodified (MPL-2.0); the Bravura font (OFL)
+ * and the sonivox soundfont (Apache-2.0) come with it.
+ */
+export const THIRD_PARTY = [
+    {
+        name: 'alphaTab',
+        what: 'draws and plays tabs and scores; embedded unmodified. Source: https://github.com/CoderLine/alphaTab',
+        license: 'MPL-2.0',
+        files: ['node_modules/@coderline/alphatab/LICENSE']
+    },
+    {
+        name: 'Bravura music font',
+        what: 'the music symbols of scores (Steinberg Media Technologies GmbH). Source: https://github.com/steinbergmedia/bravura',
+        license: 'SIL Open Font License 1.1',
+        files: [`${ALPHATAB_DIST}/font/Bravura-OFL.txt`]
+    },
+    {
+        name: 'SONiVOX soundfont (sonivox.sf3)',
+        what: 'the instrument sounds (Sonic Network Inc.), as shipped with alphaTab',
+        license: 'Apache-2.0',
+        files: [`${ALPHATAB_DIST}/soundfont/LICENSE`, 'licenses/Apache-2.0.txt']
+    },
+    {
+        name: '@dsebastien/music-notation and the libraries it bundles',
+        what: 'notation blocks (MIT)',
+        license: 'MIT',
+        files: ['node_modules/@dsebastien/music-notation/dist/THIRD_PARTY_LICENSES.md']
+    }
+]
+
+/** The notices as one block comment for the end of main.js (a comment can't hold its end mark). */
+export async function thirdPartyNotices(): Promise<string> {
+    const parts = await Promise.all(
+        THIRD_PARTY.map(async (dep) => {
+            const texts = await Promise.all(dep.files.map((f) => Bun.file(f).text()))
+            return `${dep.name} (${dep.license}): ${dep.what}\n\n${texts.map((t) => t.trim()).join('\n\n')}`
+        })
+    )
+    const body = parts.join(`\n\n${'-'.repeat(72)}\n\n`).replaceAll('*/', '* /')
+    return `\n/*! Third-party notices: Music Practice embeds the following software.\n\n${body}\n*/\n`
+}
+
 async function buildJs(): Promise<void> {
     console.log(`Building plugin in ${isProd ? 'production' : 'development'} mode...`)
     const { success, logs } = await Bun.build({
@@ -142,6 +186,11 @@ async function buildJs(): Promise<void> {
         throw: isProd
     })
     if (success) {
+        // Release builds carry the notices (dev builds end with their inline source map).
+        if (isProd) {
+            const main = Bun.file(`${DIST}/main.js`)
+            await Bun.write(main, `${await main.text()}${await thirdPartyNotices()}`)
+        }
         console.log('JS build succeeded.')
     } else {
         console.error('JS build failed.')

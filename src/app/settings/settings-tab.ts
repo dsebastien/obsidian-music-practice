@@ -200,12 +200,12 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                     this.num(
                         'playback.bpm',
                         'Scale tempo',
-                        'Notes per minute when a scale plays, from 20 to 400. The bar can change it for one diagram.'
+                        'Notes per minute when a scale plays, from 20 to 240. The bar can change it for one diagram.'
                     ),
                     this.num(
                         'playback.strum',
                         'Strum',
-                        'Milliseconds between two strings when a chord is strummed, from 0 to 500.'
+                        'Milliseconds between two strings when a chord is strummed, from 0 to 200.'
                     )
                 ]
             },

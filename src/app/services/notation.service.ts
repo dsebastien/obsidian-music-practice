@@ -1,6 +1,11 @@
 import { MarkdownPreviewRenderer, MarkdownRenderChild, MarkdownView } from 'obsidian'
 import type { Plugin, Workspace } from 'obsidian'
-import { LANGUAGES, blockFromProperties, renderBlock } from '@dsebastien/music-notation'
+import {
+    LANGUAGES,
+    blockFromProperties,
+    renderBlock,
+    textTabToAlphaTex
+} from '@dsebastien/music-notation'
 import type {
     LayoutDefaults,
     NotationLanguage,
@@ -32,29 +37,62 @@ export interface TabHost {
     decorate?: (result: TabResult, sourcePath: string) => void
 }
 
-/** A tab or score block: alphaTab is loaded on the first one, then the score draws and plays. */
+/**
+ * Whether a tab block holds a plain-text tab (`e|---0---|` lines) rather than alphaTex: notes
+ * written before the plugin drew tabs used ```tab for monospace text.
+ */
+export const isTextTab = (source: string): boolean => textTabToAlphaTex(source) !== null
+
+/** A block shown as Obsidian shows code (a language turned off, a plain-text tab). */
+const asCode = (el: HTMLElement, language: string, source: string) =>
+    el.createEl('pre').createEl('code', { cls: `language-${language}`, text: source })
+
+/**
+ * A tab or score block: alphaTab is loaded on the first one, then the score draws and plays.
+ * It draws once the block is on the page, in the window it shows in: alphaTab, its font and its
+ * player belong to that window (popouts), and the note may be moved to another window later.
+ */
 class TabChild extends MarkdownRenderChild {
     private result: TabResult | null = null
+    private loading: HTMLElement | null = null
     private gone = false
+    /** Bumped at each draw, so a draw that finishes late after a newer one does nothing. */
+    private generation = 0
 
     constructor(
         el: HTMLElement,
         private readonly language: TabLanguage,
         private readonly source: string,
         private readonly host: TabHost,
-        private readonly sourcePath: string
+        private readonly sourcePath: string,
+        private readonly live: Set<TabChild>
     ) {
         super(el)
     }
 
     override onload(): void {
+        this.live.add(this)
+        const el = this.containerEl
+        if (el.isConnected) this.draw()
+        else this.register(el.onNodeInserted(() => this.draw(), true))
+        // Moved to another window (a tab dragged to a popout): drawn again there.
+        this.register(el.onWindowMigrated(() => this.draw()))
+    }
+
+    private draw(): void {
+        if (this.gone) return
+        const generation = ++this.generation
+        this.result?.destroy()
+        this.result = null
+        this.loading?.remove()
         const win = (this.containerEl.ownerDocument.defaultView ?? window) as AlphaTabWindow
         const loading = this.containerEl.createDiv({ cls: 'mn-tab-loading', text: 'Loading…' })
+        this.loading = loading
         this.host.runtime
             .module(win)
             .then((alphaTab) => {
+                if (this.gone || generation !== this.generation) return
                 loading.remove()
-                if (this.gone) return
                 this.result = renderTab(this.language, this.source, this.containerEl, {
                     alphaTab,
                     assets: this.host.runtime.assets(win),
@@ -62,10 +100,12 @@ class TabChild extends MarkdownRenderChild {
                 })
                 const result = this.result
                 void result.ready.then(({ ok }) => {
-                    if (ok && !this.gone) this.host.decorate?.(result, this.sourcePath)
+                    if (ok && !this.gone && result === this.result)
+                        this.host.decorate?.(result, this.sourcePath)
                 })
             })
             .catch((error: unknown) => {
+                if (this.gone || generation !== this.generation) return
                 loading.setText(
                     `${this.language}: ${error instanceof Error ? error.message : String(error)}`
                 )
@@ -74,8 +114,15 @@ class TabChild extends MarkdownRenderChild {
     }
 
     override onunload(): void {
+        this.live.delete(this)
+        this.free()
+    }
+
+    /** Stops and frees the score (the plugin unloads, or Obsidian dropped the block). */
+    free(): void {
         this.gone = true
         this.result?.destroy()
+        this.result = null
     }
 }
 
@@ -119,7 +166,13 @@ class NotationChild extends MarkdownRenderChild {
 
     override onunload(): void {
         this.live.delete(this)
+        this.free()
+    }
+
+    /** Stops its playback and removes the drawing. */
+    free(): void {
         this.result?.destroy()
+        this.result = null
     }
 
     redraw(): void {
@@ -158,6 +211,7 @@ export class NotationBlocks {
     private readonly registered = new Set<BlockLanguage>()
     private readonly taken = new Set<BlockLanguage>()
     private readonly live = new Set<NotationChild>()
+    private readonly liveTabs = new Set<TabChild>()
 
     constructor(
         private readonly plugin: NotationHost,
@@ -188,10 +242,7 @@ export class NotationBlocks {
             try {
                 this.plugin.registerMarkdownCodeBlockProcessor(language, (source, el, ctx) => {
                     if (!this.toggles()[language]) {
-                        el.createEl('pre').createEl('code', {
-                            cls: `language-${language}`,
-                            text: source
-                        })
+                        asCode(el, language, source)
                         return
                     }
                     // An empty block draws from the note's properties, read at each draw.
@@ -232,14 +283,14 @@ export class NotationBlocks {
         }
         try {
             this.plugin.registerMarkdownCodeBlockProcessor(language, (source, el, ctx) => {
-                if (!this.toggles()[language]) {
-                    el.createEl('pre').createEl('code', {
-                        cls: `language-${language}`,
-                        text: source
-                    })
+                // A plain-text tab stays text, as it was before tabs were drawn.
+                if (!this.toggles()[language] || isTextTab(source)) {
+                    asCode(el, language, source)
                     return
                 }
-                ctx.addChild(new TabChild(el, language, source, tabs, ctx.sourcePath))
+                ctx.addChild(
+                    new TabChild(el, language, source, tabs, ctx.sourcePath, this.liveTabs)
+                )
             })
             this.registered.add(language)
         } catch {
@@ -274,6 +325,17 @@ export class NotationBlocks {
     /** Redraw every block on screen with the current layout settings, wherever it shows. */
     redrawLayout(): void {
         for (const child of this.current()) child.redraw()
+    }
+
+    /**
+     * The plugin unloads: stop and free every drawing still on screen (Obsidian keeps blocks
+     * rendered by a disabled plugin, with their players and loops).
+     */
+    unload(): void {
+        for (const child of this.liveTabs) child.free()
+        for (const child of this.live) child.free()
+        this.liveTabs.clear()
+        this.live.clear()
     }
 
     /** Redraw open notes in reading view, after a block was turned on or off. */

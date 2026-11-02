@@ -24,4 +24,11 @@ describe('progressionOf', () => {
         expect(progressionOf(note, 3)).toEqual(['G', 'D', 'Em'])
         expect(progressionOf('# No chart')).toEqual([])
     })
+
+    it("applies a chart's {transpose}, spelled for the transposed key", () => {
+        const note = '```chords\n{key: C}\n{transpose: 3}\n[C]Hello [G]world [Am]and [F]more\n```'
+        expect(progressionOf(note)).toEqual(['Eb', 'Bb', 'Cm', 'Ab'])
+        const sharp = '```chords\n{transpose: 2}\n[A]one [E]two\n```'
+        expect(progressionOf(sharp)).toEqual(['B', 'F#'])
+    })
 })

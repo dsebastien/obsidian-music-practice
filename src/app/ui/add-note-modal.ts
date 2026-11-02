@@ -25,6 +25,7 @@ import { lookupGuitarVoicing, voicingCount } from '@dsebastien/music-notation/vo
 import { blockSource, chordBlock, formatFrets, voicingRow } from '../domain/notation-note'
 import { shapeValue } from '../domain/voicings'
 import { triadDetail } from '../domain/triads'
+import type { StringSet } from '../domain/triads'
 import type { TriadPick } from './triads-modal'
 
 /** voicingIndex of a voicing picked from every way to play the chord (#54). */
@@ -65,6 +66,8 @@ export class AddNoteModal extends Modal {
     private picked: GeneratedVoicing | null = null
     /** A picked triad's string set and inversion, for its title: "(strings 1-3, root position)". */
     private triadDetail: string | null = null
+    /** The picked triad's string set and inversion, for its prerequisite (the root position). */
+    private triadPick: { set: StringSet; inversion: number } | null = null
     /** The shape came with the picked voicing (and goes when the chord changes). */
     private shapeFromPick = false
     /** The shape field, to update it in place. */
@@ -88,7 +91,9 @@ export class AddNoteModal extends Modal {
             pick: (voicing: GeneratedVoicing) => void
         ) => void,
         /** The chord's triads on string sets, to pick one from (#55). */
-        private readonly triads?: (symbol: string, pick: (pick: TriadPick) => void) => void
+        private readonly triads?: (symbol: string, pick: (pick: TriadPick) => void) => void,
+        /** The name of the note with this title, when one exists (a triad's root position). */
+        private readonly existingNote?: (type: LearningType, title: string) => string | null
     ) {
         super(app)
         this.type = types[0]!
@@ -206,15 +211,32 @@ export class AddNoteModal extends Modal {
         )
         if (!title) return null
         const block = this.block()
+        const prerequisite = chord ? this.triadPrerequisite(chord, shape) : null
+        const properties = {
+            ...scale,
+            ...(prerequisite ? { [this.fields.prerequisites]: [`[[${prerequisite}]]`] } : {})
+        }
         return {
             title,
             ...(chord ? { chordSymbol: chord.symbol } : {}),
             ...(this.shape ? { shape: this.shape } : {}),
             ...(this.level !== undefined ? { level: this.level } : {}),
             ...(this.voicing() ? { voicing: this.voicing()! } : {}),
-            ...(scale ? { properties: scale } : {}),
+            ...(Object.keys(properties).length ? { properties } : {}),
             ...(block ? { block } : {})
         }
+    }
+
+    /**
+     * A picked triad's inversion learns after its root position on the same strings: that note,
+     * when it exists, becomes the prerequisite (as the Triads command does).
+     */
+    private triadPrerequisite(chord: ParsedChord, shape: string): string | null {
+        const pick = this.triadPick
+        if (!pick || pick.inversion === 0 || this.voicingIndex !== PICKED) return null
+        if (!this.type.fields.has(this.fields.prerequisites)) return null
+        const root = safeTitle(`${chordTitle(chord, shape || 'Triad')} ${triadDetail(pick.set, 0)}`)
+        return root ? (this.existingNote?.(this.type, root) ?? null) : null
     }
 
     override onOpen(): void {
@@ -231,6 +253,7 @@ export class AddNoteModal extends Modal {
             this.voicingIndex = 0
             this.picked = null
             this.triadDetail = null
+            this.triadPick = null
             this.shapeFromPick = false
             this.scaleRoot = ''
             this.scaleType = ''
@@ -364,6 +387,7 @@ export class AddNoteModal extends Modal {
             this.moreVoicings?.(symbol, (voicing) => {
                 this.picked = voicing
                 this.triadDetail = null
+                this.triadPick = null
                 this.voicingIndex = PICKED
                 // The shape is the voicing's (one chosen before described another voicing).
                 const name = this.fields.shape
@@ -386,6 +410,7 @@ export class AddNoteModal extends Modal {
             this.triads?.(symbol, (pick) => {
                 this.picked = pick.triad
                 this.triadDetail = triadDetail(pick.set, pick.triad.inversion)
+                this.triadPick = { set: pick.set, inversion: pick.triad.inversion }
                 this.voicingIndex = PICKED
                 // A triad note's shape is the type's "Triad".
                 const name = this.fields.shape
@@ -559,6 +584,7 @@ export class AddNoteModal extends Modal {
                 this.voicingIndex = 0
                 this.picked = null
                 this.triadDetail = null
+                this.triadPick = null
                 this.dropPickedShape()
             }
             refreshVoicings()

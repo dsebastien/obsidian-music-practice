@@ -20,7 +20,9 @@ export function voicingCell(
         }
     })
     cell.addEventListener('click', (event) => {
-        if (event.target instanceof Element && event.target.closest('.mn-play')) return
+        // instanceOf: the modal may be in a popout window, with its own Element.
+        const target = event.target as Node | null
+        if (target?.instanceOf(Element) && target.closest('.mn-play')) return
         onSelect(cell)
     })
     cell.addEventListener('keydown', (event) => {
