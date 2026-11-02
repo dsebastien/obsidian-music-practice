@@ -9,6 +9,9 @@ import type {
 } from '@dsebastien/music-notation'
 import type { MarkdownRenderChild } from 'obsidian'
 
+/** A test double typed as what it stands in for (it only has what the code under test reads). */
+const fake = <T>(value: unknown): T => value as T
+
 const allOn = (): NotationToggles => ({
     chord: true,
     chords: true,
@@ -87,6 +90,18 @@ describe('NotationBlocks', () => {
     })
 })
 
+/** A block's element; `migrate()` moves it to another window (Obsidian's onWindowMigrated). */
+function hostEl() {
+    const listeners: (() => unknown)[] = []
+    const el = fake<HTMLElement>({
+        onWindowMigrated: (listener: () => unknown) => {
+            listeners.push(listener)
+            return () => {}
+        }
+    })
+    return { el, migrate: () => listeners.forEach((listener) => listener()) }
+}
+
 describe('NotationBlocks layout', () => {
     type Register = NotationHost['registerMarkdownCodeBlockProcessor']
     type Processor = Parameters<Register>[1]
@@ -128,9 +143,13 @@ describe('NotationBlocks layout', () => {
                 child.onload()
             }
         }
-        const draw = (source: string) =>
-            void processors.get('chord')!(source, {} as HTMLElement, ctx as Context)
-        return { blocks, draw, drawn, children, set: (l: LayoutDefaults) => (layout = l) }
+        const hosts: ReturnType<typeof hostEl>[] = []
+        const draw = (source: string) => {
+            const host = hostEl()
+            hosts.push(host)
+            void processors.get('chord')!(source, host.el, ctx as Context)
+        }
+        return { blocks, draw, drawn, children, hosts, set: (l: LayoutDefaults) => (layout = l) }
     }
 
     it('draws with the layout settings', () => {
@@ -156,6 +175,18 @@ describe('NotationBlocks layout', () => {
         children[0]!.onunload()
         blocks.redrawLayout()
         expect(drawn.slice(4).map((d) => d.source)).toEqual(['C x32010'])
+    })
+
+    it('redraws a diagram moved to another window, so it plays through that window', () => {
+        const { draw, drawn, hosts } = setup()
+        draw('A x02220')
+        draw('C x32010')
+        hosts[1]!.migrate()
+        expect(drawn.map((d) => [d.source, d.destroyed])).toEqual([
+            ['A x02220', false],
+            ['C x32010', true],
+            ['C x32010', false]
+        ])
     })
 })
 
@@ -201,7 +232,7 @@ describe('NotationBlocks and note properties', () => {
                     child.onload()
                 }
             }
-            void processors.get('chord')!(source, {} as HTMLElement, ctx as Context)
+            void processors.get('chord')!(source, hostEl().el, ctx as Context)
         }
         return { blocks, draw, drawn, children }
     }
@@ -245,9 +276,6 @@ describe('NotationBlocks and note properties', () => {
         expect(drawn[1]!.properties).toEqual(notes['B.md'])
     })
 })
-
-/** A test double typed as what it stands in for (it only has what the code under test reads). */
-const fake = <T>(value: unknown): T => value as T
 
 describe('NotationBlocks: tabs and scores', () => {
     type Register = NotationHost['registerMarkdownCodeBlockProcessor']

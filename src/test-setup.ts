@@ -21,7 +21,18 @@ void mock.module('obsidian', () => ({
     // renders with MarkdownRenderer.
     MarkdownRenderer: { render: async () => {} },
     // Notation blocks (plugin.ts → notation.service.ts) wrap renders in a render child.
-    MarkdownRenderChild: class MarkdownRenderChild {},
+    MarkdownRenderChild: class MarkdownRenderChild {
+        containerEl: HTMLElement
+        registered: (() => unknown)[] = []
+        constructor(containerEl: HTMLElement) {
+            this.containerEl = containerEl
+        }
+        register(cleanup: () => unknown) {
+            this.registered.push(cleanup)
+        }
+        onload() {}
+        onunload() {}
+    },
     // Identify this chord asks which reading with a suggest modal.
     SuggestModal: class SuggestModal {},
     // The practice panel.

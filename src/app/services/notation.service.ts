@@ -182,6 +182,9 @@ class NotationChild extends MarkdownRenderChild {
 
     override onload(): void {
         this.live.add(this)
+        // Moved to another window: Obsidian draws a note's blocks before it moves them into a
+        // popout. Drawn again there, so its playback goes through that window's player.
+        this.register(this.el.onWindowMigrated(() => this.redraw()))
     }
 
     override onunload(): void {
