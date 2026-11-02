@@ -224,6 +224,8 @@ class NotationChild extends MarkdownRenderChild {
     private result: RenderResult | null = null
     /** What it drew from the note's properties last time, to skip redraws that change nothing. */
     private drawnFrom: string | null = null
+    /** The window it was drawn in: a block moved before it was loaded is drawn again there. */
+    private drawnIn: Window | null = null
 
     constructor(
         readonly el: HTMLElement,
@@ -244,6 +246,9 @@ class NotationChild extends MarkdownRenderChild {
         // Moved to another window: Obsidian draws a note's blocks before it moves them into a
         // popout. Drawn again there, so its playback goes through that window's player.
         this.register(this.el.onWindowMigrated(() => this.redraw()))
+        // Obsidian can draw a block, move it to a popout and only then load it: no migration
+        // event fires for that move, so compare windows here.
+        if ((this.el.ownerDocument?.defaultView ?? null) !== this.drawnIn) this.redraw()
     }
 
     override onunload(): void {
@@ -261,6 +266,7 @@ class NotationChild extends MarkdownRenderChild {
         this.result?.destroy()
         this.drawnFrom = this.fromProperties ? this.propertiesKey(this.sourcePath) : null
         this.result = this.draw(this.sourcePath)
+        this.drawnIn = this.el.ownerDocument?.defaultView ?? null
     }
 
     /** Redraw after the note changed, only when its properties make a different block. */

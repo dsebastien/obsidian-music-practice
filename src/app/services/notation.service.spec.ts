@@ -99,13 +99,20 @@ describe('NotationBlocks', () => {
 /** A block's element; `migrate()` moves it to another window (Obsidian's onWindowMigrated). */
 function hostEl() {
     const listeners: (() => unknown)[] = []
+    let win: object | null = null
     const el = fake<HTMLElement>({
         onWindowMigrated: (listener: () => unknown) => {
             listeners.push(listener)
             return () => {}
         }
     })
-    return { el, migrate: () => listeners.forEach((listener) => listener()) }
+    // Its window, which `moveTo` changes without an event (a move before the block is loaded).
+    Object.defineProperty(el, 'ownerDocument', { get: () => ({ defaultView: win }) })
+    return {
+        el,
+        migrate: () => listeners.forEach((listener) => listener()),
+        moveTo: (to: object) => (win = to)
+    }
 }
 
 describe('NotationBlocks layout', () => {
@@ -155,7 +162,15 @@ describe('NotationBlocks layout', () => {
             hosts.push(host)
             void processors.get('chord')!(source, host.el, ctx as Context)
         }
-        return { blocks, draw, drawn, children, hosts, set: (l: LayoutDefaults) => (layout = l) }
+        return {
+            blocks,
+            draw,
+            drawn,
+            children,
+            hosts,
+            processors,
+            set: (l: LayoutDefaults) => (layout = l)
+        }
     }
 
     it('draws with the layout settings', () => {
@@ -181,6 +196,26 @@ describe('NotationBlocks layout', () => {
         children[0]!.onunload()
         blocks.redrawLayout()
         expect(drawn.slice(4).map((d) => d.source)).toEqual(['C x32010'])
+    })
+
+    it('redraws a diagram moved to another window before it was loaded (no event fires)', () => {
+        const { drawn, processors } = setup()
+        const host = hostEl()
+        let child: MarkdownRenderChild | null = null
+        const later: Pick<Context, 'addChild'> = { addChild: (c) => (child = c) }
+        void processors.get('chord')!('A x02220', host.el, later as Context)
+        // Drawn in one window, moved to a popout, then loaded.
+        host.moveTo({})
+        child!.onload()
+        expect(drawn.map((d) => d.destroyed)).toEqual([true, false])
+        // Loaded where it was drawn: no second drawing.
+        const { drawn: again, processors: p2 } = setup()
+        const still = hostEl()
+        let c2: MarkdownRenderChild | null = null
+        const later2: Pick<Context, 'addChild'> = { addChild: (c) => (c2 = c) }
+        void p2.get('chord')!('A x02220', still.el, later2 as Context)
+        c2!.onload()
+        expect(again).toHaveLength(1)
     })
 
     it('redraws a diagram moved to another window, so it plays through that window', () => {
