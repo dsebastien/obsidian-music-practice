@@ -3,6 +3,7 @@ import {
     blockLanguage,
     blockTarget,
     emptyBlockAt,
+    commentAfter,
     emptyBlocks,
     fillableLanguages,
     placeInNote,
@@ -135,6 +136,15 @@ describe('sectionRegionEnd', () => {
         expect(sectionRegionEnd(lines, map, 9)).toBeNull()
     })
 
+    it('moves a cursor out of a %% comment', () => {
+        const lines = ['text', '%%', 'hidden', '%%']
+        const map = mapOf(lines, [
+            ['paragraph', 0, 0],
+            ['comment', 1, 3]
+        ])
+        expect(sectionRegionEnd(lines, map, 2)).toBe(3)
+    })
+
     it('puts a block before a code fence that is never closed', () => {
         const lines = ['text', '```tab', ':4 0.6']
         expect(
@@ -235,6 +245,35 @@ describe('empty blocks', () => {
             { start: 5, end: 6, language: 'tab' },
             { start: 8, end: 10, language: 'chords' }
         ])
+    })
+
+    it('skips empty blocks in comments, which would hide the import', () => {
+        const lines = [
+            '%%',
+            '```tab',
+            '```',
+            '%%',
+            '<!-- template:',
+            '```tab',
+            '```',
+            '-->',
+            '%% a %% <!-- b --> text',
+            '```chords',
+            '```',
+            '```tab',
+            '%% in code %%',
+            '```',
+            '```tab',
+            '```'
+        ]
+        expect(emptyBlocks(lines)).toEqual([
+            { start: 9, end: 10, language: 'chords' },
+            { start: 14, end: 15, language: 'tab' }
+        ])
+        expect(placeInNote(lines.join('\n'), '```tab\n:4 0.6\n```').split('\n')[15]).toBe(':4 0.6')
+        expect(commentAfter('a %% b', null)).toBe('%%')
+        expect(commentAfter('end -->', '<!--')).toBeNull()
+        expect(commentAfter('<!-- %% -->', null)).toBeNull()
     })
 
     it('finds the empty block a cursor is in, checked against the section map', () => {

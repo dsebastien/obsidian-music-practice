@@ -89,8 +89,8 @@ function propertiesEnd(lines: string[]): number | null {
     return close > 0 ? close : null
 }
 
-/** Sections a block never goes into: the properties, code, math and HTML. */
-const SEALED = new Set(['yaml', 'code', 'math', 'html'])
+/** Sections a block never goes into: the properties, code, math, HTML and `%%` comments. */
+const SEALED = new Set(['yaml', 'code', 'math', 'html', 'comment'])
 
 /** Sections whose lines may hold fenced code blocks of their own (read with the line scan). */
 const CONTAINERS = new Set(['list', 'callout', 'blockquote', 'footnoteDefinition'])
@@ -186,20 +186,50 @@ export interface EmptyBlock {
     language: string
 }
 
+/** A comment a line ends inside of: Obsidian's `%%` or HTML's `<!--`; null outside one. */
+type Comment = '%%' | '<!--' | null
+
+const COMMENT_END = { '%%': '%%', '<!--': '-->' } as const
+
+/** The comment `line` ends inside of, for a line that starts inside `comment` (null: outside). */
+export function commentAfter(line: string, comment: Comment): Comment {
+    let at = 0
+    let inside = comment
+    for (;;) {
+        if (inside) {
+            const end = line.indexOf(COMMENT_END[inside], at)
+            if (end < 0) return inside
+            at = end + COMMENT_END[inside].length
+            inside = null
+            continue
+        }
+        const obsidian = line.indexOf('%%', at)
+        const html = line.indexOf('<!--', at)
+        if (obsidian < 0 && html < 0) return null
+        inside = html < 0 || (obsidian >= 0 && obsidian < html) ? '%%' : '<!--'
+        at = (inside === '%%' ? obsidian : html) + inside.length
+    }
+}
+
 /**
  * The empty fenced blocks of a note, in order: at the margin (not in a list or a callout), with a
- * language, nothing but blank lines inside, and closed. The properties and the inside of other
- * fenced blocks are skipped.
+ * language, nothing but blank lines inside, and closed. The properties, the inside of other
+ * fenced blocks and comments (`%% … %%`, `<!-- … -->`, which hide what they hold) are skipped.
  */
 export function emptyBlocks(lines: string[]): EmptyBlock[] {
     const found: EmptyBlock[] = []
     const properties = propertiesEnd(lines)
     let open: { line: number; fence: string; language: string | null; empty: boolean } | null = null
+    let comment: Comment = null
     for (let i = properties === null ? 0 : properties + 1; i < lines.length; i++) {
         const line = lines[i]!
         if (!open) {
-            const fence = openingFence(line)
-            if (!fence) continue
+            // A fence inside a comment is the comment's text.
+            const fence = comment ? null : openingFence(line)
+            if (!fence) {
+                comment = commentAfter(line, comment)
+                continue
+            }
             const margin = /^ {0,3}(?:`{3,}|~{3,})\s*([\w-]+)?/.exec(line)
             open = {
                 line: i,
