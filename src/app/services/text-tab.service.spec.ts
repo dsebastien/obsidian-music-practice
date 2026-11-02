@@ -71,6 +71,50 @@ describe('codeBlocks', () => {
         expect(list).toMatchObject({ prefix: '  ', body: ['B|--1--|'] })
     })
 
+    it("keeps a legend line's list marker: only the block's own prefix is removed", () => {
+        const legend = [...TAB.split('\n'), '* PM = palm mute', '- let ring', '> 1. x']
+        for (const [open, prefix] of [
+            ['```tab', ''],
+            ['> ```tab', '> '],
+            ['- ```tab', '  ']
+        ] as const) {
+            const lines = [open, ...legend.map((l) => prefix + l), `${prefix}\`\`\``]
+            const block = codeBlocks(lines)[0]!
+            expect([open, block.body]).toEqual([open, legend])
+            expect(findBlock(lines, 'tab', legend.join('\n'), null)?.open).toBe(0)
+            const converted = convertedTab(block.body.join('\n'))!
+            expect(converted).toContain('* PM = palm mute\n- let ring\n> 1. x')
+        }
+    })
+
+    it('writes lines back inside the list item or callout the fence is in', () => {
+        for (const [open, prefix] of [
+            ['- ```tab', '  '],
+            ['1. ```tab', '   '],
+            ['> - ```tab', '>   '],
+            ['\t- ```tab', '\t  ']
+        ] as const) {
+            const lines = [
+                open,
+                ...TAB.split('\n').map((l) => prefix + l),
+                `${prefix}\`\`\``,
+                'after'
+            ]
+            const block = codeBlocks(lines)[0]!
+            expect([open, block.prefix, block.body.join('\n')]).toEqual([open, prefix, TAB])
+            const out = applyChange(lines, replaceBody(block, convertedTab(TAB)!))
+            expect(out.slice(1, -2).every((l) => l.startsWith(prefix))).toBe(true)
+            expect(out.slice(-2)).toEqual([`${prefix}\`\`\``, 'after'])
+            // The converted block is still one block, closed where it was.
+            expect(codeBlocks(out).map((b) => [b.open, b.close])).toEqual([[0, out.length - 2]])
+        }
+    })
+
+    it('reads a tab-indented list item with space-indented lines', () => {
+        const lines = ['\t- ```tab', '      e|---0---|', '      ```']
+        expect(codeBlocks(lines)[0]).toMatchObject({ prefix: '\t  ', body: ['e|---0---|'] })
+    })
+
     it('skips a fence never closed, and tells which block holds a line', () => {
         expect(codeBlocks(['```tab', 'e|---|'])).toEqual([])
         const lines = ['x', '```tab', TAB, '```', 'y'].join('\n').split('\n')

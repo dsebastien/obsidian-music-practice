@@ -1,6 +1,6 @@
 import { MarkdownView, Notice, TFile } from 'obsidian'
 import type { App, Editor, MarkdownSectionInformation } from 'obsidian'
-import { closes, openingFence, unquoted } from '../domain/block-placement'
+import { openingFence } from '../domain/block-placement'
 import { TAB_LANGUAGES, textTabOf } from './notation.service'
 import type { ConvertRequest, TabLanguage } from './notation.service'
 
@@ -15,7 +15,10 @@ export interface CodeBlock {
     language: string
     open: number
     close: number
-    /** What each body line starts with: the callout markers and the fence's indentation. */
+    /**
+     * What each body line starts with: the opening line's text before the fence, list markers
+     * turned into spaces (callout markers, list indentation, tabs).
+     */
     prefix: string
     /** The lines between the fences, without their prefix. */
     body: string[]
@@ -31,6 +34,53 @@ export interface LineChange {
 /** Where a block was drawn from (Obsidian's section), when it can tell. */
 export type Section = Pick<MarkdownSectionInformation, 'lineStart' | 'lineEnd'>
 
+/** Columns a tab moves to the next multiple of (CommonMark's tab stop). */
+const TAB_STOP = 4
+
+const nextColumn = (column: number, c: string): number =>
+    c === '\t' ? column + TAB_STOP - (column % TAB_STOP) : column + 1
+
+/**
+ * What a block's inner lines start with, from its opening line's text before the fence: quote and
+ * callout markers kept, list markers (`- `, `1. `) turned into spaces of the same width, tabs kept,
+ * so new lines stay in the list item or callout.
+ */
+export const continuationPrefix = (leading: string): string => leading.replace(/[^\s>]/g, ' ')
+
+/**
+ * An inner line without the block's prefix: its `>` markers, and its indentation up to the
+ * prefix's column (a tab counts to the next tab stop). Nothing else (a `* ` or `- ` at the start
+ * of the text is the block's own text). A line that has less stops where it differs.
+ */
+export function withoutPrefix(line: string, prefix: string): string {
+    let at = 0
+    let column = 0
+    let target = 0
+    const indent = () => {
+        while (at < line.length && (line[at] === ' ' || line[at] === '\t') && column < target)
+            column = nextColumn(column, line[at++]!)
+    }
+    for (const c of prefix) {
+        if (c === '>') {
+            indent()
+            if (line[at] !== '>') break
+            at++
+            column++
+            target = column
+        } else {
+            target = nextColumn(target, c)
+            indent()
+        }
+    }
+    return line.slice(at)
+}
+
+/** Whether a line (its prefix removed) closes a block opened with `fence`. */
+const closesFence = (line: string, fence: string): boolean => {
+    const m = /^\s*([`~]{3,})\s*$/.exec(line)
+    return !!m && m[1]!.length >= fence.length && [...m[1]!].every((c) => c === fence[0])
+}
+
 /** The note's fenced code blocks; a fence never closed isn't a block. Properties are skipped. */
 export function codeBlocks(lines: string[]): CodeBlock[] {
     let i = 0
@@ -43,19 +93,19 @@ export function codeBlocks(lines: string[]): CodeBlock[] {
         const line = lines[i]!
         const fence = openingFence(line)
         if (!fence) continue
-        const close = lines.findIndex((l, n) => n > i && closes(l, fence))
+        const at = line.indexOf(fence)
+        const prefix = continuationPrefix(line.slice(0, at))
+        const close = lines.findIndex(
+            (l, n) => n > i && closesFence(withoutPrefix(l, prefix), fence)
+        )
         if (close < 0) break
-        const quote = /^(\s*>)+ ?/.exec(line)?.[0] ?? ''
-        const inner = unquoted(line)
-        const indent = inner.indexOf(fence)
-        const info = inner.slice(indent + fence.length).trim()
-        const strip = (l: string) => unquoted(l).replace(new RegExp(`^ {0,${indent}}`), '')
+        const info = line.slice(at + fence.length).trim()
         blocks.push({
             language: (info.split(/\s/)[0] ?? '').toLowerCase(),
             open: i,
             close,
-            prefix: quote + ' '.repeat(indent),
-            body: lines.slice(i + 1, close).map(strip)
+            prefix,
+            body: lines.slice(i + 1, close).map((l) => withoutPrefix(l, prefix))
         })
         i = close
     }
