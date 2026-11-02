@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { Editor, EditorChange, EditorTransaction } from 'obsidian'
+import type { App, Editor, EditorChange, EditorTransaction, TFile } from 'obsidian'
 import {
     TextTabConverter,
     applyChange,
@@ -8,6 +8,7 @@ import {
     convertedTab,
     convertible,
     editorText,
+    fileText,
     findBlock,
     replaceBody,
     undoConversion
@@ -177,6 +178,37 @@ describe('Undo a conversion', () => {
         expect(await undoConversion(note, 'tab', converted, TAB)).toBe(true)
         expect(text()).toBe(['# Song', '```tab', TAB, '```'].join('\n'))
         expect(await undoConversion(note, 'tab', converted, TAB)).toBe(false)
+    })
+})
+
+describe('A note changed through its file', () => {
+    /** A vault holding one note's text. */
+    const vaultOf = (text: string) => {
+        const state = { text }
+        const app = fake<App>({
+            vault: {
+                process: (_file: TFile, fn: (data: string) => string) => {
+                    state.text = fn(state.text)
+                    return Promise.resolve(state.text)
+                }
+            }
+        })
+        return { note: fileText(app, fake<TFile>({})), state }
+    }
+
+    it('converts and undoes a text tab in a CRLF note, keeping its line endings', async () => {
+        const original = ['# Song', '```tab', TAB, '```', 'end'].join('\n').replaceAll('\n', '\r\n')
+        const { note, state } = vaultOf(original)
+        const converted = convertedTab(TAB)!
+        const made = await note.edit((lines) => {
+            const block = findBlock(lines, 'tab', TAB, null)
+            return block ? replaceBody(block, converted) : null
+        })
+        expect(made).toBe(true)
+        expect(state.text.replaceAll('\r\n', '')).not.toContain('\n')
+        expect(state.text).toContain(converted.replaceAll('\n', '\r\n'))
+        expect(await undoConversion(note, 'tab', converted, TAB)).toBe(true)
+        expect(state.text).toBe(original)
     })
 })
 

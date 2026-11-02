@@ -207,16 +207,20 @@ export const editorText = (editor: Editor): NoteText => ({
     }
 })
 
-/** The note's file, when no editor shows it (reading view, embeds): read and written at once. */
+/**
+ * The note's file, when no editor shows it (reading view, embeds): read and written at once,
+ * with the note's own line endings (CRLF too).
+ */
 export const fileText = (app: App, file: TFile): NoteText => ({
     edit: async (change) => {
         let made = false
         await app.vault.process(file, (data) => {
-            const lines = data.split('\n')
+            const eol = data.includes('\r\n') ? '\r\n' : '\n'
+            const lines = data.split(/\r?\n/)
             const result = change(lines)
             if (!result) return data
             made = true
-            return applyChange(lines, result).join('\n')
+            return applyChange(lines, result).join(eol)
         })
         return made
     }
