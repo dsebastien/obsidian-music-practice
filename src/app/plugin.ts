@@ -36,6 +36,7 @@ import type { BlockLanguage } from './services/notation.service'
 import { AlphaTabRuntime } from './services/alphatab.service'
 import { ImportService, TAB_STARTER, fenced, insertBlock } from './services/import.service'
 import type { PreparedScore } from './services/import.service'
+import { TextTabConverter, blockAt, convertible } from './services/text-tab.service'
 import { PasteImportModal, ScoreImportModeModal } from './ui/import-modals'
 import { chordSheetToChordPro, textTabToAlphaTex } from '@dsebastien/music-notation/tab'
 import { playOptions } from './domain/playback'
@@ -100,6 +101,7 @@ export class MusicPracticePlugin extends Plugin {
     private notation!: NotationBlocks
     private alphaTab!: AlphaTabRuntime
     private imports!: ImportService
+    private textTabs!: TextTabConverter
     private timerEl: HTMLElement | null = null
     private metronomeEl: HTMLElement | null = null
     private drills!: DrillService
@@ -313,6 +315,7 @@ export class MusicPracticePlugin extends Plugin {
         // a block language another plugin uses stays theirs (Obsidian refuses a second processor).
         this.alphaTab = new AlphaTabRuntime()
         this.imports = new ImportService(this.app, this.alphaTab, () => this.effective().fields)
+        this.textTabs = new TextTabConverter(this.app)
         this.notation = new NotationBlocks(
             this,
             () => this.settings.notation,
@@ -324,7 +327,8 @@ export class MusicPracticePlugin extends Plugin {
             {
                 runtime: this.alphaTab,
                 resolveFile: (link, sourcePath) => this.readLinkedFile(link, sourcePath),
-                decorate: (result, sourcePath) => this.decorateScore(result, sourcePath)
+                decorate: (result, sourcePath) => this.decorateScore(result, sourcePath),
+                convert: (request) => void this.textTabs.convertBlock(request)
             }
         )
         // Empty blocks in chord and scale notes draw from the note's properties: redraw them when
@@ -665,6 +669,19 @@ export class MusicPracticePlugin extends Plugin {
                     ? this.app.metadataCache.getFileCache(ctx.file)?.sections
                     : null
                 insertBlock(editor, fenced('tab', TAB_STARTER), { sections })
+            }
+        })
+        this.addCommand({
+            id: 'convert-text-tab',
+            name: 'Convert this text tab into a playable tab',
+            editorCheckCallback: (checking, editor, ctx) => {
+                const block = blockAt(editor.getValue().split('\n'), editor.getCursor().line)
+                const path = ctx.file?.path
+                if (!block || !path || !convertible(block)) return false
+                // Only when Music Practice draws that block: else the alphaTex would show as code.
+                if (this.notation?.status(block.language) !== 'on') return false
+                if (!checking) void this.textTabs.convertAt(editor, path)
+                return true
             }
         })
         this.addCommand({

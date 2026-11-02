@@ -410,6 +410,12 @@
     font-size: var(--font-ui-smaller);
 }
 
+/* Under a plain-text tab block (#60): converts it into a playable tab. */
+.mp-tab-convert {
+    @apply mt-1;
+    font-size: var(--font-ui-smaller);
+}
+
 /* Under a tab or score error (#61): the block's text, folded, the error line marked. */
 .mp-tab-source {
     @apply mt-2;

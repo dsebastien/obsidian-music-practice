@@ -289,12 +289,17 @@ describe('NotationBlocks: tabs and scores', () => {
     type Context = Parameters<Processor>[2]
 
     /** An element recording what's created in it (Obsidian's createEl). */
-    function fakeEl() {
+    function fakeEl(clicks: (() => void)[] = []) {
         const made: { tag: string; cls?: string; text?: string }[] = []
         const el = {
             createEl: (tag: string, options: { cls?: string; text?: string } = {}) => {
-                made.push({ tag, ...options })
+                const { cls, text } = options
+                made.push({ tag, ...(cls ? { cls } : {}), ...(text ? { text } : {}) })
                 return el
+            },
+            addEventListener: (type: string, listener: (event: unknown) => void) => {
+                const event = { preventDefault: () => {}, stopPropagation: () => {} }
+                if (type === 'click') clicks.push(() => listener(event))
             }
         }
         return { el: fake<HTMLElement>(el), made }
@@ -309,9 +314,11 @@ describe('NotationBlocks: tabs and scores', () => {
             },
             app: { workspace: { getLeavesOfType: () => [] } }
         }
-        const tabs = {
+        const converted: string[] = []
+        const tabs: TabHost = {
             runtime: {} as TabHost['runtime'],
-            resolveFile: () => Promise.resolve(null)
+            resolveFile: () => Promise.resolve(null),
+            convert: (request) => converted.push(request.source)
         }
         const blocks = new NotationBlocks(
             plugin,
@@ -325,16 +332,18 @@ describe('NotationBlocks: tabs and scores', () => {
         )
         blocks.sync()
         const children: MarkdownRenderChild[] = []
+        const clicks: (() => void)[] = []
         const draw = (language: string, source: string) => {
-            const { el, made } = fakeEl()
-            const ctx: Pick<Context, 'addChild' | 'sourcePath'> = {
+            const { el, made } = fakeEl(clicks)
+            const ctx: Pick<Context, 'addChild' | 'sourcePath' | 'getSectionInfo'> = {
                 sourcePath: 'Song.md',
-                addChild: (child) => children.push(child)
+                addChild: (child) => children.push(child),
+                getSectionInfo: () => null
             }
             void processors.get(language)!(source, el, ctx as Context)
             return made
         }
-        return { blocks, processors, draw, children }
+        return { blocks, processors, draw, children, clicks, converted }
     }
 
     it('registers tab and score only with a tab host, unless another plugin has them', () => {
@@ -355,12 +364,24 @@ describe('NotationBlocks: tabs and scores', () => {
     })
 
     it('shows a plain-text tab as code, as it was before tabs were drawn', () => {
-        const { draw, children } = setup()
+        const { draw, children, clicks, converted } = setup()
         const text =
             'e|-----0---|\nB|---1-----|\nG|-2-------|\nD|---------|\nA|---------|\nE|---------|'
         const made = draw('tab', text)
-        expect(made).toEqual([{ tag: 'pre' }, { tag: 'code', cls: 'language-tab', text }])
+        expect(made).toEqual([
+            { tag: 'pre' },
+            { tag: 'code', cls: 'language-tab', text },
+            { tag: 'button', cls: 'mp-tab-convert', text: 'Convert to a playable tab' }
+        ])
         expect(children).toHaveLength(0)
+        clicks[0]!()
+        expect(converted).toEqual([text])
+    })
+
+    it('offers to convert only the text tabs the library reads', () => {
+        const { draw } = setup()
+        const blank = 'e|--------|\nB|--------|\nG|--------|'
+        expect(draw('tab', blank).map((m) => m.tag)).toEqual(['pre', 'code'])
     })
 
     it('shows a block as code when its language is turned off', () => {

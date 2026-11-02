@@ -1,5 +1,5 @@
 import { MarkdownPreviewRenderer, MarkdownRenderChild, MarkdownView } from 'obsidian'
-import type { Plugin, Workspace } from 'obsidian'
+import type { MarkdownSectionInformation, Plugin, Workspace } from 'obsidian'
 import {
     LANGUAGES,
     blockFromProperties,
@@ -35,6 +35,18 @@ export interface TabHost {
     resolveFile: (link: string, sourcePath: string) => Promise<Uint8Array | null>
     /** Adds the plugin's own controls (export) once a score is drawn. */
     decorate?: (result: TabResult, sourcePath: string) => void
+    /** Converts a plain-text tab block into alphaTex in its note (#60); no button without it. */
+    convert?: (request: ConvertRequest) => void
+}
+
+/** What a text tab block's Convert button knows about it. */
+export interface ConvertRequest {
+    el: HTMLElement
+    language: TabLanguage
+    source: string
+    sourcePath: string
+    /** Where Obsidian drew the block from, read when the button is selected. */
+    section: () => Pick<MarkdownSectionInformation, 'lineStart' | 'lineEnd'> | null
 }
 
 /**
@@ -56,14 +68,34 @@ const isStaffLine = (line: string): boolean => {
  * converts, or two staff lines or more (blank staves, drum tabs, a few strings, text after them).
  */
 export const isTextTab = (source: string): boolean => {
-    const text = source.replace(COMMENTS, '')
-    if (textTabToAlphaTex(text) !== null) return true
-    return text.split('\n').filter(isStaffLine).length >= 2
+    if (textTabOf(source) !== null) return true
+    return source.replace(COMMENTS, '').split('\n').filter(isStaffLine).length >= 2
 }
+
+/** The alphaTex of a block holding a plain-text tab the library reads (comments left out); else null. */
+export const textTabOf = (source: string): string | null =>
+    textTabToAlphaTex(source.replace(COMMENTS, ''))
 
 /** A block shown as Obsidian shows code (a language turned off, a plain-text tab). */
 const asCode = (el: HTMLElement, language: string, source: string) =>
     el.createEl('pre').createEl('code', { cls: `language-${language}`, text: source })
+
+/** Under a plain-text tab the library reads: a button that converts it in its note (#60). */
+const convertButton = (el: HTMLElement, convert: () => void): HTMLElement => {
+    const button = el.createEl('button', {
+        cls: 'mp-tab-convert',
+        text: 'Convert to a playable tab',
+        attr: { type: 'button' }
+    })
+    // In live preview, a click on a block opens its source: the button keeps its own clicks.
+    button.addEventListener('mousedown', (event) => event.stopPropagation())
+    button.addEventListener('click', (event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        convert()
+    })
+    return button
+}
 
 /** The block line an alphaTab message points at (`line 3, column 5: …`, from 1); null without one. */
 export const errorLineOf = (message: string | null): number | null => {
@@ -333,9 +365,25 @@ export class NotationBlocks {
         }
         try {
             this.plugin.registerMarkdownCodeBlockProcessor(language, (source, el, ctx) => {
-                // A plain-text tab stays text, as it was before tabs were drawn.
-                if (!this.toggles()[language] || isTextTab(source)) {
+                if (!this.toggles()[language]) {
                     asCode(el, language, source)
+                    return
+                }
+                // A plain-text tab stays text, as it was before tabs were drawn; one the library
+                // reads can be converted.
+                if (isTextTab(source)) {
+                    asCode(el, language, source)
+                    const convert = tabs.convert
+                    if (convert && textTabOf(source) !== null)
+                        convertButton(el, () =>
+                            convert({
+                                el,
+                                language,
+                                source,
+                                sourcePath: ctx.sourcePath,
+                                section: () => ctx.getSectionInfo(el)
+                            })
+                        )
                     return
                 }
                 ctx.addChild(

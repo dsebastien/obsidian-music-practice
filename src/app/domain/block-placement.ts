@@ -30,7 +30,7 @@ export function blockInsertion(before: string, after: string, block: string): st
  * A line without the container markers in front of it (callouts and quotes `> `, list items
  * `- `, `1. `), where fences may sit too.
  */
-const unquoted = (line: string) =>
+export const unquoted = (line: string) =>
     line.replace(/^(?:\s*(?:>|[-*+](?=\s)|\d{1,9}[.)](?=\s)))+ ?/, '')
 
 /**
