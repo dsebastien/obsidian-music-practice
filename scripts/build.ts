@@ -3,6 +3,13 @@ import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { $ } from 'bun'
 import { Glob } from 'bun'
+import type { BuildConfig, BuildMetafile } from 'bun'
+import {
+    collectNotices,
+    formatNotices,
+    type FixedNotice,
+    type NoticesConfig
+} from './third-party-notices'
 
 // The Obsidian plugin id comes from the manifest, NOT from package.json: the
 // package/repo name is usually prefixed (`obsidian-foo`) while Obsidian keys
@@ -126,86 +133,92 @@ const alphaTabAssets: import('bun').BunPlugin = {
     }
 }
 
+/** The Bravura music font (OFL), embedded with alphaTab: the symbols of scores. */
+const BRAVURA: FixedNotice = {
+    name: 'Bravura music font',
+    what: 'the music symbols of scores (Steinberg Media Technologies GmbH). Source: https://github.com/steinbergmedia/bravura',
+    license: 'SIL Open Font License 1.1',
+    files: [`${ALPHATAB_DIST}/font/Bravura-OFL.txt`]
+}
+
+/** The sonivox soundfont (Apache-2.0, full text in licenses/), embedded with alphaTab. */
+const SONIVOX: FixedNotice = {
+    name: 'SONiVOX soundfont (sonivox.sf3)',
+    what: 'the instrument sounds (Sonic Network Inc.), as shipped with alphaTab',
+    license: 'Apache-2.0',
+    files: [`${ALPHATAB_DIST}/soundfont/LICENSE`, 'licenses/Apache-2.0.txt']
+}
+
 /**
  * Third-party software embedded in main.js, with its license (a release ships main.js alone, so
- * the notices travel inside it). alphaTab is used unmodified (MPL-2.0); the Bravura font (OFL)
- * and the sonivox soundfont (Apache-2.0) come with it.
+ * the notices travel inside it). The packages come from the build's metafile (#63): every
+ * node_modules input, transitive ones included, gets its license file, and a package without one
+ * fails the build unless a bundled library's THIRD_PARTY_LICENSES.md names it. The virtual
+ * alphaTab modules say what they embed: alphaTab unmodified (MPL-2.0), the Bravura font (OFL) and
+ * the sonivox soundfont (Apache-2.0).
  */
-export const THIRD_PARTY = [
-    {
-        package: '@coderline/alphatab',
-        name: 'alphaTab',
-        what: 'draws and plays tabs and scores; embedded unmodified. Source: https://github.com/CoderLine/alphaTab',
-        license: 'MPL-2.0',
-        files: ['node_modules/@coderline/alphatab/LICENSE']
+export const NOTICES: NoticesConfig = {
+    virtualInputs: {
+        'alphatab:virtual:alphatab-script': { package: '@coderline/alphatab' },
+        'alphatab:virtual:alphatab-font': { notices: [BRAVURA] },
+        'alphatab:virtual:alphatab-soundfont': { notices: [SONIVOX] }
     },
-    {
-        package: null,
-        name: 'Bravura music font',
-        what: 'the music symbols of scores (Steinberg Media Technologies GmbH). Source: https://github.com/steinbergmedia/bravura',
-        license: 'SIL Open Font License 1.1',
-        files: [`${ALPHATAB_DIST}/font/Bravura-OFL.txt`]
+    descriptions: {
+        '@coderline/alphatab': {
+            title: 'alphaTab',
+            what: 'draws and plays tabs and scores; embedded unmodified. Source: https://github.com/CoderLine/alphaTab'
+        },
+        '@dsebastien/music-notation': {
+            title: 'Music notation',
+            what: 'notation blocks; its license, then those of the libraries it bundles'
+        },
+        'immer': { title: 'Immer', what: 'immutable settings updates' }
     },
-    {
-        package: null,
-        name: 'SONiVOX soundfont (sonivox.sf3)',
-        what: 'the instrument sounds (Sonic Network Inc.), as shipped with alphaTab',
-        license: 'Apache-2.0',
-        files: [`${ALPHATAB_DIST}/soundfont/LICENSE`, 'licenses/Apache-2.0.txt']
+    // Published without a LICENSE file; both say MIT and come from the tonal monorepo
+    // (https://github.com/tonaljs/tonal, by danigb), whose license tonal ships.
+    extraLicenseFiles: {
+        '@tonaljs/progression': ['node_modules/tonal/LICENSE'],
+        '@tonaljs/rhythm-pattern': ['node_modules/tonal/LICENSE']
     },
-    {
-        package: '@dsebastien/music-notation',
-        name: '@dsebastien/music-notation and the libraries it bundles',
-        what: 'notation blocks (MIT)',
-        license: 'MIT',
-        files: ['node_modules/@dsebastien/music-notation/dist/THIRD_PARTY_LICENSES.md']
-    },
-    {
-        package: 'immer',
-        name: 'Immer',
-        what: 'immutable settings updates',
-        license: 'MIT',
-        files: ['node_modules/immer/LICENSE']
-    }
-]
-
-/** Runtime dependencies that don't end up in main.js, with the reason. */
-export const NOT_BUNDLED: Record<string, string> = {
-    zod: 'not imported by the plugin'
+    nodeModules: 'node_modules'
 }
 
-/** The notices as one block comment for the end of main.js (a comment can't hold its end mark). */
-export async function thirdPartyNotices(): Promise<string> {
-    const parts = await Promise.all(
-        THIRD_PARTY.map(async (dep) => {
-            const texts = await Promise.all(dep.files.map((f) => Bun.file(f).text()))
-            return `${dep.name} (${dep.license}): ${dep.what}\n\n${texts.map((t) => t.trim()).join('\n\n')}`
-        })
-    )
-    const body = parts.join(`\n\n${'-'.repeat(72)}\n\n`).replaceAll('*/', '* /')
-    return `\n/*! Third-party notices: Music Practice embeds the following software.\n\n${body}\n*/\n`
+/** The notices of a build as one block comment for the end of main.js. */
+export async function thirdPartyNotices(metafile: BuildMetafile | undefined): Promise<string> {
+    if (!metafile)
+        throw new Error(
+            'Third-party notices: Bun.build returned no metafile, so the bundled packages are unknown. Use a Bun that supports `metafile` (1.3.14 and 1.4.x do).'
+        )
+    return formatNotices(await collectNotices(metafile, NOTICES), 'Music Practice')
 }
 
-async function buildJs(): Promise<void> {
-    console.log(`Building plugin in ${isProd ? 'production' : 'development'} mode...`)
-    const { success, logs } = await Bun.build({
+/** Bun.build options for main.js (the spec builds with the same ones). */
+export async function bundleOptions(prod: boolean, outdir = DIST): Promise<BuildConfig> {
+    return {
         banner: BANNER,
         entrypoints: [`${SRC}/main.ts`],
-        outdir: DIST,
+        outdir,
         external: EXTERNAL_MODULES,
         plugins: [alphaTabAssets],
         format: 'cjs',
         target: 'node',
         define: await readChangelogDefine(),
-        minify: isProd,
-        sourcemap: sourcemapFor(isProd),
-        throw: isProd
-    })
+        minify: prod,
+        sourcemap: sourcemapFor(prod),
+        // The notices are built from the bundle's real inputs.
+        metafile: true,
+        throw: prod
+    }
+}
+
+async function buildJs(): Promise<void> {
+    console.log(`Building plugin in ${isProd ? 'production' : 'development'} mode...`)
+    const { success, logs, metafile } = await Bun.build(await bundleOptions(isProd))
     if (success) {
         // Release builds carry the notices (dev builds end with their inline source map).
         if (isProd) {
             const main = Bun.file(`${DIST}/main.js`)
-            await Bun.write(main, `${await main.text()}${await thirdPartyNotices()}`)
+            await Bun.write(main, `${await main.text()}${await thirdPartyNotices(metafile)}`)
         }
         console.log('JS build succeeded.')
     } else {

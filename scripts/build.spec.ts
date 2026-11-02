@@ -1,10 +1,9 @@
-import { afterEach, describe, expect, test } from 'bun:test'
+import { afterAll, afterEach, describe, expect, test } from 'bun:test'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-    NOT_BUNDLED,
-    THIRD_PARTY,
+    NOTICES,
     ASSETS_SRC,
     BANNER,
     DIST,
@@ -13,8 +12,10 @@ import {
     SRC,
     STYLES_OUT,
     STYLES_SRC,
+    bundleOptions,
     readChangelogDefine,
-    sourcemapFor
+    sourcemapFor,
+    thirdPartyNotices
 } from './build'
 
 describe('build constants', () => {
@@ -126,30 +127,53 @@ describe('sourcemapFor', () => {
 })
 
 describe('third-party notices', () => {
-    test('every runtime dependency has its notice in main.js, or a reason it is not bundled', async () => {
-        const pkg = (await Bun.file('package.json').json()) as {
-            dependencies: Record<string, string>
-        }
-        const noticed = new Set(THIRD_PARTY.map((d) => d.package).filter(Boolean))
-        for (const dep of Object.keys(pkg.dependencies))
-            expect(noticed.has(dep) || dep in NOT_BUNDLED).toBe(true)
+    // The release build, to a temporary folder: the notices come from its metafile.
+    const outdir = join(tmpdir(), `build-spec-bundle-${process.pid}-${Date.now()}`)
+
+    afterAll(async () => {
+        await rm(outdir, { recursive: true, force: true })
     })
 
-    test('a dependency said not to be bundled is not imported', async () => {
-        const glob = new Bun.Glob('src/**/*.ts')
-        for await (const file of glob.scan('.')) {
-            if (file.endsWith('.spec.ts')) continue
-            const text = await Bun.file(file).text()
-            for (const dep of Object.keys(NOT_BUNDLED)) {
-                // from 'zod', 'zod/v4', import('zod'), require('zod')
-                const used = new RegExp(`(from|import\\(|require\\()\\s*['"]${dep}(/|['"])`)
-                expect(used.test(text)).toBe(false)
-            }
-        }
+    test('every package of the real bundle has a license, transitive ones included', async () => {
+        const { success, metafile } = await Bun.build(await bundleOptions(true, outdir))
+        expect(success).toBe(true)
+        expect(metafile).toBeDefined()
+        const notices = await thirdPartyNotices(metafile)
+        // Direct dependencies, the virtual alphaTab modules, and what comes through the library.
+        for (const expected of [
+            'alphaTab (@coderline/alphatab ',
+            'Bravura music font (SIL Open Font License 1.1)',
+            'SONiVOX soundfont (sonivox.sf3) (Apache-2.0)',
+            'Music notation (@dsebastien/music-notation ',
+            'Immer (immer ',
+            'tonal 6.',
+            '@tonaljs/core ',
+            // chords-db voicing data, embedded in the library's dist: named by its notices file.
+            '## @tombatossals/chords-db',
+            'Copyright (c) 2015 danigb'
+        ])
+            expect(notices).toContain(expected)
+        // zod is a dependency the plugin doesn't import: not in the bundle, so no notice.
+        expect(notices).not.toContain('zod')
+    }, 120_000)
+
+    test('a build without a metafile fails instead of shipping without notices', async () => {
+        await expect(thirdPartyNotices(undefined)).rejects.toThrow('no metafile')
     })
 
-    test('every notice file exists', async () => {
-        for (const dep of THIRD_PARTY)
-            for (const f of dep.files) expect(await Bun.file(f).exists()).toBe(true)
+    test('the bundle config builds with a metafile', async () => {
+        expect((await bundleOptions(true)).metafile).toBe(true)
+        expect((await bundleOptions(false)).metafile).toBe(true)
+    })
+
+    test('every declared notice file exists', async () => {
+        const files = [
+            ...Object.values(NOTICES.virtualInputs).flatMap((v) =>
+                (v.notices ?? []).flatMap((n) => n.files)
+            ),
+            ...Object.values(NOTICES.extraLicenseFiles).flat()
+        ]
+        expect(files.length).toBeGreaterThan(0)
+        for (const f of files) expect(await Bun.file(f).exists()).toBe(true)
     })
 })
