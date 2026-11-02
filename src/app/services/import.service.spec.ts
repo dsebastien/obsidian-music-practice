@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'bun:test'
+import type { EditorPosition } from 'obsidian'
 import {
     chordChartOf,
     decodeText,
     fenced,
+    insertBlock,
     isChordPro,
     linkableName,
     tabBlockInsertion,
     TAB_STARTER
 } from './import.service'
+import type { BlockEditor } from './import.service'
 
 describe('fenced', () => {
     it('wraps a block in a fence', () => {
@@ -131,5 +134,63 @@ describe('chord files', () => {
             '```chords\n{title: Song}\n[G]Hello\n```'
         )
         expect(chordChartOf('G     D\nHello world')).toBe('```chords\n[G]Hello [D]world\n```')
+    })
+})
+
+/** A plain-text editor with a cursor (or a selection from `from` to `to`). */
+function fakeEditor(text: string, from: EditorPosition, to = from): BlockEditor & { text: string } {
+    let selection = { from, to }
+    const offset = (lines: string[], pos: EditorPosition) =>
+        lines.slice(0, pos.line).reduce((n, l) => n + l.length + 1, 0) + pos.ch
+    const editor = {
+        text,
+        getValue: () => editor.text,
+        getLine: (line: number) => editor.text.split('\n')[line] ?? '',
+        getCursor: (which?: string) => (which === 'to' ? selection.to : selection.from),
+        setCursor: (pos: EditorPosition | number, ch?: number) => {
+            const at = typeof pos === 'number' ? { line: pos, ch: ch ?? 0 } : pos
+            selection = { from: at, to: at }
+        },
+        replaceRange: (replacement: string, start: EditorPosition, end?: EditorPosition) => {
+            const lines = editor.text.split('\n')
+            const a = offset(lines, start)
+            const b = end ? offset(lines, end) : a
+            editor.text = editor.text.slice(0, a) + replacement + editor.text.slice(b)
+        },
+        replaceSelection: (replacement: string) =>
+            editor.replaceRange(replacement, selection.from, selection.to)
+    }
+    return editor
+}
+
+describe('insertBlock', () => {
+    const note = '# Song\n## Tab\n```tab\n```\n## Chart\n```chords\n```\n'
+    const tab = '```tab\nfile: [[Song.gp]]\n```'
+
+    it('fills the empty block of the same kind the cursor is in, for imports', () => {
+        const editor = fakeEditor(note, { line: 3, ch: 0 })
+        insertBlock(editor, tab, { fill: true })
+        expect(editor.text).toBe(
+            '# Song\n## Tab\n```tab\nfile: [[Song.gp]]\n```\n## Chart\n```chords\n```\n'
+        )
+    })
+
+    it('puts the block after a block of another kind, or without fill', () => {
+        const chart = fakeEditor(note, { line: 6, ch: 0 })
+        insertBlock(chart, tab, { fill: true })
+        expect(chart.text).toBe(
+            `# Song\n## Tab\n\`\`\`tab\n\`\`\`\n## Chart\n\`\`\`chords\n\`\`\`\n${tab}\n\n`
+        )
+        const plain = fakeEditor(note, { line: 2, ch: 2 })
+        insertBlock(plain, tab)
+        expect(plain.text).toBe(
+            `# Song\n## Tab\n\`\`\`tab\n\`\`\`\n${tab}\n\n## Chart\n\`\`\`chords\n\`\`\`\n`
+        )
+    })
+
+    it('puts the block at the cursor elsewhere', () => {
+        const editor = fakeEditor(note, { line: 0, ch: 6 })
+        insertBlock(editor, tab, { fill: true })
+        expect(editor.text.startsWith(`# Song\n${tab}\n\n## Tab`)).toBe(true)
     })
 })

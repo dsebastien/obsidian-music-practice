@@ -3,8 +3,14 @@ import type { App, Editor, TFile } from 'obsidian'
 import { chordSheetToChordPro, readChord } from '@dsebastien/music-notation'
 import { scoreToAlphaTex } from '@dsebastien/music-notation/tab'
 import type { FieldNames } from '../domain/fields'
-import { insertUnderTitle } from '../domain/notation-note'
-import { blockInsertion, blockTarget } from '../domain/block-placement'
+import {
+    blockInsertion,
+    blockLanguage,
+    blockTarget,
+    emptyBlockAt,
+    fillableLanguages,
+    placeInNote
+} from '../domain/block-placement'
 import type { NoteSection } from '../domain/block-placement'
 import { safeTitle } from '../domain/chord'
 import type { AlphaTabRuntime } from './alphatab.service'
@@ -34,19 +40,39 @@ export const TAB_STARTER = '\\title "Title"\n\\tempo 90\n.\n:4 0.6 2.5 2.4 1.3 |
 export const tabBlockInsertion = (before: string, after: string): string =>
     blockInsertion(before, after, fenced('tab', TAB_STARTER))
 
+/** What insertBlock uses of an editor. */
+export type BlockEditor = Pick<
+    Editor,
+    'getCursor' | 'getValue' | 'getLine' | 'setCursor' | 'replaceSelection' | 'replaceRange'
+>
+
 /**
  * Puts a block at the cursor of `editor`, on its own lines; after the properties, the code, math
  * or HTML block the cursor is in, rather than inside them. `sections` is the note's section map
- * (the metadata cache's); the line scan stands in when it's missing or behind the editor.
+ * (the metadata cache's); the line scan stands in when it's missing or behind the editor. With
+ * `fill`, a cursor in an empty block of the same kind (a template's Tab or Chart block) fills it.
  */
 export function insertBlock(
-    editor: Editor,
+    editor: BlockEditor,
     block: string,
-    sections?: readonly NoteSection[] | null
+    options: { sections?: readonly NoteSection[] | null; fill?: boolean } = {}
 ): void {
+    const { sections, fill = false } = options
     const from = editor.getCursor('from')
     const to = editor.getCursor('to')
     const text = editor.getValue()
+    const language = fill ? blockLanguage(block) : null
+    const empty = language
+        ? emptyBlockAt(text, from.line, fillableLanguages(language), sections)
+        : null
+    if (empty && to.line <= empty.end) {
+        editor.replaceRange(
+            block,
+            { line: empty.start, ch: 0 },
+            { line: empty.end, ch: editor.getLine(empty.end).length }
+        )
+        return
+    }
     const end = blockTarget(text, from.line, to.line, sections)
     if (end === -1) {
         editor.setCursor({ line: 0, ch: 0 })
@@ -184,13 +210,17 @@ export class ImportService {
         return {
             file,
             insert: (text) =>
-                insertBlock(editor, text, this.app.metadataCache.getFileCache(file)?.sections)
+                insertBlock(editor, text, {
+                    sections: this.app.metadataCache.getFileCache(file)?.sections,
+                    fill: true
+                })
         }
     }
 
     /**
-     * Puts a block at the cursor, else under the title of `fallback` (a new note, opened by the
-     * caller once the import worked). `block` may need the note (a linked score file); a new note
+     * Puts a block at the cursor (filling the empty block of its kind the cursor is in), else into
+     * `fallback` (a new note, opened by the caller once the import worked): in the first empty
+     * block of its kind (the template's Tab or Chart block), else at the end. `block` may need the note (a linked score file); a new note
      * is trashed when that fails, so a failed import leaves nothing behind.
      */
     async place(
@@ -205,7 +235,7 @@ export class ImportService {
         const file = await fallback()
         try {
             const text = typeof block === 'string' ? block : await block(file)
-            await this.app.vault.process(file, (content) => insertUnderTitle(content, text))
+            await this.app.vault.process(file, (content) => placeInNote(content, text))
         } catch (error) {
             await this.app.fileManager.trashFile(file).catch(() => {})
             throw error

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 import {
+    blockLanguage,
     blockTarget,
+    emptyBlockAt,
+    emptyBlocks,
+    fillableLanguages,
+    placeInNote,
     regionEnd,
     sectionRegionEnd,
     sectionsMatch,
@@ -186,5 +191,98 @@ describe('blockTarget', () => {
         expect(blockTarget(lines.join('\n'), 5, 5, null)).toBe(1)
         const edited = ['# Title', '```tab', ':4 0.6', '```', 'text']
         expect(blockTarget(edited.join('\n'), 2, 2, map)).toBe(3)
+    })
+})
+
+describe('empty blocks', () => {
+    const template = [
+        '---',
+        'tags: []',
+        '---',
+        '# Song',
+        '## Tab',
+        '```tab',
+        '```',
+        '## Chart',
+        '~~~chords',
+        '',
+        '~~~',
+        '## Notes',
+        '```tab',
+        ':4 0.6',
+        '```',
+        '> ```chords',
+        '> ```',
+        '````md',
+        '```score',
+        '```',
+        '````',
+        '```',
+        '```'
+    ]
+
+    it('reads a fenced block language and the kinds it fills', () => {
+        expect(blockLanguage('```tab\nfile: [[a.gp]]\n```')).toBe('tab')
+        expect(blockLanguage('````Chords\n[G]Hi\n````')).toBe('chords')
+        expect(blockLanguage('text')).toBeNull()
+        expect(fillableLanguages('score')).toEqual(['tab', 'score'])
+        expect(fillableLanguages('tab')).toEqual(['tab', 'score'])
+        expect(fillableLanguages('chords')).toEqual(['chords'])
+    })
+
+    it('finds the empty blocks at the margin, not in callouts or other blocks', () => {
+        expect(emptyBlocks(template)).toEqual([
+            { start: 5, end: 6, language: 'tab' },
+            { start: 8, end: 10, language: 'chords' }
+        ])
+    })
+
+    it('finds the empty block a cursor is in, checked against the section map', () => {
+        const lines = ['# Song', '```tab', '```', '', '<div>', '```chords', '```', '</div>']
+        const text = lines.join('\n')
+        expect(emptyBlockAt(text, 2, ['tab', 'score'])).toEqual({
+            start: 1,
+            end: 2,
+            language: 'tab'
+        })
+        expect(emptyBlockAt(text, 2, ['chords'])).toBeNull()
+        expect(emptyBlockAt(text, 0, ['tab', 'score'])).toBeNull()
+        const map = mapOf(lines, [
+            ['heading', 0, 0],
+            ['code', 1, 2],
+            ['html', 4, 7]
+        ])
+        expect(emptyBlockAt(text, 1, ['tab'], map)).toEqual({ start: 1, end: 2, language: 'tab' })
+        // Backticks in HTML aren't a block.
+        expect(emptyBlockAt(text, 5, ['chords'])).not.toBeNull()
+        expect(emptyBlockAt(text, 5, ['chords'], map)).toBeNull()
+    })
+
+    it("fills a new note's first empty block of the same kind", () => {
+        const note = template.join('\n')
+        const tab = '```tab\nstaves: both\nfile: [[Song.gp]]\n```'
+        const filled = placeInNote(note, tab).split('\n')
+        expect(filled.slice(4, 10)).toEqual([
+            '## Tab',
+            '```tab',
+            'staves: both',
+            'file: [[Song.gp]]',
+            '```',
+            '## Chart'
+        ])
+        // A score file fills the Tab block too.
+        expect(placeInNote(note, '```score\n\\title "x"\n```').split('\n')[6]).toBe('\\title "x"')
+        const chart = placeInNote(note, '```chords\n[G]Hello\n```').split('\n')
+        expect(chart.slice(7, 12)).toEqual(['## Chart', '```chords', '[G]Hello', '```', '## Notes'])
+    })
+
+    it('adds the block at the end when there is no empty block of its kind', () => {
+        expect(placeInNote('---\n---\n# Song\n', '```tab\n:4 0.6\n```')).toBe(
+            '---\n---\n# Song\n\n```tab\n:4 0.6\n```\n'
+        )
+        expect(placeInNote('# Song\r\n```tab\r\n```\r\n', '```chords\n[G]Hi\n```')).toBe(
+            '# Song\r\n```tab\r\n```\r\n\r\n```chords\r\n[G]Hi\r\n```\r\n'
+        )
+        expect(placeInNote('', '```tab\nx\n```')).toBe('```tab\nx\n```\n')
     })
 })

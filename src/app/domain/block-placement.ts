@@ -170,3 +170,89 @@ export function blockTarget(
             : (line: number) => regionEnd(lines, line)
     return end(from) ?? end(to)
 }
+
+/** A fenced block's language (the first word of its info string), lowercase; null without one. */
+export const blockLanguage = (block: string): string | null =>
+    /^(?:`{3,}|~{3,})\s*([\w-]+)/.exec(block)?.[1]?.toLowerCase() ?? null
+
+/** The languages a block fills when empty: a tab or score block for scores and tabs, else its own. */
+export const fillableLanguages = (language: string): string[] =>
+    language === 'tab' || language === 'score' ? ['tab', 'score'] : [language]
+
+/** An empty fenced block of a note (fences included), as a template leaves it. */
+export interface EmptyBlock {
+    start: number
+    end: number
+    language: string
+}
+
+/**
+ * The empty fenced blocks of a note, in order: at the margin (not in a list or a callout), with a
+ * language, nothing but blank lines inside, and closed. The properties and the inside of other
+ * fenced blocks are skipped.
+ */
+export function emptyBlocks(lines: string[]): EmptyBlock[] {
+    const found: EmptyBlock[] = []
+    const properties = propertiesEnd(lines)
+    let open: { line: number; fence: string; language: string | null; empty: boolean } | null = null
+    for (let i = properties === null ? 0 : properties + 1; i < lines.length; i++) {
+        const line = lines[i]!
+        if (!open) {
+            const fence = openingFence(line)
+            if (!fence) continue
+            const margin = /^ {0,3}(?:`{3,}|~{3,})\s*([\w-]+)?/.exec(line)
+            open = {
+                line: i,
+                fence,
+                language: margin?.[1]?.toLowerCase() ?? null,
+                empty: margin !== null
+            }
+        } else if (closes(line, open.fence)) {
+            if (open.empty && open.language && /^ {0,3}[`~]/.test(line))
+                found.push({ start: open.line, end: i, language: open.language })
+            open = null
+        } else if (line.trim()) open.empty = false
+    }
+    return found
+}
+
+/**
+ * The empty block of one of `languages` the cursor on `line` is in, when there is one. With a
+ * section map that describes `text`, the block must also be one of its code sections.
+ */
+export function emptyBlockAt(
+    text: string,
+    line: number,
+    languages: readonly string[],
+    sections?: readonly NoteSection[] | null
+): EmptyBlock | null {
+    const block = emptyBlocks(text.split('\n')).find(
+        (b) => b.start <= line && line <= b.end && languages.includes(b.language)
+    )
+    if (!block || !sections || !sectionsMatch(text, sections)) return block ?? null
+    const code = sections.some(
+        (s) =>
+            s.type === 'code' &&
+            s.position.start.line === block.start &&
+            s.position.end.line === block.end
+    )
+    return code ? block : null
+}
+
+/**
+ * A note's content with `block` added: in the first empty block of the same kind (a template's
+ * Tab or Chart block), else at the end, after a blank line.
+ */
+export function placeInNote(content: string, block: string): string {
+    const eol = content.includes('\r\n') ? '\r\n' : '\n'
+    const lines = content.split(/\r?\n/)
+    const language = blockLanguage(block)
+    const languages = language ? fillableLanguages(language) : []
+    const empty = emptyBlocks(lines).find((b) => languages.includes(b.language))
+    if (empty) {
+        lines.splice(empty.start, empty.end - empty.start + 1, ...block.split('\n'))
+        return lines.join(eol)
+    }
+    while (lines.length && !lines[lines.length - 1]!.trim()) lines.pop()
+    return [...lines, ...(lines.length ? [''] : []), ...block.split('\n'), ''].join(eol)
+}

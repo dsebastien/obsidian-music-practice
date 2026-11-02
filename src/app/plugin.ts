@@ -664,7 +664,7 @@ export class MusicPracticePlugin extends Plugin {
                 const sections = ctx.file
                     ? this.app.metadataCache.getFileCache(ctx.file)?.sections
                     : null
-                insertBlock(editor, fenced('tab', TAB_STARTER), sections)
+                insertBlock(editor, fenced('tab', TAB_STARTER), { sections })
             }
         })
         this.addCommand({
