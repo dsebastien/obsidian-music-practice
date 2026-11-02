@@ -368,10 +368,10 @@ describe('NotationBlocks: tabs and scores', () => {
         blocks.sync()
         const children: MarkdownRenderChild[] = []
         const clicks: (() => void)[] = []
-        const draw = (language: string, source: string) => {
+        const draw = (language: string, source: string, sourcePath = 'Song.md') => {
             const { el, made } = fakeEl(clicks)
             const ctx: Pick<Context, 'addChild' | 'sourcePath' | 'getSectionInfo'> = {
-                sourcePath: 'Song.md',
+                sourcePath,
                 addChild: (child) => children.push(child),
                 getSectionInfo: () => null
             }
@@ -411,6 +411,14 @@ describe('NotationBlocks: tabs and scores', () => {
         expect(children).toHaveLength(0)
         clicks[0]!()
         expect(converted).toEqual([text])
+    })
+
+    it('offers no conversion on a canvas card (its text is no note)', () => {
+        const { draw } = setup()
+        const text =
+            'e|-----0---|\nB|---1-----|\nG|-2-------|\nD|---------|\nA|---------|\nE|---------|'
+        expect(draw('tab', text, 'Board.canvas').map((m) => m.tag)).toEqual(['pre', 'code'])
+        expect(draw('tab', text, 'Song.md').map((m) => m.tag)).toEqual(['pre', 'code', 'button'])
     })
 
     it('offers to convert only the text tabs the library reads', () => {

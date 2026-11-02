@@ -376,11 +376,11 @@ export class NotationBlocks {
                     return
                 }
                 // A plain-text tab stays text, as it was before tabs were drawn; one the library
-                // reads can be converted.
+                // reads can be converted, in a note (a canvas card's text isn't one).
                 if (isTextTab(source)) {
                     asCode(el, language, source)
                     const convert = tabs.convert
-                    if (convert && textTabOf(source) !== null)
+                    if (convert && /\.md$/i.test(ctx.sourcePath) && textTabOf(source) !== null)
                         convertButton(el, () =>
                             convert({
                                 el,
