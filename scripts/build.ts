@@ -133,30 +133,46 @@ const alphaTabAssets: import('bun').BunPlugin = {
  */
 export const THIRD_PARTY = [
     {
+        package: '@coderline/alphatab',
         name: 'alphaTab',
         what: 'draws and plays tabs and scores; embedded unmodified. Source: https://github.com/CoderLine/alphaTab',
         license: 'MPL-2.0',
         files: ['node_modules/@coderline/alphatab/LICENSE']
     },
     {
+        package: null,
         name: 'Bravura music font',
         what: 'the music symbols of scores (Steinberg Media Technologies GmbH). Source: https://github.com/steinbergmedia/bravura',
         license: 'SIL Open Font License 1.1',
         files: [`${ALPHATAB_DIST}/font/Bravura-OFL.txt`]
     },
     {
+        package: null,
         name: 'SONiVOX soundfont (sonivox.sf3)',
         what: 'the instrument sounds (Sonic Network Inc.), as shipped with alphaTab',
         license: 'Apache-2.0',
         files: [`${ALPHATAB_DIST}/soundfont/LICENSE`, 'licenses/Apache-2.0.txt']
     },
     {
+        package: '@dsebastien/music-notation',
         name: '@dsebastien/music-notation and the libraries it bundles',
         what: 'notation blocks (MIT)',
         license: 'MIT',
         files: ['node_modules/@dsebastien/music-notation/dist/THIRD_PARTY_LICENSES.md']
+    },
+    {
+        package: 'immer',
+        name: 'Immer',
+        what: 'immutable settings updates',
+        license: 'MIT',
+        files: ['node_modules/immer/LICENSE']
     }
 ]
+
+/** Runtime dependencies that don't end up in main.js, with the reason. */
+export const NOT_BUNDLED: Record<string, string> = {
+    zod: 'not imported by the plugin'
+}
 
 /** The notices as one block comment for the end of main.js (a comment can't hold its end mark). */
 export async function thirdPartyNotices(): Promise<string> {

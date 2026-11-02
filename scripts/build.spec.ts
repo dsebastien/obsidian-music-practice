@@ -3,6 +3,8 @@ import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
+    NOT_BUNDLED,
+    THIRD_PARTY,
     ASSETS_SRC,
     BANNER,
     DIST,
@@ -120,5 +122,31 @@ describe('sourcemapFor', () => {
 
     test('development keeps inline source maps', () => {
         expect(sourcemapFor(false)).toBe('inline')
+    })
+})
+
+describe('third-party notices', () => {
+    test('every runtime dependency has its notice in main.js, or a reason it is not bundled', async () => {
+        const pkg = (await Bun.file('package.json').json()) as {
+            dependencies: Record<string, string>
+        }
+        const noticed = new Set(THIRD_PARTY.map((d) => d.package).filter(Boolean))
+        for (const dep of Object.keys(pkg.dependencies))
+            expect(noticed.has(dep) || dep in NOT_BUNDLED).toBe(true)
+    })
+
+    test('a dependency said not to be bundled is not imported', async () => {
+        const glob = new Bun.Glob('src/**/*.ts')
+        for await (const file of glob.scan('.')) {
+            if (file.endsWith('.spec.ts')) continue
+            const text = await Bun.file(file).text()
+            for (const dep of Object.keys(NOT_BUNDLED))
+                expect(text.includes(`from '${dep}'`)).toBe(false)
+        }
+    })
+
+    test('every notice file exists', async () => {
+        for (const dep of THIRD_PARTY)
+            for (const f of dep.files) expect(await Bun.file(f).exists()).toBe(true)
     })
 })

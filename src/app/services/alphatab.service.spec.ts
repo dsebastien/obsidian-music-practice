@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { AlphaTabRuntime, versionOf } from './alphatab.service'
+import { ALPHATAB_VERSION } from '@dsebastien/music-notation/tab'
+import pkg from '../../../package.json'
 import type { AlphaTabWindow, RuntimeDeps } from './alphatab.service'
 import type { AlphaTabModule } from '@dsebastien/music-notation/tab'
 import type { NoteEvent, NotePlayer } from '@dsebastien/music-notation'
@@ -116,12 +118,40 @@ describe('AlphaTabRuntime', () => {
         expect(message).toContain('alphaTab 1.6.0')
     })
 
-    it('tries a failed load again', async () => {
+    it('embeds the alphaTab release the library is made for', () => {
+        expect(pkg.dependencies['@coderline/alphatab']).toBe(ALPHATAB_VERSION)
+    })
+
+    it("refuses another plugin's alphaTab that doesn't say its release", async () => {
+        const { win } = fakeWindow(undefined)
+        win.alphaTab = moduleOf(null)
+        let message = ''
+        await new AlphaTabRuntime(fakeDeps().deps)
+            .module(win)
+            .catch((e: Error) => (message = e.message))
+        expect(message).toContain('unknown release')
+    })
+
+    it('tries a failed load again, removing the failed script tag', async () => {
         const { win, tags } = fakeWindow(undefined)
         const runtime = new AlphaTabRuntime(fakeDeps().deps)
         await runtime.module(win).catch(() => {})
         await runtime.module(win).catch(() => {})
         expect(tags).toHaveLength(2)
+        expect(tags.every((t) => t.removed)).toBe(true)
+    })
+
+    it('takes the alphaTab of a window freed while loading away again, and never tracks it again', async () => {
+        const { win, tags } = fakeWindow(moduleOf('1.8.4'))
+        const runtime = new AlphaTabRuntime(fakeDeps().deps)
+        const loading = runtime.module(win).catch((e: Error) => e.message)
+        runtime.release(win)
+        expect(await loading).toBe('the window is closed')
+        expect(win.alphaTab).toBeUndefined()
+        expect(tags[0]!.removed).toBe(true)
+        await runtime.module(win).catch(() => {})
+        runtime.player(win).play(events, { sound: 'guitar', volume: 1 })
+        expect(runtime.loadedWindows()).toEqual([])
     })
 
     it('plays through the soundfont, or the light synthesizer when alphaTab is missing', async () => {
@@ -147,6 +177,16 @@ describe('AlphaTabRuntime', () => {
         expect(tags[0]!.removed).toBe(true)
         expect(win.alphaTab).toBeUndefined()
         expect(runtime.loadedWindows()).toEqual([])
+    })
+
+    it('leaves an alphaTab another plugin set after ours in place', async () => {
+        const { win } = fakeWindow(moduleOf('1.8.4'))
+        const runtime = new AlphaTabRuntime(fakeDeps().deps)
+        await runtime.module(win)
+        const theirs = moduleOf('1.8.4')
+        win.alphaTab = theirs
+        runtime.unload()
+        expect(win.alphaTab).toBe(theirs)
     })
 
     it("leaves another plugin's alphaTab in place when it frees a window", async () => {

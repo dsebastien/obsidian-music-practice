@@ -346,4 +346,18 @@ describe('isTextTab', () => {
         expect(isTextTab('e|---0---|\nB|---1---|\nG|---0---|\nD|---2---|')).toBe(true)
         expect(isTextTab('\\title "Song"\n.\n:4 0.6 2.5 | 3.6')).toBe(false)
     })
+
+    it('knows text tabs the converter does not read', () => {
+        const blank = 'e|--------|\nB|--------|\nG|--------|\nD|--------|\nA|--------|\nE|--------|'
+        expect(isTextTab(blank)).toBe(true)
+        expect(isTextTab('e|---0---| let ring\nB|---1---|\nG|---0---|')).toBe(true)
+        expect(isTextTab('HH|x-x-x-x-x-x-x-x-|\nSD|----o-------o---|\nBD|o-------o-------|')).toBe(
+            true
+        )
+    })
+
+    it('reads alphaTex with a text tab in a comment as alphaTex', () => {
+        const tex = '/*\ne|---0---|\nB|---1---|\nG|---0---|\nD|---2---|\n*/\n:4 0.6 2.5 | 3.6'
+        expect(isTextTab(tex)).toBe(false)
+    })
 })

@@ -92,8 +92,12 @@ export class AddNoteModal extends Modal {
         ) => void,
         /** The chord's triads on string sets, to pick one from (#55). */
         private readonly triads?: (symbol: string, pick: (pick: TriadPick) => void) => void,
-        /** The name of the note with this title, when one exists (a triad's root position). */
-        private readonly existingNote?: (type: LearningType, title: string) => string | null
+        /** The name of a triad's root-position note on a string set, when one exists. */
+        private readonly triadRootNote?: (
+            type: LearningType,
+            chordName: string,
+            set: StringSet
+        ) => string | null
     ) {
         super(app)
         this.type = types[0]!
@@ -211,7 +215,7 @@ export class AddNoteModal extends Modal {
         )
         if (!title) return null
         const block = this.block()
-        const prerequisite = chord ? this.triadPrerequisite(chord, shape) : null
+        const prerequisite = chord ? this.triadPrerequisite(chord) : null
         const properties = {
             ...scale,
             ...(prerequisite ? { [this.fields.prerequisites]: [`[[${prerequisite}]]`] } : {})
@@ -231,12 +235,11 @@ export class AddNoteModal extends Modal {
      * A picked triad's inversion learns after its root position on the same strings: that note,
      * when it exists, becomes the prerequisite (as the Triads command does).
      */
-    private triadPrerequisite(chord: ParsedChord, shape: string): string | null {
+    private triadPrerequisite(chord: ParsedChord): string | null {
         const pick = this.triadPick
         if (!pick || pick.inversion === 0 || this.voicingIndex !== PICKED) return null
         if (!this.type.fields.has(this.fields.prerequisites)) return null
-        const root = safeTitle(`${chordTitle(chord, shape || 'Triad')} ${triadDetail(pick.set, 0)}`)
-        return root ? (this.existingNote?.(this.type, root) ?? null) : null
+        return this.triadRootNote?.(this.type, chord.name, pick.set) ?? null
     }
 
     override onOpen(): void {

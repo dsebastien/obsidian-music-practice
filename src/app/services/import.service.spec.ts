@@ -4,6 +4,8 @@ import {
     decodeText,
     fenced,
     isChordPro,
+    linkableName,
+    regionEnd,
     tabBlockInsertion,
     TAB_STARTER
 } from './import.service'
@@ -32,6 +34,47 @@ describe('tabBlockInsertion', () => {
         expect(tabBlockInsertion('', ' then the verse')).toBe(`${block}\n\n`)
         expect(tabBlockInsertion('a', 'b')).toBe(`\n${block}\n\n`)
     })
+
+    it('starts the fence at the margin after indentation', () => {
+        expect(tabBlockInsertion('    ', '')).toBe(`\n${block}\n`)
+    })
+})
+
+describe('regionEnd', () => {
+    const note = [
+        '---',
+        'tags: []',
+        '---',
+        '# Title',
+        '```chords',
+        '[G]Hi',
+        '```',
+        'text',
+        '~~~',
+        'x'
+    ]
+
+    it('moves a cursor out of the properties and code blocks', () => {
+        expect(regionEnd(note, 0)).toBe(2)
+        expect(regionEnd(note, 1)).toBe(2)
+        expect(regionEnd(note, 5)).toBe(6)
+        expect(regionEnd(note, 6)).toBe(6)
+    })
+
+    it('leaves a cursor in the text where it is', () => {
+        expect(regionEnd(note, 3)).toBeNull()
+        expect(regionEnd(note, 7)).toBeNull()
+    })
+
+    it('runs an unclosed fence to the end of the note', () => {
+        expect(regionEnd(note, 9)).toBe(9)
+    })
+
+    it('closes a fence only with the same character, at least as long', () => {
+        const lines = ['````md', '```tab', '```', '````', 'after']
+        expect(regionEnd(lines, 2)).toBe(3)
+        expect(regionEnd(lines, 4)).toBeNull()
+    })
 })
 
 describe('decodeText', () => {
@@ -47,6 +90,13 @@ describe('decodeText', () => {
         expect(decodeText(bytes)).toBe('Cé')
     })
 
+    it('reads UTF-16 without a BOM', () => {
+        const le = new Uint8Array([...'[G]Hello'].flatMap((c) => [c.charCodeAt(0), 0]))
+        expect(decodeText(le)).toBe('[G]Hello')
+        const be = new Uint8Array([...'[G]Hello'].flatMap((c) => [0, c.charCodeAt(0)]))
+        expect(decodeText(be)).toBe('[G]Hello')
+    })
+
     it('falls back to Windows-1252 for older files', () => {
         expect(decodeText(new Uint8Array([0x43, 0x61, 0x66, 0xe9, 0x20, 0x80]))).toBe('Café €')
     })
@@ -57,6 +107,16 @@ describe('chord files', () => {
         expect(isChordPro('{title: Song}\nHello')).toBe(true)
         expect(isChordPro('[G]Hello [D]world')).toBe(true)
         expect(isChordPro('G       D\nHello world')).toBe(false)
+    })
+
+    it('reads section labels in brackets as a chord sheet', () => {
+        const sheet = '[Verse 1]\nG       D\nHello world\n[Chorus]\nC\nYeah'
+        expect(isChordPro(sheet)).toBe(false)
+        expect(chordChartOf(sheet)).toContain('{comment: Verse 1}\n[G]Hello wo[D]rld')
+    })
+
+    it('makes file names safe for wikilinks', () => {
+        expect(linkableName('Riff #1 | live [take 2].gp')).toBe('Riff 1 live take 2 .gp')
     })
 
     it('keeps ChordPro as it is and converts chords over lyrics', () => {

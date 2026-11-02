@@ -37,11 +37,26 @@ export interface TabHost {
     decorate?: (result: TabResult, sourcePath: string) => void
 }
 
+/** alphaTex comments: a tab written in one (for reference) doesn't make the block a text tab. */
+const COMMENTS = /\/\*[\s\S]*?\*\/|\/\/[^\n]*/g
+
+/** A text tab line: a short string or drum name, a bar line, then mostly dashes. */
+const isStaffLine = (line: string): boolean => {
+    if (!/^\s*[A-Za-z#]{0,3}\s*[|:]/.test(line)) return false
+    const dashes = line.match(/-/g)?.length ?? 0
+    return dashes >= 4 && dashes * 3 >= line.replace(/\s/g, '').length
+}
+
 /**
- * Whether a tab block holds a plain-text tab (`e|---0---|` lines) rather than alphaTex: notes
- * written before the plugin drew tabs used ```tab for monospace text.
+ * Whether a tab or score block holds a plain-text tab (`e|---0---|` lines) rather than alphaTex:
+ * notes written before the plugin drew tabs used ```tab for monospace text. A tab the library
+ * converts, or two staff lines or more (blank staves, drum tabs, a few strings, text after them).
  */
-export const isTextTab = (source: string): boolean => textTabToAlphaTex(source) !== null
+export const isTextTab = (source: string): boolean => {
+    const text = source.replace(COMMENTS, '')
+    if (textTabToAlphaTex(text) !== null) return true
+    return text.split('\n').filter(isStaffLine).length >= 2
+}
 
 /** A block shown as Obsidian shows code (a language turned off, a plain-text tab). */
 const asCode = (el: HTMLElement, language: string, source: string) =>
@@ -123,6 +138,8 @@ class TabChild extends MarkdownRenderChild {
         this.gone = true
         this.result?.destroy()
         this.result = null
+        this.loading?.remove()
+        this.loading = null
     }
 }
 

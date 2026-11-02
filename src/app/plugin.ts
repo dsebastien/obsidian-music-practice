@@ -34,7 +34,7 @@ import type { TimerState } from './domain/timer'
 import { NotationBlocks } from './services/notation.service'
 import type { BlockLanguage } from './services/notation.service'
 import { AlphaTabRuntime } from './services/alphatab.service'
-import { ImportService, fenced, tabBlockInsertion } from './services/import.service'
+import { ImportService, TAB_STARTER, fenced, insertBlock } from './services/import.service'
 import type { PreparedScore } from './services/import.service'
 import { PasteImportModal, ScoreImportModeModal } from './ui/import-modals'
 import { chordSheetToChordPro, textTabToAlphaTex } from '@dsebastien/music-notation/tab'
@@ -60,6 +60,7 @@ import type { HeldChord } from './ui/transitions-modal'
 import { progressionOf } from './domain/progression'
 import type { TriadPick } from './ui/triads-modal'
 import { triadTitle } from './domain/triads'
+import type { StringSet } from './domain/triads'
 import { fretsOfProperty } from './domain/voicings'
 import type { DrillPair } from './domain/drill'
 import {
@@ -389,9 +390,9 @@ export class MusicPracticePlugin extends Plugin {
         this.alphaTab?.unload()
     }
 
-    /** The diagrams' playback options (#31): the soundfont of this window, or the light synth. */
+    /** The diagrams' playback options (#31): the soundfont of the diagram's window, or the light synth. */
     playOptions(): PlayOptions | false {
-        return playOptions(this.settings.playback, () => this.alphaTab.player(activeWindow))
+        return playOptions(this.settings.playback, (win) => this.alphaTab.player(win))
     }
 
     /** A score's export menu in its player bar (#20): Guitar Pro 7, MIDI, print. */
@@ -497,6 +498,17 @@ export class MusicPracticePlugin extends Plugin {
      * set and inversion, after the root position when that note exists) or to pick for Add a
      * learning note.
      */
+    /** A triad note's title (the Triads command and Add a learning note agree on it). */
+    private triadNoteTitle(
+        type: LearningType,
+        chordName: string,
+        set: StringSet,
+        inversion: number
+    ): string {
+        const shape = this.voicingNotes.shapeNamed(type, 'Triad')
+        return safeTitle(triadTitle(chordName, shape ?? 'Triad', set, inversion))
+    }
+
     openTriads(target: { symbol?: string; pick?: (pick: TriadPick) => void }): void {
         const type = this.guitarChordType()
         const holds = type !== null && this.voicingNotes.holdsVoicings(type)
@@ -512,9 +524,7 @@ export class MusicPracticePlugin extends Plugin {
                           if (!chord) return
                           const shape = this.voicingNotes.shapeNamed(type, 'Triad')
                           const title = (inversion: number) =>
-                              safeTitle(
-                                  triadTitle(chord.name, shape ?? 'Triad', pick.set, inversion)
-                              )
+                              this.triadNoteTitle(type, chord.name, pick.set, inversion)
                           const prerequisite =
                               pick.triad.inversion > 0
                                   ? this.voicingNotes.existingName(type, title(0))
@@ -623,7 +633,11 @@ export class MusicPracticePlugin extends Plugin {
                     () => layoutDefaults(this.settings.notationLayout),
                     (symbol, pick) => this.openVoicings({ symbol, pick }),
                     (symbol, pick) => this.openTriads({ symbol, pick }),
-                    (type, title) => this.voicingNotes.existingName(type, title)
+                    (type, chordName, set) =>
+                        this.voicingNotes.existingName(
+                            type,
+                            this.triadNoteTitle(type, chordName, set, 0)
+                        )
                 ).open()
             }
         })
@@ -647,14 +661,7 @@ export class MusicPracticePlugin extends Plugin {
             id: 'insert-tab-block',
             name: 'Insert a tab block',
             editorCallback: (editor) => {
-                const from = editor.getCursor('from')
-                const to = editor.getCursor('to')
-                editor.replaceSelection(
-                    tabBlockInsertion(
-                        editor.getLine(from.line).slice(0, from.ch),
-                        editor.getLine(to.line).slice(to.ch)
-                    )
-                )
+                insertBlock(editor, fenced('tab', TAB_STARTER))
             }
         })
         this.addCommand({
@@ -1066,12 +1073,19 @@ export class MusicPracticePlugin extends Plugin {
         if (!file) return
         const title = file.name.replace(/\.[^.]+$/, '')
         if (this.imports.isChordPro(file)) {
-            await this.imports
-                .chordProBlock(file)
-                .then((block) => this.placeImported(block, title, file.name))
-                .catch((error: unknown) => {
-                    log(`Import of ${file.name} failed`, 'warn', error)
-                })
+            let block: string
+            try {
+                block = await this.imports.chordProBlock(file)
+            } catch (error: unknown) {
+                new Notice(
+                    `Couldn't import ${file.name}: ${error instanceof Error ? error.message : String(error)}`
+                )
+                return
+            }
+            // placeImported says what went wrong.
+            await this.placeImported(block, title, file.name).catch((error: unknown) => {
+                log(`Import of ${file.name} failed`, 'warn', error)
+            })
             return
         }
         let score: PreparedScore
@@ -1096,7 +1110,9 @@ export class MusicPracticePlugin extends Plugin {
                 )
                 return
             }
-            this.placeImported(block, title, file.name).catch((error: unknown) => {
+            this.placeImported(block, title, file.name).catch(async (error: unknown) => {
+                // The copied file goes too: a failed import leaves nothing behind.
+                if (score.copy) await this.app.fileManager.trashFile(score.copy).catch(() => {})
                 log(`Import of ${file.name} failed`, 'warn', error)
             })
         }).open()

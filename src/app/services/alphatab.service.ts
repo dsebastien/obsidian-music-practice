@@ -24,6 +24,8 @@ interface WindowState {
     module?: Promise<AlphaTabModule>
     /** The script tag this plugin added (absent when alphaTab was already there). */
     tag?: HTMLScriptElement
+    /** The alphaTab our script set as `window.alphaTab` (only that one is removed again). */
+    ours?: AlphaTabModule
     url?: string
     player?: NotePlayer
     soundfont?: SoundfontPlayer
@@ -57,42 +59,69 @@ export class AlphaTabRuntime {
 
     constructor(private readonly deps: RuntimeDeps = DEFAULT_DEPS) {}
 
+    /** Windows freed (closed popouts, or all of them once the plugin unloaded). */
+    private readonly released = new WeakSet<AlphaTabWindow>()
+    private unloaded = false
+
+    private isReleased(win: AlphaTabWindow): boolean {
+        return this.unloaded || this.released.has(win)
+    }
+
     private state(win: AlphaTabWindow): WindowState {
         let state = this.windows.get(win)
         if (!state) {
             state = {}
-            this.windows.set(win, state)
+            // A freed window is never tracked again (that would keep a closed popout alive).
+            if (!this.isReleased(win)) this.windows.set(win, state)
         }
         return state
     }
 
     /**
-     * alphaTab in this window, loaded once. Another plugin's alphaTab of another release is left
-     * alone (both can't share the window's `alphaTab`): tabs then say so instead of breaking.
+     * alphaTab in this window, loaded once. Another plugin's alphaTab is used only when it's the
+     * same release (both can't share the window's `alphaTab`): tabs then say so instead of
+     * breaking.
      */
     module(win: AlphaTabWindow): Promise<AlphaTabModule> {
+        if (this.isReleased(win)) return Promise.reject(new Error('the window is closed'))
         const state = this.state(win)
         if (state.module) return state.module
         const loading = new Promise<AlphaTabModule>((resolve, reject) => {
-            const check = (module: AlphaTabModule) => {
-                const version = versionOf(module)
-                if (version && version !== ALPHATAB_VERSION)
+            if (win.alphaTab) {
+                const version = versionOf(win.alphaTab)
+                if (version === ALPHATAB_VERSION) resolve(win.alphaTab)
+                else
                     reject(
                         new Error(
-                            `another plugin loaded alphaTab ${version}; Music Practice needs ${ALPHATAB_VERSION}`
+                            `another plugin loaded alphaTab ${version ?? 'of an unknown release'}; Music Practice needs ${ALPHATAB_VERSION}`
                         )
                     )
-                else resolve(module)
-            }
-            if (win.alphaTab) {
-                check(win.alphaTab)
                 return
             }
             const tag = win.document.head.createEl('script')
             state.tag = tag
-            tag.onload = () =>
-                win.alphaTab ? check(win.alphaTab) : reject(new Error('alphaTab did not load'))
-            tag.onerror = () => reject(new Error('alphaTab did not load'))
+            const failed = (message: string) => {
+                tag.remove()
+                if (state.tag === tag) delete state.tag
+                reject(new Error(message))
+            }
+            tag.onload = () => {
+                const loaded = win.alphaTab
+                if (!loaded) {
+                    failed('alphaTab did not load')
+                    return
+                }
+                // Freed while loading: the script still ran; take its alphaTab away again.
+                if (this.isReleased(win) || this.windows.get(win) !== state) {
+                    delete win.alphaTab
+                    failed('the window is closed')
+                    return
+                }
+                // Our own script: the release this plugin embeds, no check needed.
+                state.ours = loaded
+                resolve(loaded)
+            }
+            tag.onerror = () => failed('alphaTab did not load')
             tag.src = this.scriptUrl(win)
         })
         state.module = loading
@@ -126,9 +155,11 @@ export class AlphaTabRuntime {
      * or the soundfont can't load.
      */
     player(win: AlphaTabWindow): NotePlayer {
+        const fallback = () => this.deps.fallback(win)
+        if (this.isReleased(win)) return fallback()
         const state = this.state(win)
         if (state.player) return state.player
-        const fallback = this.deps.fallback(win)
+        const light = fallback()
         const player: NotePlayer = {
             play: (events, options) => {
                 let handle: { stop(): void } | null = null
@@ -140,12 +171,12 @@ export class AlphaTabRuntime {
                             alphaTab,
                             this.assets(win),
                             win.document,
-                            fallback
+                            light
                         )
                         handle = state.soundfont.play(events, options)
                     })
                     .catch(() => {
-                        if (!stopped) handle = fallback.play(events, options)
+                        if (!stopped) handle = light.play(events, options)
                     })
                 return {
                     stop() {
@@ -161,20 +192,27 @@ export class AlphaTabRuntime {
 
     /** Frees what this window holds: the hidden player, the blob URL, the alphaTab it loaded. */
     release(win: AlphaTabWindow): void {
+        this.released.add(win)
         const state = this.windows.get(win)
         if (!state) return
         this.windows.delete(win)
-        try {
-            state.soundfont?.destroy()
-        } catch {
-            // The window is already gone.
+        // The window may be closing already: each step on its own.
+        const attempt = (step: () => void) => {
+            try {
+                step()
+            } catch {
+                // Already gone with the window.
+            }
         }
-        if (state.url) webOf(win).URL.revokeObjectURL(state.url)
-        if (state.tag) {
-            state.tag.remove()
-            // Only the alphaTab this plugin loaded, so a new version of the plugin loads its own.
-            if (win.alphaTab) delete win.alphaTab
-        }
+        attempt(() => state.soundfont?.destroy())
+        if (state.url) attempt(() => webOf(win).URL.revokeObjectURL(state.url!))
+        if (state.tag) attempt(() => state.tag!.remove())
+        // Only the alphaTab our script set, so another plugin's stays and a new version of this
+        // plugin loads its own.
+        if (state.ours)
+            attempt(() => {
+                if (win.alphaTab === state.ours) delete win.alphaTab
+            })
     }
 
     /** The windows it loaded into (for tests and checks). */
@@ -185,5 +223,6 @@ export class AlphaTabRuntime {
     /** The plugin unloads: every window is freed. */
     unload(): void {
         for (const win of [...this.windows.keys()]) this.release(win)
+        this.unloaded = true
     }
 }
