@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.11.0](https://github.com/dsebastien/obsidian-music-practice/compare/0.10.0...0.11.0) (2026-11-03)
+
+Two new kinds of learning notes (arpeggios and strumming patterns), the key and the hardest chord changes of a piece, a metronome that counts in, and shortcuts that start practice from outside Obsidian. From music-notation 0.10.0.
+
+- **Arpeggio notes**: learn a chord's arpeggio one CAGED shape at a time. In **Add a learning note**, type the chord and pick its shape. The note gets an empty fretboard block (a keyboard block on piano) that draws the arpeggio from its chord and shape. You need a note type for it first: a learning type tagged `type/music/<instrument>/arpeggio`, with `chord_symbol`, `chord_root`, `chord_quality` and, on guitar, `shape` (C, A, G, E or D). The Obsidian Starter Kit doesn't ship one yet. Arpeggio notes draw in Obsidian only, not yet on Obsidian Publish (#56).
+- **Strumming pattern notes**: type the pattern (`D DU UDU`), the time signature and the feel. The note's empty strum block plays the pattern at your current BPM, with its time signature and feel ("straight", "swing" or "60%"). You need a note type for it first: a learning type with `strum_pattern`, `time_signature` and `strum_feel` (and `chord_symbol` if you want one). The Obsidian Starter Kit doesn't ship one yet. Strumming pattern notes draw in Obsidian only, not yet on Obsidian Publish (#58).
+- **Chord notes draw their arpeggio**: a guitar chord note's empty fretboard block now draws the chord's arpeggio.
+- **Find the key and scales of this piece**: the key or mode of a song, from its chord charts and the chord notes it links, the scales that fit, and the best one on a fretboard or keyboard. One click fills the piece's `key` (#67).
+- **Suggest chord change drills from this piece**: the song's chord changes, hardest first (how much your hand moves), then the most played. Each one is a click from a chord change drill (#74).
+- **Count-in and beat flash**: the metronome counts in a bar (or up to 4, or none) before the music starts, and the chord change drill counts 3, 2, 1. Turn on **Flash** to see each beat, beat one in another color (#77).
+- **The piece's time signature**: a piece with `time_signature: 3/4` opens the metronome in 3/4, and 6/8 as 2 beats of triplets (#77).
+- **Shortcuts from outside Obsidian**: `obsidian://music-practice?do=start-timer` (or `stop-timer`, `log`, `plan`, `practice-next`, with `minutes=` for log and plan) works from a phone shortcut, a Stream Deck or an NFC tag. Only starting the timer happens without a window; the other actions open the window you'd use anyway (#47).
+- **One diagram per shape in voicing lists**: `voicings:` now draws one diagram per shape: the easiest ones, in a row up the neck. Before, it drew every voicing, easiest first. A shape with its highest strings muted is the same shape, so it's left out. A `voicings:` block you already wrote can draw other diagrams, in another order. A now gets its D shape `x-x-7-9-10-9` and its C shape.
+- **First voicings you can strum**: the first voicing of a chord in the database is now one you can strum. A grip with a muted string inside the shape comes after the others: Bdim starts with x2343x, not x20x01. The exception is the jazz grips that mute the A string under a root on the low E. 37 chords changed their first voicing, so a `chord` block with only a symbol, or a ChordPro chart's `{diagrams}` row, can draw another shape than before. **Add a learning note** offers that first voicing too, for a new guitar chord note.
+- **Jazz grips in voicing lists**: the Hendrix grip (C7#9 x3234x), m7b5 (F#m7b5 2x221x) and dim7 (Gdim7 3x232x) from the low E, and the 13 (G13 3x345x), now show up without `gaps: yes`. They mute strings inside the shape, and that's how players use them. C7#9, F#m7b5, Gdim7 and Bm7b5 start with them.
+- **Shell means three notes**: a diagram is titled "Shell" only when it has three notes: the root lowest, then the third and the seventh or sixth (x3x45x). Cmaj7 x3250x is no longer called a shell, so a title in a note you already wrote can change.
+- **Barres from frets alone**: frets written without fingers now show a full barre (F `133211`). Before, only `fingers` made a barre. A small barre (`xx3211`) still shows none. A chord diagram you already wrote without fingers can now draw a barre.
+- **Single positions get a title**: one position on a fretboard gets the same kind of title as the diagrams of `positions: all`. `shape: E` on G major is "G major, E shape", and `position: 2` on A minor pentatonic is "A minor pentatonic, box 2". Before, it had no title.
+- **More tunings**: `tuning:` takes `Drop C`, `Drop B`, `Drop A`, `Double Drop D`, `Open C`, `Open A`, `Whole step down` and `Modal C6` (also `C6`).
+- **Text tabs land in the right bars**: in the text tabs drawn as tablature in your notes, and in **Edit as alphaTex**, a line with no bar lines is split into bars of the meter. A 3-bar line was one bar of 13 sixteenths; it is now `4 4 8 8 4 | 8 8 8 8 4 4 | 2 2` (alphaTex durations). In a Nothing Else Matters arrangement, a 21-column bar is now two full 6/8 bars. When a bar would overflow, a hammer-on, pull-off or slide pair shares one eighth: Nothing Else Matters `7-----7p0----` in 6/8 is now `8 8 8 16 16 8 8`. And bars of the same width put the same columns on the same beats: `-----0---3---6-5-` was `r8 4 4 8 4`, and it is now `r4 4 4 8 8`.
+
 ## [0.10.0](https://github.com/dsebastien/obsidian-music-practice/compare/0.9.0...0.10.0) (2026-11-03)
 
 Practice time lives in the session note, text tabs draw as tablature, and diagrams sound and look more like the real instrument. From music-notation 0.9.0.
@@ -193,6 +214,7 @@ The first release of Music Practice: learn an instrument in your notes.
 - A public API lets scripts and AI assistants log and plan practice with the same rules.
 
 Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
+
 
 
 
