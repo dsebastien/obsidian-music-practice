@@ -32,6 +32,7 @@ Add a chord from its symbol:
 
 - **Log practice**: record the minutes (or use the timer), the items you worked on, a quality rating, BPM and review results, and an optional note. One session note per practice, no duplicates. **Undo the last log**, from the notice or a command.
 - **Practice timer** in the status bar, with pause. It comes back after a restart.
+- **Discard a forgotten timer**: throw away a timer you forgot to stop, without logging it. It asks first and says how long the timer ran.
 - **Practice plan**: "I have 30 minutes" gives a warm-up, a focus block, due reviews and something fun.
 - **Practice next**: everything ranked by priority, staleness, BPM gap and what it unlocks.
 - **Practice panel**: the timer, your session list from a plan, BPM nudges, the metronome, Log this session.
