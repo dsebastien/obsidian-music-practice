@@ -171,6 +171,9 @@ export class AlphaTabRuntime {
         if (state.player) return state.player
         const light = fallback()
         const player: NotePlayer = {
+            // The soundfont player says when its notes really start (after the soundfont loads),
+            // so lit notes wait for the sound (#41).
+            reportsStart: true,
             play: (events, options) => {
                 let handle: { stop(): void } | null = null
                 let stopped = false
