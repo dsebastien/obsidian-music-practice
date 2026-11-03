@@ -86,7 +86,8 @@ export function createDefaultSettings(): PluginSettings {
             score: true,
             strum: true,
             progression: true,
-            circle: true
+            circle: true,
+            picking: true
         },
         playback: createDefaultPlayback(),
         notationLayout: {

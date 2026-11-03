@@ -1,10 +1,11 @@
 /**
  * Blocks Music Practice draws from a learning note's properties when the notation library doesn't
- * (#56, #58): an empty ```fretboard (or ```keyboard) block in an arpeggio note draws its chord's
- * arpeggio, and an empty ```strum block in a strumming pattern note draws its pattern. Pure: no
- * Obsidian imports.
+ * (#56, #58, #71): an empty ```fretboard (or ```keyboard) block in an arpeggio note draws its
+ * chord's arpeggio, an empty ```strum block in a strumming pattern note draws its pattern, and an
+ * empty ```picking block in a fingerpicking pattern note draws its pattern. Pure: no Obsidian
+ * imports.
  */
-import { readChord } from '@dsebastien/music-notation'
+import { PICKING_PATTERNS, namedPicking, readChord } from '@dsebastien/music-notation'
 import type { FieldNames } from './fields'
 
 type Properties = Record<string, unknown>
@@ -12,7 +13,13 @@ type Properties = Record<string, unknown>
 /** The fields these blocks read. */
 export type PracticeBlockFields = Pick<
     FieldNames,
-    'chordSymbol' | 'shape' | 'bpmCurrent' | 'strumPattern' | 'timeSignature' | 'strumFeel'
+    | 'chordSymbol'
+    | 'shape'
+    | 'bpmCurrent'
+    | 'strumPattern'
+    | 'timeSignature'
+    | 'strumFeel'
+    | 'pickingPattern'
 >
 
 /** A property as one line of text: a string, a number, or a list's first value. */
@@ -70,6 +77,21 @@ export function swingOf(feel: unknown): string | null {
     return percent ? `${percent[1]}%` : null
 }
 
+/** A pattern property as lines: a list is one bar a line, a text keeps its own lines. */
+function linesOf(raw: unknown): string[] {
+    return (Array.isArray(raw) ? raw : [raw])
+        .map((line) => textOf(line))
+        .flatMap((line) => line.split(/\r?\n/))
+        .map((line) => line.trim())
+        .filter(Boolean)
+}
+
+/** The tempo line for a current BPM: a whole number from 20 to 240, else none. */
+function tempoLine(properties: Properties, fields: PracticeBlockFields): string[] {
+    const bpm = Number(textOf(properties[fields.bpmCurrent]))
+    return Number.isInteger(bpm) && bpm >= 20 && bpm <= 240 ? [`tempo: ${bpm}`] : []
+}
+
 /** A time signature the strum block reads: "6/8", "3/4", "C", "cut". */
 const TIME = /^(\d{1,2}\/\d{1,2}|c|cut)$/i
 
@@ -79,29 +101,65 @@ const TIME = /^(\d{1,2}\/\d{1,2}|c|cut)$/i
  * Null without a pattern.
  */
 export function strumSource(properties: Properties, fields: PracticeBlockFields): string | null {
-    const raw = properties[fields.strumPattern]
-    const lines = (Array.isArray(raw) ? raw : [raw])
-        .map((line) => textOf(line))
-        .flatMap((line) => line.split(/\r?\n/))
-        .map((line) => line.trim())
-        .filter(Boolean)
+    const lines = linesOf(properties[fields.strumPattern])
     if (!lines.length) return null
     const time = textOf(properties[fields.timeSignature])
     const swing = swingOf(properties[fields.strumFeel])
     const chord = chordOf(properties, fields)
-    const bpm = Number(textOf(properties[fields.bpmCurrent]))
     return [
         ...lines,
         ...(TIME.test(time) ? [`time: ${time}`] : []),
         ...(swing ? [`swing: ${swing}`] : []),
         ...(chord ? [`chord: ${chord}`] : []),
-        ...(Number.isInteger(bpm) && bpm >= 20 && bpm <= 240 ? [`tempo: ${bpm}`] : [])
+        ...tempoLine(properties, fields)
     ].join('\n')
 }
 
 /**
+ * A fingerpicking pattern note's ```picking block (#71), as the library draws it on Publish: a
+ * named pattern (`pattern: travis`) or the pattern's lines (PIMA letters or string numbers, one
+ * bar a line), then its time signature, chord and current BPM as the block's tempo (20 to 240).
+ * Null without a pattern.
+ */
+export function pickingSource(properties: Properties, fields: PracticeBlockFields): string | null {
+    const lines = linesOf(properties[fields.pickingPattern])
+    if (!lines.length) return null
+    const time = textOf(properties[fields.timeSignature])
+    const chord = chordOf(properties, fields)
+    const named = lines.length === 1 && namedPicking(lines[0]!) !== null
+    return [
+        ...(named ? [`pattern: ${lines[0]!}`] : lines),
+        ...(TIME.test(time) ? [`time: ${time}`] : []),
+        ...(chord ? [`chord: ${chord}`] : []),
+        ...tempoLine(properties, fields)
+    ].join('\n')
+}
+
+/** The library's named picking patterns, for a pattern field's suggestions (#71). */
+export const PICKING_NAMES: readonly string[] = Object.values(PICKING_PATTERNS).map((p) => p.name)
+
+/**
+ * A fingerpicking pattern note's properties from what was typed in Add a learning note (#71): the
+ * pattern, time signature and chord (as the library spells it, "A Minor" → "Am"), for the fields
+ * the type defines; empty values and chords the library doesn't read are left out.
+ */
+export function typedPickingProperties(
+    typed: { pattern: string; time: string; chord: string },
+    fields: Pick<FieldNames, 'pickingPattern' | 'timeSignature' | 'chordSymbol'>,
+    has: (name: string) => boolean
+): Record<string, string> {
+    const chord = typed.chord.trim() ? (readChord(typed.chord.trim())?.symbol ?? '') : ''
+    const values: [string, string][] = [
+        [fields.pickingPattern, typed.pattern.trim()],
+        [fields.timeSignature, typed.time.trim()],
+        [fields.chordSymbol, chord]
+    ]
+    return Object.fromEntries(values.filter(([name, value]) => value && has(name)))
+}
+
+/**
  * What an empty block of a learning note draws when Music Practice makes its source: a strum
- * pattern, or an arpeggio. Null leaves the block to the library (chords and scales).
+ * or picking pattern, or an arpeggio. Null leaves the block to the library (chords and scales).
  */
 export function practiceBlockSource(
     language: string,
@@ -111,5 +169,6 @@ export function practiceBlockSource(
     instrument: 'guitar' | 'piano' | null
 ): string | null {
     if (language === 'strum') return strumSource(properties, fields)
+    if (language === 'picking') return pickingSource(properties, fields)
     return arpeggioSource(language, properties, fields, kind, instrument)
 }

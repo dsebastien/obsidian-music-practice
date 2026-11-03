@@ -3,9 +3,12 @@ import { createDefaultFieldNames } from './fields'
 import {
     arpeggioSource,
     cagedShape,
+    PICKING_NAMES,
+    pickingSource,
     practiceBlockSource,
     strumSource,
-    swingOf
+    swingOf,
+    typedPickingProperties
 } from './practice-blocks'
 
 const fields = createDefaultFieldNames()
@@ -137,5 +140,85 @@ describe('strumSource (#58)', () => {
         const props = { strum_pattern: 'DDUUDU' }
         expect(practiceBlockSource('strum', props, fields, 'exercise', 'guitar')).toBe('DDUUDU')
         expect(practiceBlockSource('strum', {}, fields, 'exercise', 'guitar')).toBeNull()
+    })
+})
+
+describe('pickingSource (#71)', () => {
+    it("draws a picking pattern note's pattern with its time signature, chord and tempo", () => {
+        const props = {
+            picking_pattern: "p i m a p' i m a",
+            time_signature: '4/4',
+            chord_symbol: 'C',
+            bpm_current: 70
+        }
+        expect(pickingSource(props, fields)).toBe(
+            "p i m a p' i m a\ntime: 4/4\nchord: C\ntempo: 70"
+        )
+    })
+
+    it('writes a named pattern as pattern:, one bar per line otherwise', () => {
+        expect(pickingSource({ picking_pattern: 'Travis', chord_symbol: 'G' }, fields)).toBe(
+            'pattern: Travis\nchord: G'
+        )
+        expect(pickingSource({ picking_pattern: ['p i m i', "p' i m i"] }, fields)).toBe(
+            "p i m i\np' i m i"
+        )
+    })
+
+    it('leaves out values the block would not read', () => {
+        const props = {
+            picking_pattern: 'p i m a',
+            time_signature: 'four four',
+            chord_symbol: 'not a chord',
+            bpm_current: 400
+        }
+        expect(pickingSource(props, fields)).toBe('p i m a')
+    })
+
+    it('draws nothing without a pattern', () => {
+        expect(pickingSource({ time_signature: '4/4' }, fields)).toBeNull()
+        expect(pickingSource({ picking_pattern: '  ' }, fields)).toBeNull()
+    })
+
+    it('is the source of an empty picking block, whatever the kind', () => {
+        const props = { picking_pattern: 'alternate bass' }
+        expect(practiceBlockSource('picking', props, fields, 'picking', 'guitar')).toBe(
+            'pattern: alternate bass'
+        )
+        expect(practiceBlockSource('picking', {}, fields, 'picking', 'guitar')).toBeNull()
+    })
+
+    it('uses the configured property name', () => {
+        const names = { ...fields, pickingPattern: 'fingerpicking' }
+        expect(pickingSource({ fingerpicking: 'p i m a' }, names)).toBe('p i m a')
+    })
+})
+
+describe('typedPickingProperties (#71)', () => {
+    const all = () => true
+    it('keeps what was typed, with the chord as the library spells it', () => {
+        expect(
+            typedPickingProperties(
+                { pattern: ' travis ', time: '4/4', chord: 'A Minor' },
+                fields,
+                all
+            )
+        ).toEqual({ picking_pattern: 'travis', time_signature: '4/4', chord_symbol: 'Am' })
+    })
+
+    it('leaves out empty values, chords that do not read and fields the type lacks', () => {
+        const has = (name: string) => name !== 'time_signature'
+        expect(
+            typedPickingProperties({ pattern: 'p i m a', time: '3/4', chord: 'Hm' }, fields, has)
+        ).toEqual({ picking_pattern: 'p i m a' })
+        expect(typedPickingProperties({ pattern: '', time: '', chord: '' }, fields, all)).toEqual(
+            {}
+        )
+    })
+})
+
+describe('PICKING_NAMES', () => {
+    it("lists the library's named patterns", () => {
+        expect(PICKING_NAMES).toEqual(['Travis', 'Alternate bass', '1-2-3-4'])
     })
 })

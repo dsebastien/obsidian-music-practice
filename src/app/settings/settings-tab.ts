@@ -146,6 +146,11 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         'Down and up strums on a beat grid, with accents and chord changes, playable.'
                     ),
                     this.notationToggle(
+                        'picking',
+                        'Picking patterns',
+                        'Fingerpicking (PIMA letters or string numbers, Travis, alternate bass) as a small tab, played in time over a chord or a progression.'
+                    ),
+                    this.notationToggle(
                         'progression',
                         'Progressions',
                         'Roman numerals or Nashville numbers in any key, with their chords.'
@@ -477,7 +482,7 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             this.text(
                                 'fields.timeSignature',
                                 'Time signature',
-                                'Pieces and strumming patterns: "3/4", "6/8"… The metronome counts it when it practices the note.'
+                                'Pieces, strumming and picking patterns: "3/4", "6/8"… The metronome counts it when it practices the note.'
                             ),
                             this.text(
                                 'fields.shape',
@@ -531,6 +536,11 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                                 'fields.strumFeel',
                                 'Feel',
                                 'Strumming patterns: "straight", "swing" or a swing ratio ("60%").'
+                            ),
+                            this.text(
+                                'fields.pickingPattern',
+                                'Picking pattern',
+                                'Fingerpicking patterns: a name ("travis", "alternate bass", "1-2-3-4") or "p i m a".'
                             ),
                             this.text('fields.lastReviewed', 'Last reviewed', ''),
                             this.text('fields.reviewInterval', 'Review interval', ''),

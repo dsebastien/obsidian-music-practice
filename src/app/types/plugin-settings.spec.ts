@@ -51,7 +51,8 @@ describe('settingsFrom: notation and new property names', () => {
             score: true,
             strum: true,
             progression: true,
-            circle: true
+            circle: true,
+            picking: true
         })
         expect(settingsFrom({ notation: 'off' }).notation.chord).toBe(true)
         expect(settingsFrom({ notation: { chord: 'no' } }).notation.chord).toBe(true)
