@@ -59,6 +59,7 @@ import { TriadsModal } from './ui/triads-modal'
 import { ProgressionModal, TransitionModal } from './ui/transitions-modal'
 import type { HeldChord } from './ui/transitions-modal'
 import { progressionOf } from './domain/progression'
+import { practiceBlockSource } from './domain/practice-blocks'
 import type { TriadPick } from './ui/triads-modal'
 import { triadTitle } from './domain/triads'
 import type { StringSet } from './domain/triads'
@@ -212,6 +213,27 @@ export class MusicPracticePlugin extends Plugin {
         }
     }
 
+    /**
+     * The source of an empty block that Music Practice makes from a learning note's properties:
+     * an arpeggio (#56). Null for other notes and blocks (the library draws chords and scales).
+     */
+    private practiceBlock(path: string, language: string): string | null {
+        const file = this.app.vault.getFileByPath(path)
+        const frontmatter = file ? this.app.metadataCache.getFileCache(file)?.frontmatter : null
+        if (!frontmatter) return null
+        const type = learningTypeOf(this.noteModel.get().learningTypes, frontmatter)
+        if (!type) return null
+        const instrument =
+            type.subject === 'piano' || type.subject === 'guitar' ? type.subject : null
+        return practiceBlockSource(
+            language,
+            frontmatter,
+            this.effective().fields,
+            type.kind,
+            instrument
+        )
+    }
+
     /** Whether Music Practice draws a notation block language (for the settings tab). */
     notationStatus(language: BlockLanguage): NotationStatus {
         return this.notation.status(language)
@@ -330,7 +352,8 @@ export class MusicPracticePlugin extends Plugin {
                 decorate: (result, sourcePath) => this.decorateScore(result, sourcePath),
                 convert: (request) => void this.textTabs.convertBlock(request),
                 keepView: (request, staves) => void this.textTabs.keepView(request, staves)
-            }
+            },
+            (path, language) => this.practiceBlock(path, language)
         )
         // Empty blocks in chord and scale notes draw from the note's properties: redraw them when
         // the properties change.

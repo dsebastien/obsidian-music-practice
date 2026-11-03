@@ -24,6 +24,7 @@ import type {
 import { lookupGuitarVoicing, voicingCount } from '@dsebastien/music-notation/voicings'
 import { blockSource, chordBlock, formatFrets, voicingRow } from '../domain/notation-note'
 import { hasBarre, shapeValue } from '../domain/voicings'
+import { arpeggioSource } from '../domain/practice-blocks'
 import { triadDetail } from '../domain/triads'
 import type { StringSet } from '../domain/triads'
 import type { TriadPick } from './triads-modal'
@@ -105,10 +106,16 @@ export class AddNoteModal extends Modal {
 
     /** The instrument whose notation a chord or scale note of this type gets; null for others. */
     private instrument(): 'guitar' | 'piano' | null {
-        if (this.type.kind !== 'chord' && this.type.kind !== 'scale') return null
+        if (this.type.kind !== 'chord' && this.type.kind !== 'scale' && !this.arpeggio())
+            return null
         return this.type.subject === 'guitar' || this.type.subject === 'piano'
             ? this.type.subject
             : null
+    }
+
+    /** Whether this is an arpeggio type: a chord's notes, learned one shape at a time (#56). */
+    private arpeggio(): boolean {
+        return this.type.kind === 'arpeggio' && this.type.fields.has(this.fields.chordSymbol)
     }
 
     /** The block language a note of this type gets; null when it gets none. */
@@ -128,7 +135,7 @@ export class AddNoteModal extends Modal {
 
     /** The chord typed: a symbol ("Am7"), words ("A Minor 7"), or recognized from frets. */
     private chord(): ParsedChord | null {
-        if (this.type.kind !== 'chord') return null
+        if (this.type.kind !== 'chord' && !this.arpeggio()) return null
         const frets = this.typedFrets()
         if (frets) {
             const detected = detectChordFromFrets(frets)
@@ -148,7 +155,10 @@ export class AddNoteModal extends Modal {
         if (frets) return { frets, fingers: fingerVoicing(frets) ?? frets.map(() => null) }
         if (this.voicingIndex === PICKED && this.picked) return this.picked
         const symbol = this.symbol()
-        return symbol && this.instrument() === 'guitar' && this.voicingIndex >= 0
+        return symbol &&
+            this.type.kind === 'chord' &&
+            this.instrument() === 'guitar' &&
+            this.voicingIndex >= 0
             ? lookupGuitarVoicing(symbol, this.voicingIndex)
             : null
     }
@@ -181,6 +191,24 @@ export class AddNoteModal extends Modal {
         return probe.ok ? block : null
     }
 
+    /** An arpeggio note's block for the preview, as the note will draw it; only one that draws. */
+    private arpeggioPreview(): string | null {
+        const language = this.language()
+        const symbol = this.symbol()
+        if (!this.arpeggio() || !language || !symbol) return null
+        const source = arpeggioSource(
+            language,
+            { [this.fields.chordSymbol]: symbol, [this.fields.shape]: this.shape },
+            this.fields,
+            'arpeggio',
+            this.instrument()
+        )
+        if (!source) return null
+        const probe = renderBlock(language, source, createDiv())
+        probe.destroy()
+        return probe.ok ? source : null
+    }
+
     /**
      * The empty block the note gets (it draws from the properties): only one that would draw, and
      * only a language Music Practice draws.
@@ -189,6 +217,7 @@ export class AddNoteModal extends Modal {
         const language = this.language()
         if (!language || !this.blocksOn(language)) return null
         if (language === 'chord') return this.preview() ? language : null
+        if (this.arpeggio()) return this.arpeggioPreview() ? language : null
         return this.scaleProperties() ? language : null
     }
 
@@ -271,6 +300,7 @@ export class AddNoteModal extends Modal {
         if (!el) return
         el.empty()
         const isChord = this.type.kind === 'chord'
+        const isArpeggio = this.arpeggio()
         const isScale = this.scaleFields()
         const guitarChord = isChord && this.instrument() === 'guitar'
         // Scales: a root and a scale or mode, from the type's values when it lists them.
@@ -319,12 +349,14 @@ export class AddNoteModal extends Modal {
                       ? 'Chord (F#m7, A Major) or frets (x02220)'
                       : isChord
                         ? 'Chord (F#m7, A Major)'
-                        : 'Name'
+                        : isArpeggio
+                          ? 'Chord of the arpeggio (Am7, A Minor 7)'
+                          : 'Name'
               })
         const input = (nameField ?? createDiv()).createEl('input', {
             type: 'text',
             attr: {
-                placeholder: isChord ? 'Am7' : "Knockin on Heaven's Door - Simplified"
+                placeholder: isChord || isArpeggio ? 'Am7' : "Knockin on Heaven's Door - Simplified"
             }
         })
         input.value = this.text
@@ -375,7 +407,7 @@ export class AddNoteModal extends Modal {
         // Guitar chords: pick one of the library's voicings; the note gets its frets, fingers and
         // a diagram. Piano chords get a keyboard diagram from the symbol.
         const voicingField =
-            this.instrument() === 'guitar'
+            isChord && this.instrument() === 'guitar'
                 ? el.createEl('label', { cls: 'mp-field', text: 'Voicing' })
                 : null
         const voicingSelect = voicingField?.createEl('select', { cls: 'dropdown' }) ?? null
@@ -539,6 +571,7 @@ export class AddNoteModal extends Modal {
             const symbol = this.symbol()
             if (
                 symbol &&
+                isChord &&
                 this.instrument() === 'guitar' &&
                 this.blocksOn('chord') &&
                 !this.typedFrets() &&
@@ -563,6 +596,12 @@ export class AddNoteModal extends Modal {
                 )
                 return
             }
+            // Arpeggios: drawn as the note will draw them (the chord's notes in its shape).
+            const arpeggio = this.arpeggioPreview()
+            if (arpeggio && language && this.blocksOn(language)) {
+                this.diagrams.push(renderBlock(language, arpeggio, diagramEl, options()))
+                return
+            }
             const block = this.blocksOn('chord') ? this.preview() : null
             if (!block) return
             this.diagrams.push(renderBlock('chord', blockSource(block), diagramEl, options()))
@@ -573,7 +612,7 @@ export class AddNoteModal extends Modal {
             preview.setText(
                 spec
                     ? `Note: ${spec.title}${spec.chordSymbol ? ` (alias ${spec.chordSymbol})` : ''}`
-                    : isChord
+                    : isChord || isArpeggio
                       ? this.typedFrets()
                           ? 'These frets make no chord the library knows: type the chord instead.'
                           : 'Type a chord: its name is spelled out, the symbol becomes an alias.'
