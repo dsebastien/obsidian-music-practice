@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.10.0](https://github.com/dsebastien/obsidian-music-practice/compare/0.9.0...0.10.0) (2026-11-03)
+
+Practice time lives in the session note, text tabs draw as tablature, and diagrams sound and look more like the real instrument. From music-notation 0.9.0.
+
+- **The session note carries the practice time**: a practice log no longer writes a time entry on the activity (Learn Guitar, Learn Piano…), and it never adds minutes to it. The session note links to the activity and holds the minutes. The activity's minutes and last session date are worked out again from its time entries and the session notes linked to it, so the same practice never counts twice. When the log takes over a running Kanban Action Planner timer, it removes the timer's own entry from the activity, because the session holds that time. Undo puts it back. If Obsidian hasn't indexed the new session's link yet, the log says so and writes nothing on the activity.
+- **Text tabs draw as tablature**: a plain-text tab the library can read now draws as tablature, with a player. This includes the text tabs already in your notes. It opens in the tab view, unless a `staves:` line says otherwise. Its bar has **Text** (the block as you wrote it), a note that the rhythm is guessed from the tab, and **Edit as alphaTex**. Edit as alphaTex is the former Convert to a playable tab, and its command is renamed too. Text tabs the library can't read, and blank staves, stay as text (#84).
+- **More blocks that can change in your notes**: a strum pattern that doesn't fit its bars now shows a message instead of drawing. A keyboard `chord:` now lights and plays one voicing. With `functions: yes`, some labels change: Gm7 C7 F in C reads ii7/IV V7/IV IV, a diminished chord that goes down a half step reads "passing", and VII in a minor key is a dominant. A ChordPro `{transpose}` without `{key}` now moves every chord the same way.
+- **Tabs that drew nothing now draw**: every part of a tab or score block now draws right away. Before, a block opened while the Obsidian window wasn't on screen stayed empty (#82).
+- **Tab, Score or Both**: the tab player bar switches between tablature, notation and both without stopping playback. **Keep this view** writes the `staves:` line at the top of the block (#83).
+- **Chords that sound like a guitar or a piano**: guitar chords strum at 12 ms a string, and piano chords sound together. A Strum setting left at the old default (40 ms) now reads as the new one. Notes fade out instead of stopping dead, and each note has its own loudness.
+- **6/8, 9/8 and 12/8 count the beat you tap**: in these times, `tempo:` counts the dotted quarter you tap your foot to. Before, it counted 8ths, so a `tempo:` already in your notes now plays three times as fast. Music Practice's tempo keeps its speed in that beat.
+- **Swing in strumming patterns**: `swing: yes` (or `swing: 60%`) plays a shuffle feel.
+- **The play command runs a scale from its tonic**, as the diagram's own play bar does.
+- **Piano**: `fingering: auto` fingers every major and minor scale, and seventh chords. Voice-led progressions work with both hands, and a bass line written with slash chords keeps its steps. Rootless voicings follow the key. Each hand gets one bracket (LH, RH), and inverted chords are titled with their slash name (C/E). Keyboard scales without a range now go from tonic to tonic, and `arpeggio:` works on keyboards.
+- **Progressions and the circle of fifths**: `functions: yes` names neapolitan, passing and tonicizing chords, and the ii of a secondary dominant. Figured bass (`V65`) is read as an inversion. A minor key's circle now marks the harmonic V, and `dominant: minor` marks v instead.
+- **Guitar diagrams**: voicings are checked, with the shapes teachers use first. Barres and muted strings are clearer, shapes are named "C shape" to "D shape", and every dot is easy to click. A chord note type made before this release keeps its shape values (E-shape barre, CAGED C…): the new names map to them.
+
 ## [0.9.0](https://github.com/dsebastien/obsidian-music-practice/compare/0.8.2...0.9.0) (2026-11-03)
 
 Strumming patterns, progressions and the circle of fifths, notes that light up as they play, and capo, arpeggios and piano voicings. From music-notation 0.8.0.
@@ -176,6 +193,7 @@ The first release of Music Practice: learn an instrument in your notes.
 - A public API lets scripts and AI assistants log and plan practice with the same rules.
 
 Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
+
 
 
 
