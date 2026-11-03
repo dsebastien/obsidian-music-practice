@@ -72,9 +72,23 @@ export const isTextTab = (source: string): boolean => {
     return source.replace(COMMENTS, '').split('\n').filter(isStaffLine).length >= 2
 }
 
-/** The alphaTex of a block holding a plain-text tab the library reads (comments left out); else null. */
-export const textTabOf = (source: string): string | null =>
-    textTabToAlphaTex(source.replace(COMMENTS, ''))
+/** Staff lines with no note on them: a blank stave, a template to fill in by hand. */
+const isBlankStaff = (source: string): boolean => {
+    const staves = source.split('\n').filter(isStaffLine)
+    return (
+        staves.length > 0 &&
+        staves.every((line) => !/[^\s|:-]/.test(line.replace(/^\s*[A-Za-z0-9#-]{0,8}\s*[|:]/, '')))
+    )
+}
+
+/**
+ * The alphaTex of a block holding a plain-text tab the library reads (comments left out); else
+ * null. Blank staves stay text: the library reads them as empty bars, but they are templates.
+ */
+export const textTabOf = (source: string): string | null => {
+    const text = source.replace(COMMENTS, '')
+    return isBlankStaff(text) ? null : textTabToAlphaTex(text)
+}
 
 /** A block shown as Obsidian shows code (a language turned off, a plain-text tab). */
 const asCode = (el: HTMLElement, language: string, source: string) =>
