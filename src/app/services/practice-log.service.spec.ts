@@ -3,6 +3,7 @@ import type { App, TFile } from 'obsidian'
 import { createDefaultFieldNames } from '../domain/fields'
 import type { FileChanges } from '../domain/undo'
 import { revert } from '../domain/undo'
+import type { LogRequest } from '../domain/log'
 import { PracticeLogService } from './practice-log.service'
 import type { ActivityResult, LogContext } from './practice-log.service'
 
@@ -109,20 +110,29 @@ describe('practice log: the activity time', () => {
 function lateWriteVault(lateWriteAt: number) {
     let now = 0
     const due: { at: number; run: () => void }[] = []
+    /** Runs what is due up to `ms` from now, in time order, then sets the clock there. */
+    const advance = (ms: number) => {
+        const until = now + ms
+        for (;;) {
+            due.sort((a, b) => a.at - b.at)
+            const next = due[0]
+            if (!next || next.at > until) break
+            due.shift()
+            now = next.at
+            next.run()
+        }
+        now = until
+    }
+    // Short waits (undo's polling) pass at once; long ones (the watch) wait for the spec to move
+    // time forward, as real timers do.
     const clock = {
         now: () => now,
         sleep: (ms: number) => {
-            const until = now + ms
-            for (;;) {
-                due.sort((a, b) => a.at - b.at)
-                const next = due[0]
-                if (!next || next.at > until) break
-                due.shift()
-                now = next.at
-                next.run()
+            if (ms <= 1_000) {
+                advance(ms)
+                return Promise.resolve()
             }
-            now = until
-            return Promise.resolve()
+            return new Promise<void>((resolve) => due.push({ at: now + ms, run: resolve }))
         }
     }
     const content = '---\ntime_spent: 2\n---\n\nPracticed G.'
@@ -143,6 +153,12 @@ function lateWriteVault(lateWriteAt: number) {
     files.set(SESSION, { content, ctime: 0, mtime: 0 })
     let trashed = 0
     let trashedAt = -1
+    let frontmatterWrites = 0
+    /** The next log creates its session note at the same path, with the same body. */
+    const nextLogCreates = () => {
+        files.set(SESSION, { content, ctime: now, mtime: now })
+        for (const l of listeners) l(tfile(SESSION))
+    }
     due.push({
         at: lateWriteAt,
         run: () => {
@@ -152,11 +168,7 @@ function lateWriteVault(lateWriteAt: number) {
                 ctime: existed?.ctime ?? lateWriteAt,
                 mtime: lateWriteAt
             })
-            if (!existed) {
-                // The session counts again: a recompute stamps the activity as the log did.
-                fm[ACTIVITY]!['date_last_session'] = '2026-11-03'
-                for (const l of listeners) l(tfile(SESSION))
-            }
+            if (!existed) for (const l of listeners) l(tfile(SESSION))
         }
     })
     const app = fake<App>({
@@ -172,6 +184,7 @@ function lateWriteVault(lateWriteAt: number) {
         metadataCache: { getFileCache: (f: TFile) => ({ frontmatter: fm[f.path] }) },
         fileManager: {
             processFrontMatter: (f: TFile, fn: (x: Record<string, unknown>) => void) => {
+                frontmatterWrites++
                 fn(fm[f.path]!)
                 return Promise.resolve()
             },
@@ -208,7 +221,8 @@ function lateWriteVault(lateWriteAt: number) {
         adoptedTimer: false
     }
     const settle = async () => {
-        await clock.sleep(10_000)
+        for (let i = 0; i < 10; i++) await Promise.resolve()
+        advance(10_000)
         for (let i = 0; i < 10; i++) await Promise.resolve()
     }
     return {
@@ -219,6 +233,9 @@ function lateWriteVault(lateWriteAt: number) {
         settle,
         trashed: () => trashed,
         trashedAt: () => trashedAt,
+        frontmatterWrites: () => frontmatterWrites,
+        nextLogCreates,
+        advance,
         clock
     }
 }
@@ -237,6 +254,42 @@ describe('practice log: undo right after a log', () => {
         const v = lateWriteVault(3_500)
         const result = await v.service.undo(v.record)
         expect(result.ok).toBe(true)
+        const writes = v.frontmatterWrites()
+        await v.settle()
+        expect(v.files.has(SESSION)).toBe(false)
+        expect(v.trashed()).toBe(2)
+        // The watch only trashes the note: the practiced notes were put back before undo returned.
+        expect(v.frontmatterWrites()).toBe(writes)
+        expect(v.fm[ACTIVITY]).toEqual({ time_spent: 20 })
+    })
+
+    it("a log right after an undo ends that undo's watch: its new session note stays", async () => {
+        const v = lateWriteVault(60_000)
+        expect((await v.service.undo(v.record)).ok).toBe(true)
+        // The next log: an invalid request is refused, but it still ends the watch first.
+        await v.service
+            .log(fake<LogRequest>({ date: 'not a date', minutes: 0, items: [] }))
+            .catch(() => {})
+        v.nextLogCreates()
+        for (let i = 0; i < 10; i++) await Promise.resolve()
+        expect(v.files.has(SESSION)).toBe(true)
+        expect(v.trashed()).toBe(1)
+    })
+
+    it('two log and undo cycles within the watch: each undo trashes only its own note', async () => {
+        const v = lateWriteVault(60_000)
+        expect((await v.service.undo(v.record)).ok).toBe(true)
+        await v.service
+            .log(fake<LogRequest>({ date: 'not a date', minutes: 0, items: [] }))
+            .catch(() => {})
+        v.nextLogCreates()
+        for (let i = 0; i < 10; i++) await Promise.resolve()
+        expect(v.files.has(SESSION)).toBe(true)
+        // The second undo: its own note, created just now.
+        v.advance(4_000)
+        const second = { ...v.record, sessionCtime: v.files.get(SESSION)!.ctime }
+        v.fm[ACTIVITY]!['date_last_session'] = '2026-11-03'
+        expect((await v.service.undo(second)).ok).toBe(true)
         await v.settle()
         expect(v.files.has(SESSION)).toBe(false)
         expect(v.trashed()).toBe(2)
@@ -245,7 +298,7 @@ describe('practice log: undo right after a log', () => {
 
     it('does not wait for a session note created long ago', async () => {
         const v = lateWriteVault(1_000)
-        await v.clock.sleep(60_000)
+        v.advance(60_000)
         const before = v.clock.now()
         expect((await v.service.undo(v.record)).ok).toBe(true)
         expect(v.trashedAt() - before).toBeLessThan(100)

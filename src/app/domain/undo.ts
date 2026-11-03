@@ -100,11 +100,6 @@ export function conflicts(fm: Record<string, unknown>, changes: KeyChange[]): st
     return changes.filter((c) => !asLogged(fm, c) && !asBefore(fm, c)).map((c) => c.key)
 }
 
-/** The keys that are still as the log left them. */
-export function loggedKeys(fm: Record<string, unknown>, changes: KeyChange[]): string[] {
-    return changes.filter((c) => asLogged(fm, c)).map((c) => c.key)
-}
-
 /** Puts the keys back as they were before the log. */
 export function revert(fm: Record<string, unknown>, changes: KeyChange[]): void {
     for (const c of changes) {
