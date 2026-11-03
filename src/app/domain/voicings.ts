@@ -49,14 +49,47 @@ export function voicingOptions(filter: VoicingFilter): VoicingOptions {
 }
 
 /**
- * The note type's value for a shape the library names ("Open", "E-shape barre"), matched without
- * regard to case; the library's name when the type takes any text; null when the type has no such
- * value.
+ * Older names of the library's shapes, which note types made before music-notation 0.9 list
+ * ("E-shape barre", "CAGED A"): a type keeps working with the new names.
  */
-export function shapeValue(shape: VoicingShape | null, allowed: readonly string[]): string | null {
+const SHAPE_ALIASES: Partial<Record<VoicingShape, readonly string[]>> = {
+    'E shape': ['E-shape barre', 'CAGED E'],
+    'A shape': ['A-shape barre', 'CAGED A'],
+    'C shape': ['CAGED C'],
+    'G shape': ['CAGED G'],
+    'D shape': ['CAGED D']
+}
+
+/** A barre: one finger on two strings or more. */
+export const hasBarre = (fingers: readonly (string | number | null)[] | undefined): boolean => {
+    const used = (fingers ?? [])
+        .map((f) => (f === null ? '' : String(f)))
+        .filter((f) => f !== '' && f !== '0')
+    return used.some((f, i) => used.indexOf(f) !== i)
+}
+
+/**
+ * The note type's value for a shape the library names ("Open", "E shape"), matched without regard
+ * to case, then by its older names ("E-shape barre"); the library's name when the type takes any
+ * text; null when the type has no such value.
+ */
+export function shapeValue(
+    shape: VoicingShape | null,
+    allowed: readonly string[],
+    /** Whether the voicing holds a barre: "E-shape barre" for a full E shape, "CAGED E" for a partial one. */
+    barre?: boolean
+): string | null {
     if (!shape) return null
     if (!allowed.length) return shape
-    return allowed.find((v) => v.trim().toLowerCase() === shape.toLowerCase()) ?? null
+    const aliases = [...(SHAPE_ALIASES[shape] ?? [])]
+    // Without a barre, the CAGED name comes before the barre chord's.
+    if (barre === false)
+        aliases.sort((a, b) => Number(a.includes('barre')) - Number(b.includes('barre')))
+    for (const name of [shape, ...aliases]) {
+        const value = allowed.find((v) => v.trim().toLowerCase() === name.toLowerCase())
+        if (value) return value
+    }
+    return null
 }
 
 /** Same frets, string by string. */

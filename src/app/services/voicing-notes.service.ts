@@ -9,6 +9,7 @@ import {
     fretsOfProperty,
     sameFrets,
     shapeText,
+    hasBarre,
     shapeValue,
     voicingConflict,
     voicingNoteTitle
@@ -45,7 +46,7 @@ export class VoicingNotesService {
     shapeFor(type: LearningType, voicing: GeneratedVoicing): string | null {
         const name = this.fields().shape
         if (!type.fields.has(name)) return null
-        return shapeValue(voicing.shape, type.allowedValues[name] ?? [])
+        return shapeValue(voicing.shape, type.allowedValues[name] ?? [], hasBarre(voicing.fingers))
     }
 
     /** The type's value for a shape name the library uses ("Triad"); null when it has none. */

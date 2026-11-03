@@ -72,7 +72,7 @@ function setup(notes: Record<string, Record<string, unknown>>) {
 
 const a = generateVoicings('A')
 const open = a.find((v) => v.shape === 'Open')!
-const eShape = a.find((v) => v.shape === 'E-shape barre')!
+const eShape = a.find((v) => v.shape === 'E shape')!
 
 describe('VoicingNotesService', () => {
     it('refuses another shape for a note, whatever its shape property says', () => {

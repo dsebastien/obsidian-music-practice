@@ -23,7 +23,7 @@ import type {
 } from '@dsebastien/music-notation'
 import { lookupGuitarVoicing, voicingCount } from '@dsebastien/music-notation/voicings'
 import { blockSource, chordBlock, formatFrets, voicingRow } from '../domain/notation-note'
-import { shapeValue } from '../domain/voicings'
+import { hasBarre, shapeValue } from '../domain/voicings'
 import { triadDetail } from '../domain/triads'
 import type { StringSet } from '../domain/triads'
 import type { TriadPick } from './triads-modal'
@@ -396,7 +396,11 @@ export class AddNoteModal extends Modal {
                 const name = this.fields.shape
                 if (this.type.fields.has(name))
                     this.setShape(
-                        shapeValue(voicing.shape, this.type.allowedValues[name] ?? []) ?? '',
+                        shapeValue(
+                            voicing.shape,
+                            this.type.allowedValues[name] ?? [],
+                            hasBarre(voicing.fingers)
+                        ) ?? '',
                         true
                     )
                 this.render()

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { generateVoicings } from '@dsebastien/music-notation'
 import {
     DEFAULT_VOICING_FILTER,
+    hasBarre,
     fretsOfProperty,
     sameFrets,
     shapeText,
@@ -38,9 +39,23 @@ describe('voicingOptions', () => {
 
 describe('shapeValue', () => {
     it("matches the note type's own values, whatever the case", () => {
-        expect(shapeValue('E-shape barre', ['Open', 'E-shape barre'])).toBe('E-shape barre')
+        expect(shapeValue('E shape', ['Open', 'E shape'])).toBe('E shape')
         expect(shapeValue('Open', ['open', 'barre'])).toBe('open')
-        expect(shapeValue('CAGED C', ['Open'])).toBeNull()
+        expect(shapeValue('C shape', ['Open'])).toBeNull()
+    })
+
+    it('matches the older names a note type may list (before music-notation 0.9)', () => {
+        const types = ['Open', 'E-shape barre', 'A-shape barre', 'CAGED C', 'CAGED G', 'CAGED D']
+        expect(shapeValue('E shape', types)).toBe('E-shape barre')
+        expect(shapeValue('A shape', types)).toBe('A-shape barre')
+        expect(shapeValue('C shape', types)).toBe('CAGED C')
+        expect(shapeValue('D shape', ['caged d'])).toBe('caged d')
+        // A partial E shape (no barre) is CAGED E; a full one, the barre chord.
+        expect(shapeValue('E shape', types, false)).toBe('E-shape barre') // no CAGED E listed
+        expect(shapeValue('E shape', [...types, 'CAGED E'], false)).toBe('CAGED E')
+        expect(shapeValue('E shape', [...types, 'CAGED E'], true)).toBe('E-shape barre')
+        expect(hasBarre([1, 3, 4, 2, 1, 1])).toBe(true)
+        expect(hasBarre([null, 3, 4, 2, null, null])).toBe(false)
         expect(shapeValue(null, ['Open'])).toBeNull()
     })
 
@@ -92,7 +107,7 @@ describe('helpers', () => {
 describe('voicingConflict', () => {
     const a = generateVoicings('A')
     const open = a.find((v) => v.shape === 'Open')!
-    const eShape = a.find((v) => v.shape === 'E-shape barre')!
+    const eShape = a.find((v) => v.shape === 'E shape')!
     const otherOpen = { ...open, frets: [null, 0, 2, 2, 2, null] }
     const base = { fretsShape: null, shape: '', voicingShape: null }
 
@@ -105,7 +120,7 @@ describe('voicingConflict', () => {
             voicingConflict({
                 ...base,
                 frets: [5, 7, 7, 6, 5, null],
-                fretsShape: 'E-shape barre',
+                fretsShape: 'E shape',
                 voicing: sameShape
             })
         ).toBeNull()
@@ -125,7 +140,7 @@ describe('voicingConflict', () => {
         expect(
             voicingConflict({
                 frets: eShape.frets,
-                fretsShape: 'E-shape barre',
+                fretsShape: 'E shape',
                 shape: 'Barre',
                 voicing: eShape,
                 voicingShape: null
@@ -136,16 +151,16 @@ describe('voicingConflict', () => {
     it('sends another shape to its own note, even when the note has no shape property', () => {
         expect(
             voicingConflict({ ...base, frets: open.frets, fretsShape: 'Open', voicing: eShape })
-        ).toBe('This note is the Open shape: add the E-shape barre as its own note.')
+        ).toBe('This note is the Open shape: add the E shape as its own note.')
         expect(
             voicingConflict({
                 ...base,
                 frets: null,
                 shape: 'Open',
-                voicingShape: 'E-shape barre',
+                voicingShape: 'E shape',
                 voicing: eShape
             })
-        ).toBe('This note is the Open shape: add the E-shape barre as its own note.')
+        ).toBe('This note is the Open shape: add the E shape as its own note.')
     })
 
     it('lets a note with neither frets nor shape take any voicing', () => {
