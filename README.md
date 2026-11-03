@@ -35,17 +35,19 @@ Add a chord from its symbol:
 - **Practice plan**: "I have 30 minutes" gives a warm-up, a focus block, due reviews and something fun.
 - **Practice next**: everything ranked by priority, staleness, BPM gap and what it unlocks.
 - **Practice panel**: the timer, your session list from a plan, BPM nudges, the metronome, Log this session.
-- **Metronome and speed trainer**: accents, subdivisions and tap tempo. The speed trainer steps up to the note's target BPM, and Save BPM keeps the tempo you reached.
+- **Metronome and speed trainer**: accents, subdivisions, tap tempo, a count-in and a beat flash, and the meter of the piece you practice. The speed trainer steps up to the note's target BPM, and Save BPM keeps the tempo you reached.
 - **Chord change drills**: count the changes between two chords in a minute. Your best and last counts go on the pair's note.
+- **Key, scales and hard changes of a piece**: find a song's key and the scales to solo with, and drill its hardest chord changes first.
 - **Mastery and spaced review**: a rubric for each kind of item, and a light SM-2 review that catches what's getting rusty.
 - **Skill tree**: prerequisites between items, so you see what's ready to learn.
+- **Shortcuts from outside Obsidian**: Obsidian URIs start the timer, log, plan or pick what to practice next (phone shortcuts, Stream Deck, NFC tags).
 
 ![The practice panel](docs/images/practice-panel.png)
 
 ### Chords, scales and voicings
 
 - **Notation blocks**: ` ```chord ` (guitar diagrams, piano chords), ` ```keyboard `, ` ```fretboard `, ` ```chords ` (ChordPro charts, transposable, with their chord diagrams), ` ```strum ` (strumming patterns), ` ```progression ` and ` ```circle ` (the circle of fifths), drawn by the [Music Notation](https://github.com/dsebastien/music-notation) library. Put several diagrams side by side (`---`), in any orientation, or left-handed. They work on Obsidian Publish too, through the library's loader.
-- **Notes draw their own diagram**: an empty block in a chord or scale note draws from the note's properties (chord, frets, fingers; scale root, type and shape), in Obsidian and on Publish. Nothing is written twice.
+- **Notes draw their own diagram**: an empty block in a chord, scale, arpeggio or strumming pattern note draws from the note's properties (chord, frets, fingers; scale root, type and shape; arpeggio notes their chord in its shape; strumming patterns their pattern, time signature, feel and tempo). Chords and scales draw on Publish too. Nothing is written twice.
 - **Chords in words or frets**: `A Major`, `F Sharp Minor 7`, or `x02220` (the chord is recognized). **Identify this chord** names a chord note from its frets.
 - **All the ways to play a chord**: every playable voicing, easiest first, narrowed down by neck area and root string. Switch a chord note to one, or add it as its own note.
 - **Triads** on string sets, as learning notes titled with their string set and inversion. An inversion comes after its root position.
