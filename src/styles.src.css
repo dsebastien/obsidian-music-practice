@@ -609,3 +609,30 @@
     padding: 1rem;
     font-size: 1.6em;
 }
+
+/* Practice a progression in time (#69): the chords, one a bar, the one playing lit. */
+.mp-backing-chords {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.5rem 0;
+}
+
+.mp-backing-chord {
+    min-width: 2.5em;
+    padding: 0.25rem 0.6rem;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    font-weight: 600;
+    text-align: center;
+}
+
+.mp-backing-chord.is-playing {
+    border-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    background-color: var(--interactive-accent);
+}
+
+.mp-backing-status {
+    font-variant-numeric: tabular-nums;
+}

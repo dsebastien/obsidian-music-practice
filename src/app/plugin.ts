@@ -58,6 +58,16 @@ import type { NoteContext } from './services/notation.service'
 import type { UndoResult } from './services/practice-log.service'
 import type { UndoRecord } from './domain/undo'
 import { Metronome } from './services/metronome.service'
+import { BackingTrack } from './services/backing.service'
+import { BackingModal } from './ui/backing-modal'
+import type { LinkedPattern } from './ui/backing-modal'
+import {
+    chartBacking,
+    chordsBacking,
+    progressionBacking,
+    progressionFences,
+    type BackingSource
+} from './domain/backing'
 import type { ItemMeter, MetronomeItem } from './services/metronome.service'
 import { drillCountIn, meterLabel, meterOf } from './domain/metronome'
 import { parseUriRequest, URI_HANDLER } from './domain/uri'
@@ -73,7 +83,7 @@ import { TriadsModal } from './ui/triads-modal'
 import { ProgressionModal, TransitionModal } from './ui/transitions-modal'
 import type { HeldChord } from './ui/transitions-modal'
 import { progressionOf } from './domain/progression'
-import { practiceBlockSource } from './domain/practice-blocks'
+import { practiceBlockSource, strumSource } from './domain/practice-blocks'
 import {
     defaultPosition,
     exerciseBlock,
@@ -137,6 +147,10 @@ export class MusicPracticePlugin extends Plugin {
     private voicingNotes!: VoicingNotesService
     /** One metronome for the panel, the modal and the commands. */
     metronome!: Metronome
+    /** One backing loop (#69): a progression in time; it and the metronome never play together. */
+    backing!: BackingTrack
+    /** The window the backing loop plays in, stopped when that window closes. */
+    private backingWindow: Window | null = null
     private logModal: LogPracticeModal | null = null
     /** Settings found invalid on load and replaced by the defaults, to report once the UI is up. */
     private loadProblem: string | null = null
@@ -405,14 +419,22 @@ export class MusicPracticePlugin extends Plugin {
         this.app.workspace.onLayoutReady(() => this.notation.sync())
         // A popout window closed: free the alphaTab it loaded and its hidden player.
         this.registerEvent(
-            this.app.workspace.on('window-close', (_workspaceWindow, win) =>
+            this.app.workspace.on('window-close', (_workspaceWindow, win) => {
+                if (this.backingWindow === win) this.backing.stop()
                 this.alphaTab.release(win)
-            )
+            })
         )
 
         // Practice timer: persisted start, elapsed time in the status bar, stop opens Log practice.
         // Metronome: plays on while its modal is closed; the status bar shows it and stops it.
         this.metronome = new Metronome(window, () => this.settings.metronome)
+        // The backing loop stops the metronome as it starts, and stops when the metronome starts.
+        this.backing = new BackingTrack(undefined, () => this.metronome.stop())
+        this.register(
+            this.metronome.subscribe(() => {
+                if (this.metronome.state.running && this.backing.state.running) this.backing.stop()
+            })
+        )
         this.metronomeEl = this.addStatusBarItem()
         this.metronomeEl.addClass('mp-timer', 'mod-clickable')
         this.metronomeEl.setAttr('aria-label', 'Open the metronome')
@@ -464,6 +486,7 @@ export class MusicPracticePlugin extends Plugin {
 
     override onunload() {
         this.metronome?.destroy()
+        this.backing?.destroy()
         // Drawings stay on screen after a plugin unloads: stop and free them first.
         this.notation?.unload()
         this.alphaTab?.unload()
@@ -912,6 +935,16 @@ export class MusicPracticePlugin extends Plugin {
                 const file = this.app.workspace.getActiveFile()
                 if (!file || file.extension !== 'md') return false
                 if (!checking) void this.openPieceKey(file)
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'progression-in-time',
+            name: 'Practice this progression in time',
+            checkCallback: (checking) => {
+                const file = this.app.workspace.getActiveFile()
+                if (!file || file.extension !== 'md') return false
+                if (!checking) void this.openBacking(file)
                 return true
             }
         })
@@ -1624,6 +1657,113 @@ export class MusicPracticePlugin extends Plugin {
                 }
             }),
             drill: (a, b) => this.openDrill(this.drills.pairFor(a, b))
+        }).open()
+    }
+
+    /**
+     * The progressions a note plays in time (#69): each ```progression block as the library draws
+     * it (numerals, keys, voicings read there), its chord charts, then its linked chord notes.
+     */
+    private async backingSources(file: TFile, piano: boolean): Promise<BackingSource[]> {
+        const text = await this.app.vault.cachedRead(file)
+        const sources: BackingSource[] = []
+        progressionFences(text).forEach((block, i) => {
+            const holder = createDiv()
+            const result = renderBlock('progression', block, holder, {
+                voicings: lookupGuitarVoicing,
+                ...(piano ? { instrument: 'piano' as const } : {})
+            })
+            const el = result.el.matches('.mn-progression')
+                ? result.el
+                : result.el.querySelector('.mn-progression')
+            const source = el ? progressionBacking(el, `Progression ${i + 1}`) : null
+            result.destroy()
+            if (source) sources.push(source)
+        })
+        const chart = chartBacking(text)
+        if (chart) sources.push(chart)
+        const linked = chordsBacking(this.linkedChordSymbols(file))
+        if (linked) sources.push(linked)
+        return sources
+    }
+
+    /** The strumming pattern notes a note links in its properties (#58), as ```strum text. */
+    private linkedPatterns(file: TFile): LinkedPattern[] {
+        const fields = this.effective().fields
+        const links = this.app.metadataCache.getFileCache(file)?.frontmatterLinks ?? []
+        const patterns: LinkedPattern[] = []
+        const seen = new Set<string>()
+        for (const link of links) {
+            const note = this.app.metadataCache.getFirstLinkpathDest(link.link, file.path)
+            if (!note || seen.has(note.path)) continue
+            seen.add(note.path)
+            const fm = this.app.metadataCache.getFileCache(note)?.frontmatter
+            const text = fm ? strumSource(fm, fields) : null
+            if (text) patterns.push({ name: note.basename, text })
+        }
+        return patterns
+    }
+
+    /** Practice this progression in time (#69): the note's chords as a backing loop. */
+    private async openBacking(file: TFile): Promise<void> {
+        const type = this.items.typeOf(file)
+        const piano = type?.subject === 'piano'
+        const sources = await this.backingSources(file, piano)
+        if (!sources.length) {
+            new Notice(
+                'This note has no progression (```progression), no chord chart (```chords) and links no chord notes to play.'
+            )
+            return
+        }
+        const fields = this.effective().fields
+        const item = this.itemOf(file)
+        new BackingModal(this.app, {
+            name: file.basename,
+            sources,
+            patterns: this.linkedPatterns(file),
+            noteTime: this.app.metadataCache.getFileCache(file)?.frontmatter?.[
+                fields.timeSignature
+            ] as unknown,
+            bpmCurrent: item?.bpmCurrent ?? null,
+            bpmTarget: item?.bpmTarget ?? null,
+            track: this.backing,
+            settings: () => ({
+                countIn: this.settings.metronome.countInBars > 0,
+                trainerStep: this.settings.metronome.trainerStep,
+                trainerBars: this.settings.metronome.trainerBars,
+                volume: Math.min(1, Math.max(0, this.settings.playback.volume / 100))
+            }),
+            playing: (source) => {
+                const win = activeWindow
+                this.backingWindow = win
+                const sound = source.sound ?? (piano ? 'piano' : 'guitar')
+                return {
+                    window: win,
+                    sound,
+                    voicings: lookupGuitarVoicing,
+                    ...(this.settings.playback.engine === 'soundfont'
+                        ? { player: this.alphaTab.player(win) }
+                        : {})
+                }
+            },
+            ...(item
+                ? {
+                      saveBpm: (bpm: number) =>
+                          new BpmModal(
+                              this.app,
+                              item,
+                              this.settings.rules.levels.tempo,
+                              async (result) => {
+                                  await this.practiceLog.setBpmAndLevel(
+                                      item,
+                                      result,
+                                      result.atTempo ? this.settings.rules.levels.tempo : undefined
+                                  )
+                              },
+                              bpm
+                          ).open()
+                  }
+                : {})
         }).open()
     }
 

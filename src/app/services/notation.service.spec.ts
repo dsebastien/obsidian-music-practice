@@ -756,3 +756,52 @@ describe('Tab and score errors show the block text', () => {
         expect(textOf(node)).toEqual(['tab: no alphaTab', 'Block text', ':4 0.6 ('])
     })
 })
+
+describe('NotationBlocks playback in time (#69)', () => {
+    type Register = NotationHost['registerMarkdownCodeBlockProcessor']
+    type Processor = Parameters<Register>[1]
+    type Context = Parameters<Processor>[2]
+
+    it("gives progression blocks and chord charts the app's player and tempo, like diagrams", () => {
+        const processors = new Map<string, Processor>()
+        const plugin: NotationHost = {
+            registerMarkdownCodeBlockProcessor: (language: string, processor: Processor) => {
+                processors.set(language, processor)
+                return () => {}
+            },
+            app: { workspace: { getLeavesOfType: () => [] } }
+        }
+        const drawn: { language: string; play: unknown }[] = []
+        const render = (
+            language: NotationLanguage,
+            _source: string,
+            host: HTMLElement,
+            options: RenderOptions = {}
+        ): RenderResult => {
+            drawn.push({ language, play: options.play })
+            return { ok: true, el: host, error: null, destroy: () => {} }
+        }
+        const player = { play: () => ({ stop: () => {} }) }
+        const play = { player, bpm: 72, volume: 0.5 }
+        const blocks = new NotationBlocks(
+            plugin,
+            allOn,
+            () => ({}),
+            () => false,
+            render,
+            () => null,
+            () => play
+        )
+        blocks.sync()
+        const ctx: Pick<Context, 'addChild' | 'sourcePath'> = {
+            sourcePath: 'Song.md',
+            addChild: (child) => child.onload()
+        }
+        void processors.get('progression')!('key: G\nI V vi IV', hostEl().el, ctx as Context)
+        void processors.get('chords')!('[G]Hello [D]world', hostEl().el, ctx as Context)
+        expect(drawn).toEqual([
+            { language: 'progression', play },
+            { language: 'chords', play }
+        ])
+    })
+})
