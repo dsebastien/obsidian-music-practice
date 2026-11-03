@@ -159,7 +159,8 @@ describe('findBlock', () => {
 describe('convertedTab', () => {
     it('gives the alphaTex, then the text tab in a comment, and is no text tab anymore', () => {
         const converted = convertedTab(TAB)!
-        expect(converted.startsWith(':8 ')).toBe(true)
+        // The rhythm comes from the spacing (music-notation 0.9): quarter, quarter, half.
+        expect(converted.startsWith(':4 2.3 1.2 :2 0.1')).toBe(true)
         expect(converted).toContain(`/* Converted from this text tab:\n${TAB}\n*/`)
         expect(isTextTab(converted)).toBe(false)
     })
@@ -173,10 +174,10 @@ describe('convertedTab', () => {
     it("keeps the block's settings lines above the alphaTex", () => {
         const source = `staves: both\n// from the book\ntracks: 1\n\n${TAB}`
         const converted = convertedTab(source)!
-        expect(converted.startsWith('staves: both\n// from the book\ntracks: 1\n:8 ')).toBe(true)
+        expect(converted.startsWith('staves: both\n// from the book\ntracks: 1\n:4 ')).toBe(true)
         expect(converted).toContain(`/* Converted from this text tab:\n${TAB}\n*/`)
         const read = parseTabSource('tab', converted)
-        expect([read.staves, read.tracks, read.tex.startsWith(':8 ')]).toEqual(['both', [1], true])
+        expect([read.staves, read.tracks, read.tex.startsWith(':4 ')]).toEqual(['both', [1], true])
         expect(convertedTab(`file: [[Song.gp]]\n${TAB}`)!.split('\n')[0]).toBe('file: [[Song.gp]]')
     })
 
