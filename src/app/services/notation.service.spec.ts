@@ -61,6 +61,7 @@ describe('NotationBlocks', () => {
             'keyboard',
             'fretboard',
             'strum',
+            'picking',
             'progression',
             'circle'
         ])

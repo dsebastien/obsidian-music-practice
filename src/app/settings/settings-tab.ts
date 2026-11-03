@@ -146,6 +146,11 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         'Down and up strums on a beat grid, with accents and chord changes, playable.'
                     ),
                     this.notationToggle(
+                        'picking',
+                        'Picking patterns',
+                        'Fingerpicking (PIMA letters or string numbers, Travis, alternate bass) as a small tab, played in time over a chord or a progression.'
+                    ),
+                    this.notationToggle(
                         'progression',
                         'Progressions',
                         'Roman numerals or Nashville numbers in any key, with their chords.'
