@@ -39,7 +39,7 @@ import type { PreparedScore } from './services/import.service'
 import { TextTabConverter, blockAt, convertible } from './services/text-tab.service'
 import { PasteImportModal, ScoreImportModeModal } from './ui/import-modals'
 import { chordSheetToChordPro, textTabToAlphaTex } from '@dsebastien/music-notation/tab'
-import { playOptions } from './domain/playback'
+import { DEFAULT_STRUM, playOptions, strumOption } from './domain/playback'
 import type { PlayOptions, RenderOptions } from '@dsebastien/music-notation'
 import { printTab } from '@dsebastien/music-notation/tab'
 import type { TabResult } from '@dsebastien/music-notation/tab'
@@ -1166,6 +1166,11 @@ export class MusicPracticePlugin extends Plugin {
             .map(Number)
         const kind = diagram?.getAttribute('data-mn-play') === 'chord' ? 'chord' : 'scale'
         const sound = diagram?.getAttribute('data-mn-sound') === 'piano' ? 'piano' : 'guitar'
+        // A scale runs from its tonic (the root mark), as the diagram's own play bar does.
+        const rootMidi = Number(
+            diagram?.querySelector('.mn-root[data-midi]')?.getAttribute('data-midi')
+        )
+        const root = Number.isFinite(rootMidi) ? ((rootMidi % 12) + 12) % 12 : null
         result.destroy()
         if (!pitches.length) {
             new Notice('Nothing to play in this note.')
@@ -1176,7 +1181,13 @@ export class MusicPracticePlugin extends Plugin {
             settings.engine === 'soundfont'
                 ? this.alphaTab.player(activeWindow)
                 : lightPlayer(activeWindow)
-        player.play(sequenceOf(kind, pitches, { bpm: settings.bpm, strum: settings.strum }), {
+        const sequence = sequenceOf(kind, pitches, {
+            bpm: settings.bpm,
+            strum: strumOption(settings).strum ?? (sound === 'piano' ? 0 : DEFAULT_STRUM),
+            root,
+            sound
+        })
+        player.play(sequence, {
             sound,
             volume: settings.volume / 100
         })
