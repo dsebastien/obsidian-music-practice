@@ -14,9 +14,11 @@ import type {
 } from '@dsebastien/music-notation'
 import { lookupGuitarVoicing } from '@dsebastien/music-notation/voicings'
 import { renderTab } from '@dsebastien/music-notation/tab'
-import type { TabResult } from '@dsebastien/music-notation/tab'
+import type { Staves, TabResult } from '@dsebastien/music-notation/tab'
 import type { PlayOptions } from '@dsebastien/music-notation'
 import type { AlphaTabRuntime, AlphaTabWindow } from './alphatab.service'
+import { textTabView } from '../ui/text-tab-view'
+import type { TextTabView } from '../ui/text-tab-view'
 
 /** Tabs and scores, drawn by alphaTab through the library's tab entry (#15). */
 export const TAB_LANGUAGES = ['tab', 'score'] as const
@@ -37,9 +39,11 @@ export interface TabHost {
     decorate?: (result: TabResult, sourcePath: string) => void
     /** Converts a plain-text tab block into alphaTex in its note (#60); no button without it. */
     convert?: (request: ConvertRequest) => void
+    /** Writes `staves:` in a block of a note (Keep this view, #83); no such button without it. */
+    keepView?: (request: ConvertRequest, staves: Staves) => void
 }
 
-/** What a text tab block's Convert button knows about it. */
+/** What a block's actions (Edit as alphaTex, Keep this view) know about it. */
 export interface ConvertRequest {
     el: HTMLElement
     language: TabLanguage
@@ -94,21 +98,48 @@ export const textTabOf = (source: string): string | null => {
 const asCode = (el: HTMLElement, language: string, source: string) =>
     el.createEl('pre').createEl('code', { cls: `language-${language}`, text: source })
 
-/** Under a plain-text tab the library reads: a button that converts it in its note (#60). */
-const convertButton = (el: HTMLElement, convert: () => void): HTMLElement => {
-    const button = el.createEl('button', {
-        cls: 'mp-tab-convert',
-        text: 'Convert to a playable tab',
-        attr: { type: 'button' }
-    })
-    // In live preview, a click on a block opens its source: the button keeps its own clicks.
-    button.addEventListener('mousedown', (event) => event.stopPropagation())
-    button.addEventListener('click', (event) => {
-        event.preventDefault()
-        event.stopPropagation()
-        convert()
-    })
-    return button
+/** A tab block's setting line, as the library reads them at the top of the block. */
+const SETTING = /^\s*(staves|file|tracks?)\s*:/i
+
+/**
+ * A tab block's settings (`staves:`, `file:`, `tracks:` lines at the top, with the blank lines and
+ * `//` comments among them) and the text after them; no settings when it has none.
+ */
+export function splitSettings(source: string): { settings: string[]; rest: string } {
+    const lines = source.split('\n')
+    let last = -1
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]!
+        if (!line.trim() || /^\s*\/\//.test(line)) continue
+        if (!SETTING.test(line)) break
+        last = i
+    }
+    if (last < 0) return { settings: [], rest: source }
+    return {
+        settings: lines.slice(0, last + 1),
+        rest: lines
+            .slice(last + 1)
+            .join('\n')
+            .replace(/^(?:[ \t]*\n)+/, '')
+    }
+}
+
+/**
+ * What a plain-text tab block draws (#84): its settings lines, then the library's alphaTex of the
+ * rest, made in memory at each draw (the note doesn't change); null when the library can't read
+ * it or it's a blank stave (it shows as code then).
+ */
+export function textTabSource(source: string): string | null {
+    const { settings, rest } = splitSettings(source)
+    const tex = textTabOf(rest)
+    return tex === null ? null : [...settings, tex].join('\n')
+}
+
+/** A plain-text tab drawn as tablature: its text, and the conversion in its note (#84). */
+export interface TextTabBlock {
+    text: string
+    /** Edit as alphaTex; null when the block isn't in a note (a canvas card). */
+    edit: (() => void) | null
 }
 
 /** The block line an alphaTab message points at (`line 3, column 5: …`, from 1); null without one. */
@@ -148,15 +179,42 @@ class TabChild extends MarkdownRenderChild {
     /** Bumped at each draw, so a draw that finishes late after a newer one does nothing. */
     private generation = 0
 
+    /** A text tab's controls, and whether it shows as text (kept across redraws). */
+    private textView: TextTabView | null = null
+    private asText = false
+
     constructor(
         el: HTMLElement,
         private readonly language: TabLanguage,
-        private readonly source: string,
+        /** What it draws: the block's text, or a text tab's alphaTex (#84). */
+        readonly source: string,
         private readonly host: TabHost,
         private readonly sourcePath: string,
-        private readonly live: Set<TabChild>
+        private readonly live: Set<TabChild>,
+        /** A plain-text tab drawn as tablature (#84); null for alphaTex and files. */
+        readonly textTab: TextTabBlock | null = null,
+        /** Keep this view: writes `staves:` in the block (#83); null when it can't. */
+        readonly keepView: ((staves: Staves) => void) | null = null
     ) {
         super(el)
+    }
+
+    /** A text tab's text, with its buttons, in place of the drawing (`el`, hidden). */
+    private showText(el: HTMLElement, drawn: boolean, api: TabResult['api']): void {
+        const textTab = this.textTab
+        if (!textTab) return
+        this.textView = textTabView(el, {
+            text: textTab.text,
+            language: this.language,
+            edit: textTab.edit,
+            drawn,
+            onShow: (text) => {
+                this.asText = text
+                // The music stops while its text shows.
+                if (text) api?.pause()
+            }
+        })
+        if (drawn && this.asText) this.textView.show(true)
     }
 
     override onload(): void {
@@ -174,6 +232,7 @@ class TabChild extends MarkdownRenderChild {
         this.result?.destroy()
         this.result = null
         this.loading?.remove()
+        this.clearText()
         const win = (this.containerEl.ownerDocument.defaultView ?? window) as AlphaTabWindow
         const loading = this.containerEl.createDiv({ cls: 'mn-tab-loading', text: 'Loading…' })
         this.loading = loading
@@ -182,20 +241,30 @@ class TabChild extends MarkdownRenderChild {
             .then((alphaTab) => {
                 if (this.gone || generation !== this.generation) return
                 loading.remove()
+                const keep = this.keepView
                 this.result = renderTab(this.language, this.source, this.containerEl, {
                     alphaTab,
                     assets: this.host.runtime.assets(win),
-                    resolveFile: (link) => this.host.resolveFile(link, this.sourcePath)
+                    resolveFile: (link) => this.host.resolveFile(link, this.sourcePath),
+                    // Text tabs show tablature unless a staves: line says otherwise (#84).
+                    ...(this.textTab ? { defaultStaves: 'tab' as const } : {}),
+                    ...(keep ? { onKeepView: (staves: Staves) => keep(staves) } : {})
                 })
                 const result = this.result
                 void result.ready.then(({ ok, error }) => {
                     if (this.gone || result !== this.result) return
                     if (ok) this.host.decorate?.(result, this.sourcePath)
-                    else showSource(result.el, this.source, error)
+                    // A text tab alphaTab can't draw shows as code, as before (#84).
+                    if (this.textTab) this.showText(result.el, ok, result.api)
+                    else if (!ok) showSource(result.el, this.source, error)
                 })
             })
             .catch((error: unknown) => {
                 if (this.gone || generation !== this.generation) return
+                if (this.textTab) {
+                    this.showText(loading, false, null)
+                    return
+                }
                 loading.setText(
                     `${this.language}: ${error instanceof Error ? error.message : String(error)}`
                 )
@@ -209,6 +278,12 @@ class TabChild extends MarkdownRenderChild {
         this.free()
     }
 
+    /** Removes a text tab's text panel (the drawing goes with its result). */
+    private clearText(): void {
+        this.textView?.remove()
+        this.textView = null
+    }
+
     /** Stops and frees the score (the plugin unloads, or Obsidian dropped the block). */
     free(): void {
         this.gone = true
@@ -216,6 +291,7 @@ class TabChild extends MarkdownRenderChild {
         this.result = null
         this.loading?.remove()
         this.loading = null
+        this.clearText()
     }
 }
 
@@ -389,25 +465,55 @@ export class NotationBlocks {
                     asCode(el, language, source)
                     return
                 }
-                // A plain-text tab stays text, as it was before tabs were drawn; one the library
-                // reads can be converted, in a note (a canvas card's text isn't one).
+                const request: ConvertRequest = {
+                    el,
+                    language,
+                    source,
+                    sourcePath: ctx.sourcePath,
+                    section: () => ctx.getSectionInfo(el)
+                }
+                // Actions that change the note, only in a note (a canvas card's text isn't one).
+                const inNote = /\.md$/i.test(ctx.sourcePath)
+                const { convert, keepView } = tabs
+                const keep =
+                    keepView && inNote ? (staves: Staves) => keepView(request, staves) : null
+                // A plain-text tab draws as tablature, converted in memory at each draw (#84);
+                // one the library can't read, or a blank stave (a template), stays text.
                 if (isTextTab(source)) {
-                    asCode(el, language, source)
-                    const convert = tabs.convert
-                    if (convert && /\.md$/i.test(ctx.sourcePath) && textTabOf(source) !== null)
-                        convertButton(el, () =>
-                            convert({
-                                el,
-                                language,
-                                source,
-                                sourcePath: ctx.sourcePath,
-                                section: () => ctx.getSectionInfo(el)
-                            })
+                    const tex = textTabSource(source)
+                    if (tex === null) {
+                        asCode(el, language, source)
+                        return
+                    }
+                    const edit = convert && inNote ? () => convert(request) : null
+                    ctx.addChild(
+                        new TabChild(
+                            el,
+                            language,
+                            tex,
+                            tabs,
+                            ctx.sourcePath,
+                            this.liveTabs,
+                            {
+                                text: source,
+                                edit
+                            },
+                            keep
                         )
+                    )
                     return
                 }
                 ctx.addChild(
-                    new TabChild(el, language, source, tabs, ctx.sourcePath, this.liveTabs)
+                    new TabChild(
+                        el,
+                        language,
+                        source,
+                        tabs,
+                        ctx.sourcePath,
+                        this.liveTabs,
+                        null,
+                        keep
+                    )
                 )
             })
             this.registered.add(language)

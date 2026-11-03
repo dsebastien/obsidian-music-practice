@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { MarkdownView } from 'obsidian'
 import type { App, Editor, EditorChange, EditorTransaction, TFile } from 'obsidian'
 import {
     TextTabConverter,
@@ -11,7 +12,8 @@ import {
     fileText,
     findBlock,
     replaceBody,
-    undoConversion
+    undoConversion,
+    withStaves
 } from './text-tab.service'
 import type { NoteText } from './text-tab.service'
 import { parseTabSource } from '@dsebastien/music-notation/tab'
@@ -237,7 +239,7 @@ describe('A note changed through its file', () => {
     })
 })
 
-describe('Convert this text tab into a playable tab', () => {
+describe('Edit this text tab as alphaTex', () => {
     /** An editor recording its transactions. */
     function fakeEditor(text: string, line: number) {
         const changes: EditorChange[] = []
@@ -286,6 +288,58 @@ describe('Convert this text tab into a playable tab', () => {
         expect(changes).toEqual([
             { from: { line: 1, ch: 0 }, to: { line: 1, ch: 1 }, text: 'x\ny' },
             { from: { line: 1, ch: 0 }, text: 'z\n' }
+        ])
+    })
+})
+
+describe('Keep this view (#83)', () => {
+    it('writes staves: at the top of the block, or changes the one there', () => {
+        expect(withStaves(':4 0.6', 'score')).toBe('staves: score\n:4 0.6')
+        expect(withStaves(TAB, 'both')).toBe(`staves: both\n${TAB}`)
+        expect(withStaves('// riff\ntracks: 1\nStaves: tab\n\n:4 0.6', 'both')).toBe(
+            '// riff\ntracks: 1\nstaves: both\n\n:4 0.6'
+        )
+        // A staves: line after the music isn't a setting.
+        expect(withStaves(':4 0.6\nstaves: tab', 'score')).toBe(
+            'staves: score\n:4 0.6\nstaves: tab'
+        )
+        // The text tab stays a text tab the library reads.
+        expect(isTextTab(withStaves(TAB, 'score'))).toBe(true)
+        expect(parseTabSource('tab', withStaves(':4 0.6', 'both')).staves).toBe('both')
+    })
+
+    it("changes the block through its note's editor, in one transaction", async () => {
+        const text = ['# Song', '> ```score', '> :4 C4 E4', '> ```', '```tab', ':4 0.6', '```']
+        const changes: EditorChange[] = []
+        const editor = fake<Editor>({
+            getValue: () => text.join('\n'),
+            getLine: (n: number) => text[n] ?? '',
+            transaction: (tx: EditorTransaction) => changes.push(...(tx.changes ?? []))
+        })
+        const view = Object.assign(Object.create(MarkdownView.prototype) as MarkdownView, {
+            file: { path: 'Song.md' },
+            getMode: () => 'source',
+            containerEl: { contains: () => true },
+            editor
+        })
+        const app = fake<App>({ workspace: { getLeavesOfType: () => [{ view }] } })
+        const converter = new TextTabConverter(app, () => {})
+        const request = (language: 'tab' | 'score', source: string) => ({
+            el: fake<HTMLElement>({}),
+            language,
+            source,
+            sourcePath: 'Song.md',
+            section: () => null
+        })
+        await converter.keepView(request('score', ':4 C4 E4'), 'both')
+        await converter.keepView(request('tab', ':4 0.6'), 'score')
+        expect(changes).toEqual([
+            {
+                from: { line: 2, ch: 0 },
+                to: { line: 2, ch: 10 },
+                text: '> staves: both\n> :4 C4 E4'
+            },
+            { from: { line: 5, ch: 0 }, to: { line: 5, ch: 6 }, text: 'staves: score\n:4 0.6' }
         ])
     })
 })

@@ -328,7 +328,8 @@ export class MusicPracticePlugin extends Plugin {
                 runtime: this.alphaTab,
                 resolveFile: (link, sourcePath) => this.readLinkedFile(link, sourcePath),
                 decorate: (result, sourcePath) => this.decorateScore(result, sourcePath),
-                convert: (request) => void this.textTabs.convertBlock(request)
+                convert: (request) => void this.textTabs.convertBlock(request),
+                keepView: (request, staves) => void this.textTabs.keepView(request, staves)
             }
         )
         // Empty blocks in chord and scale notes draw from the note's properties: redraw them when
@@ -673,7 +674,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'convert-text-tab',
-            name: 'Convert this text tab into a playable tab',
+            name: 'Edit this text tab as alphaTex',
             editorCheckCallback: (checking, editor, ctx) => {
                 const block = blockAt(editor.getValue().split('\n'), editor.getCursor().line)
                 const path = ctx.file?.path

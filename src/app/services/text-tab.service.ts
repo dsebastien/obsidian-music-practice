@@ -1,8 +1,9 @@
 import { MarkdownView, Notice, TFile } from 'obsidian'
 import type { App, Editor, MarkdownSectionInformation } from 'obsidian'
 import { openingFence } from '../domain/block-placement'
-import { TAB_LANGUAGES, textTabOf } from './notation.service'
+import { TAB_LANGUAGES, splitSettings, textTabOf } from './notation.service'
 import type { ConvertRequest, TabLanguage } from './notation.service'
+import type { Staves } from '@dsebastien/music-notation/tab'
 
 /**
  * Converting a plain-text tab block into a playable one (#60): the block's text becomes the
@@ -165,32 +166,6 @@ export function applyChange(lines: string[], change: LineChange): string[] {
     return [...lines.slice(0, change.from), ...change.lines, ...lines.slice(change.to)]
 }
 
-/** A tab block's setting line, as the library reads them at the top of the block. */
-const SETTING = /^\s*(staves|file|tracks?)\s*:/i
-
-/**
- * A tab block's settings (`staves:`, `file:`, `tracks:` lines at the top, with the blank lines and
- * `//` comments among them) and the text after them; no settings when it has none.
- */
-export function splitSettings(source: string): { settings: string[]; rest: string } {
-    const lines = source.split('\n')
-    let last = -1
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]!
-        if (!line.trim() || /^\s*\/\//.test(line)) continue
-        if (!SETTING.test(line)) break
-        last = i
-    }
-    if (last < 0) return { settings: [], rest: source }
-    return {
-        settings: lines.slice(0, last + 1),
-        rest: lines
-            .slice(last + 1)
-            .join('\n')
-            .replace(/^(?:[ \t]*\n)+/, '')
-    }
-}
-
 /**
  * A text tab block's new text: its settings lines, the library's alphaTex, then the text tab in a
  * comment (a block comment, or line comments when the tab holds one); null when the library can't
@@ -209,6 +184,19 @@ export function convertedTab(source: string): string | null {
                   .join('\n')}`
             : `/* Converted from this text tab:\n${original}\n*/`
     return [...settings, `${tex}\n\n${comment}`].join('\n')
+}
+
+/**
+ * A tab block's text with `staves: <view>` (Keep this view, #83): its `staves:` line changed in
+ * place, else a new first line. The rest stays as written.
+ */
+export function withStaves(source: string, staves: Staves): string {
+    const { settings } = splitSettings(source)
+    const at = settings.findIndex((line) => /^\s*staves\s*:/i.test(line))
+    if (at < 0) return `staves: ${staves}\n${source}`
+    const lines = source.split('\n')
+    lines[at] = `staves: ${staves}`
+    return lines.join('\n')
 }
 
 export const isTabLanguage = (language: string): language is TabLanguage =>
@@ -300,7 +288,29 @@ export class TextTabConverter {
         )
     }
 
-    /** Convert this text tab into a playable tab: the block at the cursor. */
+    /**
+     * Keep this view (#83): writes `staves:` at the top of the block, through its editor in
+     * editing view (one transaction: Ctrl+Z undoes it), else its file.
+     */
+    async keepView(request: ConvertRequest, staves: Staves): Promise<void> {
+        const text = this.textOf(request.sourcePath, request.el)
+        if (!text) return
+        const section = request.section()
+        try {
+            const changed = await text.edit((lines) => {
+                const block = findBlock(lines, request.language, request.source, section)
+                return block ? replaceBody(block, withStaves(block.body.join('\n'), staves)) : null
+            })
+            if (!changed)
+                new Notice("Couldn't find this block in the note: it may have changed. Try again.")
+        } catch (error: unknown) {
+            new Notice(
+                `Couldn't keep the view: ${error instanceof Error ? error.message : String(error)}`
+            )
+        }
+    }
+
+    /** Edit this text tab as alphaTex: the block at the cursor. */
     async convertAt(editor: Editor, sourcePath: string): Promise<void> {
         const line = editor.getCursor().line
         await this.run(editorText(editor), sourcePath, (lines) => blockAt(lines, line))

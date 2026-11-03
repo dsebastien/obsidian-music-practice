@@ -410,10 +410,19 @@
     font-size: var(--font-ui-smaller);
 }
 
-/* Under a plain-text tab block (#60): converts it into a playable tab. */
-.mp-tab-convert {
-    @apply mt-1;
+/* A plain-text tab shown as text (#84): Show as tab, and Edit as alphaTex (#60), under it. */
+.mp-tab-actions {
+    @apply mt-1 flex flex-wrap gap-2;
+}
+
+.mp-tab-actions button {
     font-size: var(--font-ui-smaller);
+}
+
+/* In a text tab's player bar (#84): its rhythm comes from the spacing of the text. */
+.mp-tab-guessed {
+    font-style: italic;
+    opacity: 0.8;
 }
 
 /* Under a tab or score error (#61): the block's text, folded, the error line marked. */

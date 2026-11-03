@@ -14,6 +14,7 @@ import type {
     RenderResult
 } from '@dsebastien/music-notation'
 import type { MarkdownRenderChild } from 'obsidian'
+import { textTabToAlphaTex } from '@dsebastien/music-notation'
 
 /** A test double typed as what it stands in for (it only has what the code under test reads). */
 const fake = <T>(value: unknown): T => value as T
@@ -361,10 +362,12 @@ describe('NotationBlocks: tabs and scores', () => {
             app: { workspace: { getLeavesOfType: () => [] } }
         }
         const converted: string[] = []
+        const kept: string[] = []
         const tabs: TabHost = {
             runtime: {} as TabHost['runtime'],
             resolveFile: () => Promise.resolve(null),
-            convert: (request) => converted.push(request.source)
+            convert: (request) => converted.push(request.source),
+            keepView: (request, staves) => kept.push(`${request.source} → ${staves}`)
         }
         const blocks = new NotationBlocks(
             plugin,
@@ -389,7 +392,7 @@ describe('NotationBlocks: tabs and scores', () => {
             void processors.get(language)!(source, el, ctx as Context)
             return made
         }
-        return { blocks, processors, draw, children, clicks, converted }
+        return { blocks, processors, draw, children, clicks, converted, kept }
     }
 
     it('registers tab and score only with a tab host, unless another plugin has them', () => {
@@ -409,38 +412,64 @@ describe('NotationBlocks: tabs and scores', () => {
         expect(children).toHaveLength(1)
     })
 
-    it('shows a plain-text tab as code, as it was before tabs were drawn', () => {
-        const { draw, children, clicks, converted } = setup()
-        const text =
-            'e|-----0---|\nB|---1-----|\nG|-2-------|\nD|---------|\nA|---------|\nE|---------|'
-        const made = draw('tab', text)
-        expect(made).toEqual([
-            { tag: 'pre' },
-            { tag: 'code', cls: 'language-tab', text },
-            { tag: 'button', cls: 'mp-tab-convert', text: 'Convert to a playable tab' }
-        ])
-        expect(children).toHaveLength(0)
-        clicks[0]!()
-        expect(converted).toEqual([text])
+    /** What a tab block drew: its child, with what it draws (TabChild). */
+    type Drawn = {
+        source: string
+        textTab: { text: string; edit: (() => void) | null } | null
+        keepView: ((staves: string) => void) | null
+    }
+    const TEXT =
+        'e|-----0---|\nB|---1-----|\nG|-2-------|\nD|---------|\nA|---------|\nE|---------|'
+
+    it('draws a plain-text tab as tablature, converted in memory (#84)', () => {
+        const { draw, children, converted } = setup()
+        expect(draw('tab', TEXT)).toEqual([])
+        expect(children).toHaveLength(1)
+        const child = fake<Drawn>(children[0])
+        expect(child.source).toBe(textTabToAlphaTex(TEXT)!)
+        expect(child.textTab!.text).toBe(TEXT)
+        // Edit as alphaTex converts the block as written, in its note.
+        child.textTab!.edit!()
+        expect(converted).toEqual([TEXT])
     })
 
-    it('offers no conversion on a canvas card (its text is no note)', () => {
-        const { draw } = setup()
-        const text =
-            'e|-----0---|\nB|---1-----|\nG|-2-------|\nD|---------|\nA|---------|\nE|---------|'
-        expect(draw('tab', text, 'Board.canvas').map((m) => m.tag)).toEqual(['pre', 'code'])
-        expect(draw('tab', text, 'Song.md').map((m) => m.tag)).toEqual(['pre', 'code', 'button'])
+    it("keeps a text tab's settings lines above its alphaTex", () => {
+        const { draw, children } = setup()
+        draw('score', `staves: both\ntracks: 1\n\n${TEXT}`)
+        const child = fake<Drawn>(children[0])
+        expect(child.source).toBe(`staves: both\ntracks: 1\n${textTabToAlphaTex(TEXT)!}`)
     })
 
-    it('offers to convert only the text tabs the library reads', () => {
-        const { draw } = setup()
+    it('offers no note changes on a canvas card (its text is no note)', () => {
+        const { draw, children } = setup()
+        draw('tab', TEXT, 'Board.canvas')
+        draw('tab', ':4 0.6', 'Board.canvas')
+        expect(children.map((c) => fake<Drawn>(c).textTab?.edit ?? null)).toEqual([null, null])
+        expect(children.map((c) => fake<Drawn>(c).keepView)).toEqual([null, null])
+    })
+
+    it('shows blank staves as code, and draws the text tabs the library reads', () => {
+        const { draw, children } = setup()
         const blank = 'e|--------|\nB|--------|\nG|--------|'
         // A blank stave is a template: the library reads it as empty bars, but it stays text.
-        expect(draw('tab', blank).map((m) => m.tag)).toEqual(['pre', 'code'])
-        // Drum tabs and short excerpts the library now reads can be converted.
-        const drums = 'HH|x-x-x-x-|\nS |----o---|\nBD|o-------|'
-        expect(draw('tab', drums).map((m) => m.tag)).toEqual(['pre', 'code', 'button'])
-        expect(draw('tab', 'A|--0--3--|').map((m) => m.tag)).toEqual(['pre', 'code', 'button'])
+        expect(draw('tab', blank)).toEqual([
+            { tag: 'pre' },
+            { tag: 'code', cls: 'language-tab', text: blank }
+        ])
+        expect(children).toHaveLength(0)
+        // Drum tabs and short excerpts the library reads draw.
+        draw('tab', 'HH|x-x-x-x-|\nS |----o---|\nBD|o-------|')
+        draw('tab', 'A|--0--3--|')
+        expect(children.map((c) => fake<Drawn>(c).textTab !== null)).toEqual([true, true])
+    })
+
+    it('writes the view kept in the block it was drawn from (#83)', () => {
+        const { draw, children, kept } = setup()
+        draw('score', ':4 C4 E4')
+        draw('tab', TEXT)
+        fake<Drawn>(children[0]).keepView!('both')
+        fake<Drawn>(children[1]).keepView!('score')
+        expect(kept).toEqual([':4 C4 E4 → both', `${TEXT} → score`])
     })
 
     it('shows a block as code when its language is turned off', () => {
