@@ -1717,7 +1717,7 @@ export class MusicPracticePlugin extends Plugin {
         }
         const fields = this.effective().fields
         const item = this.itemOf(file)
-        new BackingModal(this.app, {
+        const modal = new BackingModal(this.app, {
             name: file.basename,
             sources,
             patterns: this.linkedPatterns(file),
@@ -1764,7 +1764,10 @@ export class MusicPracticePlugin extends Plugin {
                           ).open()
                   }
                 : {})
-        }).open()
+        })
+        // Its Play would start a loop the unloaded plugin can't stop: it closes with the plugin.
+        this.register(() => modal.close())
+        modal.open()
     }
 
     /** Smooth this progression (#57): the chords of the note's chord charts. */
