@@ -101,3 +101,153 @@ describe('practice log: the activity time', () => {
         expect(notes[ACTIVITY]).toEqual({ time_spent: 5, time_entries: 'legacy' })
     })
 })
+
+/**
+ * A vault where a plugin writes every new note again a while after its creation (Templater's
+ * "trigger on file creation"): a write to a trashed note creates the file again.
+ */
+function lateWriteVault(lateWriteAt: number) {
+    let now = 0
+    const due: { at: number; run: () => void }[] = []
+    const clock = {
+        now: () => now,
+        sleep: (ms: number) => {
+            const until = now + ms
+            for (;;) {
+                due.sort((a, b) => a.at - b.at)
+                const next = due[0]
+                if (!next || next.at > until) break
+                due.shift()
+                now = next.at
+                next.run()
+            }
+            now = until
+            return Promise.resolve()
+        }
+    }
+    const content = '---\ntime_spent: 2\n---\n\nPracticed G.'
+    const files = new Map<string, { content: string; ctime: number; mtime: number }>()
+    // The log added date_last_session to the activity (the obsidian mock reads no frontmatter from
+    // disk, so a key the log added is what passes undo's conflict check here).
+    const fm: Record<string, Record<string, unknown>> = {
+        [ACTIVITY]: { time_spent: 20, date_last_session: '2026-11-03' }
+    }
+    const listeners: ((f: TFile) => void)[] = []
+    const tfile = (path: string) =>
+        fake<TFile>({
+            ...file(path),
+            get stat() {
+                return files.get(path) ?? { ctime: 0, mtime: 0 }
+            }
+        })
+    files.set(SESSION, { content, ctime: 0, mtime: 0 })
+    let trashed = 0
+    let trashedAt = -1
+    due.push({
+        at: lateWriteAt,
+        run: () => {
+            const existed = files.get(SESSION)
+            files.set(SESSION, {
+                content,
+                ctime: existed?.ctime ?? lateWriteAt,
+                mtime: lateWriteAt
+            })
+            if (!existed) {
+                // The session counts again: a recompute stamps the activity as the log did.
+                fm[ACTIVITY]!['date_last_session'] = '2026-11-03'
+                for (const l of listeners) l(tfile(SESSION))
+            }
+        }
+    })
+    const app = fake<App>({
+        vault: {
+            getFileByPath: (p: string) => (files.has(p) || fm[p] ? tfile(p) : null),
+            read: (f: TFile) => Promise.resolve(files.get(f.path)?.content ?? '---\n---\n'),
+            on: (_name: string, cb: (f: TFile) => void) => {
+                listeners.push(cb)
+                return cb
+            },
+            offref: (ref: (f: TFile) => void) => listeners.splice(listeners.indexOf(ref), 1)
+        },
+        metadataCache: { getFileCache: (f: TFile) => ({ frontmatter: fm[f.path] }) },
+        fileManager: {
+            processFrontMatter: (f: TFile, fn: (x: Record<string, unknown>) => void) => {
+                fn(fm[f.path]!)
+                return Promise.resolve()
+            },
+            trashFile: (f: TFile) => {
+                trashed++
+                if (trashedAt < 0) trashedAt = now
+                files.delete(f.path)
+                return Promise.resolve()
+            }
+        }
+    })
+    const context = () => ({ fields }) as LogContext
+    const service = new PracticeLogService(
+        app,
+        () => ({}) as never,
+        {} as never,
+        context,
+        () => {},
+        clock
+    )
+    const record = {
+        at: 0,
+        sessionPath: SESSION,
+        sessionCtime: 0,
+        sessionBody: 'Practiced G.',
+        files: [
+            {
+                path: ACTIVITY,
+                keys: [
+                    { key: 'date_last_session', existed: false, before: null, after: '2026-11-03' }
+                ]
+            }
+        ],
+        adoptedTimer: false
+    }
+    const settle = async () => {
+        await clock.sleep(10_000)
+        for (let i = 0; i < 10; i++) await Promise.resolve()
+    }
+    return {
+        service,
+        record,
+        files,
+        fm,
+        settle,
+        trashed: () => trashed,
+        trashedAt: () => trashedAt,
+        clock
+    }
+}
+
+describe('practice log: undo right after a log', () => {
+    it('waits for the late write before trashing, so the session note stays gone', async () => {
+        const v = lateWriteVault(1_000)
+        const result = await v.service.undo(v.record)
+        expect(result.ok).toBe(true)
+        await v.settle()
+        expect(v.files.has(SESSION)).toBe(false)
+        expect(v.fm[ACTIVITY]).toEqual({ time_spent: 20 })
+    })
+
+    it('trashes the session note again when a later write creates it again', async () => {
+        const v = lateWriteVault(3_500)
+        const result = await v.service.undo(v.record)
+        expect(result.ok).toBe(true)
+        await v.settle()
+        expect(v.files.has(SESSION)).toBe(false)
+        expect(v.trashed()).toBe(2)
+        expect(v.fm[ACTIVITY]).toEqual({ time_spent: 20 })
+    })
+
+    it('does not wait for a session note created long ago', async () => {
+        const v = lateWriteVault(1_000)
+        await v.clock.sleep(60_000)
+        const before = v.clock.now()
+        expect((await v.service.undo(v.record)).ok).toBe(true)
+        expect(v.trashedAt() - before).toBeLessThan(100)
+    })
+})

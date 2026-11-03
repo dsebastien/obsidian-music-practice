@@ -20,7 +20,9 @@ import type { LogItem, LogRequest } from '../domain/log'
 import { expandTokens } from '../domain/local-model'
 import type { LearningType, NoteModel, SessionType } from '../domain/note-model'
 import type { LearningItem } from '../domain/practice'
-import { bodyOf, changedKeys, conflicts, revert, snapshot } from '../domain/undo'
+import { bodyOf, changedKeys, conflicts, loggedKeys, revert, snapshot } from '../domain/undo'
+import { SETTLE, waitUntilSettled } from '../domain/settle'
+import type { Clock } from '../domain/settle'
 import type { FileChanges, UndoRecord } from '../domain/undo'
 import type { PracticeRules } from '../domain/rules'
 import { fillSection, renderTemplate } from '../domain/template-render'
@@ -75,6 +77,7 @@ export type UndoResult =
 const KAP_ENTRY_TIMEOUT_MS = 10_000
 const LINK_TIMEOUT_MS = 10_000
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms))
+const realClock: Clock = { now: () => Date.now(), sleep: (ms) => sleep(ms).then(() => {}) }
 const titleCase = (s: string) =>
     s.replace(
         /(^|[\s_-])(\w)/g,
@@ -98,7 +101,9 @@ export class PracticeLogService {
         private readonly repo: ItemRepository,
         private readonly context: () => LogContext,
         /** Remembers the last log, to undo it (every log, from the modal or the API). */
-        private readonly onLogged: (record: UndoRecord) => Promise<void> | void = () => {}
+        private readonly onLogged: (record: UndoRecord) => Promise<void> | void = () => {},
+        /** Time, for the waits around a new session note (specs pass their own). */
+        private readonly clock: Clock = realClock
     ) {}
 
     /**
@@ -336,6 +341,12 @@ export class PracticeLogService {
         if (this.busy) return { ok: false, reason: 'A practice log is being written.' }
         this.busy = true
         try {
+            // A session note just created is written again by plugins that run on file creation
+            // (Templater): wait for that write, or it would create the trashed note again.
+            await waitUntilSettled(() => {
+                const f = this.app.vault.getFileByPath(record.sessionPath)
+                return f ? f.stat : null
+            }, this.clock)
             // Checked against the notes as they are on disk now, not the metadata cache.
             const session = this.app.vault.getFileByPath(record.sessionPath)
             if (!session || (record.sessionCtime && session.stat.ctime !== record.sessionCtime))
@@ -370,6 +381,7 @@ export class PracticeLogService {
                     )
                 }
                 await this.app.fileManager.trashFile(session)
+                this.watchForRecreation(record)
             } catch (error: unknown) {
                 // What was put back stays put back; undoing again finishes the job.
                 return {
@@ -381,6 +393,34 @@ export class PracticeLogService {
         } finally {
             this.busy = false
         }
+    }
+
+    /**
+     * After an undo, watch the session note's path for a while: a late write by another plugin can
+     * create it again. A note created there with the body the log wrote is that session: it is
+     * trashed again, and the keys the log changed that are back as the log left them (a recompute
+     * that saw the session again) are put back once more. Anything else is left alone.
+     */
+    private watchForRecreation(record: UndoRecord): void {
+        const vault = this.app.vault
+        const ref = vault.on('create', (created) => {
+            if (created.path !== record.sessionPath) return
+            void (async () => {
+                const file = vault.getFileByPath(record.sessionPath)
+                if (!file || bodyOf(await vault.read(file)) !== record.sessionBody) return
+                await this.app.fileManager.trashFile(file)
+                for (const f of record.files) {
+                    const note = vault.getFileByPath(f.path)
+                    const fm = note && this.app.metadataCache.getFileCache(note)?.frontmatter
+                    if (!note || !fm || loggedKeys(fm, f.keys).length === 0) continue
+                    await this.app.fileManager.processFrontMatter(
+                        note,
+                        (x: Record<string, unknown>) => revert(x, f.keys)
+                    )
+                }
+            })()
+        })
+        void this.clock.sleep(SETTLE.watchMs).then(() => vault.offref(ref))
     }
 
     /** A note's frontmatter read from the file itself (the metadata cache can lag a write). */
