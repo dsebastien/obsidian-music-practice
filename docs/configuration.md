@@ -18,7 +18,7 @@ Every rule the plugin applies is a setting, with defaults that work on install. 
 
 ## Notation blocks
 
-One switch per kind of [notation block](notation.md), all on by default: chord diagrams (` ```chord `), chord charts (` ```chords `), keyboards, fretboards, tabs (` ```tab `) and scores (` ```score `). A block turned off shows as code. Reload the plugin to let another plugin draw it. The status line says when another plugin already draws one of them.
+One switch per kind of [notation block](notation.md), all on by default: **Chord diagrams** (` ```chord `), **Chord charts** (` ```chords `), **Keyboards**, **Fretboards**, **Tabs** (` ```tab `), **Scores** (` ```score `), **Strumming patterns** (` ```strum `), **Progressions** (` ```progression `) and **Circle of fifths** (` ```circle `). A block turned off shows as code. Reload the plugin to let another plugin draw it. The status line says when another plugin already draws one of them.
 
 | Setting                   | Default    | What it does                                                                                        |
 | ------------------------- | ---------- | --------------------------------------------------------------------------------------------------- |
@@ -31,13 +31,13 @@ A block's own `orientation:` or `hand:` wins over these. Diagrams on screen redr
 
 ## Playback
 
-| Setting           | Default   | What it does                                                                                                                     |
-| ----------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Play the diagrams | On        | A playback bar at the bottom of chord, keyboard and fretboard diagrams, on hover (a tap on touch screens).                       |
-| Sound             | Soundfont | Soundfont: recorded instruments, the same as tabs and scores. Light synthesizer: a small computed sound, as on Obsidian Publish. |
-| Volume            | 80        | From 0 to 100.                                                                                                                   |
-| Scale tempo       | 90        | Notes per minute when a scale plays, from 20 to 240.                                                                             |
-| Strum             | 40        | Milliseconds between two strings when a chord is strummed, from 0 to 200.                                                        |
+| Setting           | Default   | What it does                                                                                                                                                                                     |
+| ----------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Play the diagrams | On        | A playback bar at the bottom of chord, keyboard and fretboard diagrams, on hover (a tap on touch screens), and under strumming patterns. A click on the circle of fifths plays a key or a chord. |
+| Sound             | Soundfont | Soundfont: recorded instruments, the same as tabs and scores. Light synthesizer: a small computed sound, as on Obsidian Publish.                                                                 |
+| Volume            | 80        | From 0 to 100.                                                                                                                                                                                   |
+| Scale tempo       | 90        | Notes per minute when a scale plays, from 20 to 240.                                                                                                                                             |
+| Strum             | 40        | Milliseconds between two strings when a chord is strummed, from 0 to 200.                                                                                                                        |
 
 Each diagram's bar can change the speed, volume and sound for that diagram.
 

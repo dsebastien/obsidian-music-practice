@@ -8,7 +8,7 @@ permalink: /
 
 Learn an instrument in Obsidian: log practice in under a minute, run a practice timer, get a plan for the time you have, and let spaced review tell you what's slipping. Guitar and piano first, any instrument after.
 
-> Version 0.7: the practice engine, a practice panel, a metronome, chord change drills, every way to play a chord, triads, chord transitions, tabs and scores with playback, imports, and notation blocks (chord diagrams, keyboards, fretboards, chord charts); chord and scale notes draw their own diagram from their properties; every diagram plays.
+> Version 0.9: the practice engine, a practice panel, a metronome, chord change drills, every way to play a chord, triads, chord transitions, tabs and scores with playback, imports, and notation blocks (chord diagrams, keyboards, fretboards, chord charts, strumming patterns, progressions, the circle of fifths); chord and scale notes draw their own diagram from their properties; every diagram plays, and its notes light up as you hear them.
 
 ## Key features
 
@@ -23,6 +23,8 @@ Learn an instrument in Obsidian: log practice in under a minute, run a practice 
 - [Triads](usage.md#triads) and [chord transitions](usage.md#chord-transitions).
 - [Tabs and scores](notation.md#tabs-and-scores) with playback, and [imports](usage.md#imports).
 - [Notation blocks](notation.md): chord diagrams, keyboards, fretboards and chord charts from plain text, side by side, vertical or horizontal, left-handed.
+- [Strumming patterns](notation.md#strumming-patterns) you can hear, [progressions](notation.md#progressions) in any key, and the [circle of fifths](notation.md#circle-of-fifths).
+- A capo, arpeggios, piano voicings and the scale that fits a song's chords ([Chords and scales, easier](notation.md#chords-and-scales-easier)).
 
 ![Practice plan](images/practice-plan.png)
 

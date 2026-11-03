@@ -44,21 +44,24 @@ Add a chord from its symbol:
 
 ### Chords, scales and voicings
 
-- **Notation blocks**: ` ```chord ` (guitar diagrams, piano chords), ` ```keyboard `, ` ```fretboard ` and ` ```chords ` (ChordPro charts, transposable), drawn by the [Music Notation](https://github.com/dsebastien/music-notation) library. Put several diagrams side by side (`---`), in any orientation, or left-handed. They work on Obsidian Publish too, through the library's loader.
+- **Notation blocks**: ` ```chord ` (guitar diagrams, piano chords), ` ```keyboard `, ` ```fretboard `, ` ```chords ` (ChordPro charts, transposable, with their chord diagrams), ` ```strum ` (strumming patterns), ` ```progression ` and ` ```circle ` (the circle of fifths), drawn by the [Music Notation](https://github.com/dsebastien/music-notation) library. Put several diagrams side by side (`---`), in any orientation, or left-handed. They work on Obsidian Publish too, through the library's loader.
 - **Notes draw their own diagram**: an empty block in a chord or scale note draws from the note's properties (chord, frets, fingers; scale root, type and shape), in Obsidian and on Publish. Nothing is written twice.
 - **Chords in words or frets**: `A Major`, `F Sharp Minor 7`, or `x02220` (the chord is recognized). **Identify this chord** names a chord note from its frets.
 - **All the ways to play a chord**: every playable voicing, easiest first, narrowed down by neck area and root string. Switch a chord note to one, or add it as its own note.
 - **Triads** on string sets, as learning notes titled with their string set and inversion. An inversion comes after its root position.
 - **Chord transitions**: the easiest way from one chord to the next, with the fingers that stay or slide marked, and tips. And the smoothest voicings for a whole progression.
-- **Scales and modes**: positions (boxes, CAGED, 3NPS), characteristic notes, comparisons, every mode of a key.
+- **Scales and modes**: positions (boxes, CAGED, 3NPS), characteristic notes, comparisons, every mode of a key. Arpeggios in their CAGED shapes, the scale that fits a song's chords, and a chord's notes over a scale.
+- **Strumming patterns**: paste a pattern the way you find it on the web (`D DU UDU`), see it on a beat grid and hear it over its chords.
+- **Progressions and the circle of fifths**: write `I V vi IV` (or `1 5 6m 4`) once and see it in any key, with a diagram for each chord. The circle shows a key's chords on the wheel; click one to hear it.
+- **Capo and piano voicings**: a capo on any guitar chord or fretboard, with the chord it sounds. Piano chords in any inversion, shell or rootless, with both hands.
 
 ![Every voicing of A](docs/images/voicings.png)
 
 ### Tabs, scores and sound
 
 - **Tabs and scores** with playback: play, slow down, loop, metronome and count-in. Write them in alphaTex, or use a Guitar Pro / MusicXML file. Export to Guitar Pro 7 or MIDI, or print. Everything is bundled, so it works offline, and in popout windows too.
-- **Hear the diagrams**: a play bar on every chord, keyboard and fretboard diagram, shown on hover. Chords strum, scales go up and down, and a click plays a note.
-- **Imports**: Guitar Pro, MusicXML, Capella and ChordPro files, plus pasted text tabs and chord sheets.
+- **Hear the diagrams**: a play bar on every chord, keyboard and fretboard diagram, shown on hover. Chords strum, scales go up and down, and a click plays a note. Each note lights up on the drawing as you hear it.
+- **Imports**: Guitar Pro, MusicXML, Capella and ChordPro files, plus pasted text tabs (drum tabs too) and chord sheets. A text tab already in a note gets a **Convert to a playable tab** button.
 
 ![Tabs with a player](docs/images/tab.png)
 
