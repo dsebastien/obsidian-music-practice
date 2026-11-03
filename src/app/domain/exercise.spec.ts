@@ -210,3 +210,17 @@ describe('playedBpm', () => {
         expect(playedBpm(undefined, 1)).toBeNull()
     })
 })
+
+describe('tabSpeed', () => {
+    it("is the speed set on the tab's bar, before the first Play too (#70)", async () => {
+        const { tabSpeed } = await import('./exercise')
+        // alphaTab's playbackSpeed stays 1 until the player starts.
+        expect(tabSpeed({ speed: () => 1.2, api: { playbackSpeed: 1 } })).toBe(1.2)
+    })
+
+    it("is alphaTab's speed for a result without speed()", async () => {
+        const { tabSpeed } = await import('./exercise')
+        expect(tabSpeed({ api: { playbackSpeed: 0.8 } })).toBe(0.8)
+        expect(tabSpeed({ api: null })).toBeUndefined()
+    })
+})

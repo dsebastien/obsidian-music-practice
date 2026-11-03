@@ -80,7 +80,8 @@ import {
     exercisePositions,
     exerciseSubject,
     exerciseTempo,
-    playedBpm
+    playedBpm,
+    tabSpeed
 } from './domain/exercise'
 import type { ExerciseSubject } from './domain/exercise'
 import { ExerciseModal } from './ui/exercise-modal'
@@ -535,7 +536,7 @@ export class MusicPracticePlugin extends Plugin {
         setIcon(button, 'gauge')
         button.addEventListener('click', () => {
             const current = this.items.items().find((i) => i.path === sourcePath) ?? item
-            const played = playedBpm(api.score?.tempo, api.playbackSpeed)
+            const played = playedBpm(api.score?.tempo, tabSpeed(result))
             new BpmModal(
                 this.app,
                 current,

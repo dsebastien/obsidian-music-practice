@@ -182,3 +182,14 @@ export function playedBpm(tempo: number | undefined, speed: number | undefined):
     const bpm = Math.round(tempo * speed)
     return bpm > 0 ? bpm : null
 }
+
+/**
+ * The speed of a tab's player: the one set on its bar (`speed()`, music-notation 0.11), which
+ * alphaTab's `playbackSpeed` gets only once the player starts (the first Play); else alphaTab's.
+ */
+export function tabSpeed(result: {
+    speed?: () => number
+    api: { playbackSpeed?: number } | null
+}): number | undefined {
+    return result.speed ? result.speed() : result.api?.playbackSpeed
+}
