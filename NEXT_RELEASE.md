@@ -1,6 +1,0 @@
-A practice timer you forgot can now be discarded and shows as forgotten, and long text tab lines are fast again. From music-notation 0.10.1.
-
-- **Discard a forgotten timer**: throw away a timer you forgot, without logging it. Use **Discard practice timer**, the **Discard** button in the practice panel, **Discard timer** in Log practice when you stop the timer, or a right-click on the timer in the status bar. It always asks first and says how long the timer ran. Before, only logging it cleared it.
-- **Forgotten timers stand out**: a timer that started more than 4 hours ago (pauses included) shows "forgotten?" in the status bar and the practice panel. If you try to start a new timer while it runs, the notice says how to discard the old one.
-- **Shortcut**: `obsidian://music-practice?do=discard-timer` asks, then discards the timer.
-- **Long text tab lines are fast again**: a text tab line with no bar lines is split into bars quickly again, in your notes, in **Import a text tab** and in **Edit as alphaTex**. In 0.11.0, a long palm mute (PM) or slide line got slower the longer it was: a palm mute line of 50,000 columns took 499 ms. It now takes 64 ms, and the output is the same. Real tabs (about 100 columns) were not slowed down in practice.
