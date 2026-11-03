@@ -28,7 +28,8 @@ const allOn = (): NotationToggles => ({
     score: true,
     strum: true,
     progression: true,
-    circle: true
+    circle: true,
+    picking: true
 })
 
 /** A plugin whose registrations are recorded; `refuse` languages throw like Obsidian does. */
