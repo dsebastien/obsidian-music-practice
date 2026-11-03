@@ -5,7 +5,7 @@
  * empty ```picking block in a fingerpicking pattern note draws its pattern. Pure: no Obsidian
  * imports.
  */
-import { namedPicking, readChord } from '@dsebastien/music-notation'
+import { PICKING_PATTERNS, namedPicking, readChord } from '@dsebastien/music-notation'
 import type { FieldNames } from './fields'
 
 type Properties = Record<string, unknown>
@@ -133,6 +133,28 @@ export function pickingSource(properties: Properties, fields: PracticeBlockField
         ...(chord ? [`chord: ${chord}`] : []),
         ...tempoLine(properties, fields)
     ].join('\n')
+}
+
+/** The library's named picking patterns, for a pattern field's suggestions (#71). */
+export const PICKING_NAMES: readonly string[] = Object.values(PICKING_PATTERNS).map((p) => p.name)
+
+/**
+ * A fingerpicking pattern note's properties from what was typed in Add a learning note (#71): the
+ * pattern, time signature and chord (as the library spells it, "A Minor" → "Am"), for the fields
+ * the type defines; empty values and chords the library doesn't read are left out.
+ */
+export function typedPickingProperties(
+    typed: { pattern: string; time: string; chord: string },
+    fields: Pick<FieldNames, 'pickingPattern' | 'timeSignature' | 'chordSymbol'>,
+    has: (name: string) => boolean
+): Record<string, string> {
+    const chord = typed.chord.trim() ? (readChord(typed.chord.trim())?.symbol ?? '') : ''
+    const values: [string, string][] = [
+        [fields.pickingPattern, typed.pattern.trim()],
+        [fields.timeSignature, typed.time.trim()],
+        [fields.chordSymbol, chord]
+    ]
+    return Object.fromEntries(values.filter(([name, value]) => value && has(name)))
 }
 
 /**

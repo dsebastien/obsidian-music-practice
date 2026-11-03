@@ -24,7 +24,13 @@ import type {
 import { lookupGuitarVoicing, voicingCount } from '@dsebastien/music-notation/voicings'
 import { blockSource, chordBlock, formatFrets, voicingRow } from '../domain/notation-note'
 import { hasBarre, shapeValue } from '../domain/voicings'
-import { arpeggioSource, strumSource } from '../domain/practice-blocks'
+import {
+    PICKING_NAMES,
+    arpeggioSource,
+    pickingSource,
+    strumSource,
+    typedPickingProperties
+} from '../domain/practice-blocks'
 import { triadDetail } from '../domain/triads'
 import type { StringSet } from '../domain/triads'
 import type { TriadPick } from './triads-modal'
@@ -61,6 +67,8 @@ export class AddNoteModal extends Modal {
     private scaleType = ''
     /** Strumming pattern types (#58): the pattern, time signature and feel typed. */
     private strum = { pattern: '', time: '', feel: '' }
+    /** Fingerpicking pattern types (#71): the pattern, time signature and chord typed. */
+    private picking = { pattern: '', time: '', chord: '' }
     private shape = ''
     private level: number | undefined
     /** Guitar chords: index of the voicing to prefill; -1 for none; PICKED for `picked`. */
@@ -222,6 +230,29 @@ export class AddNoteModal extends Modal {
         return probe.ok ? source : null
     }
 
+    /** Whether this is a fingerpicking pattern type: it stores a picking pattern (#71). */
+    private pickingFields(): boolean {
+        return !this.strumFields() && this.type.fields.has(this.fields.pickingPattern)
+    }
+
+    /** A fingerpicking pattern note's properties: what was typed, for the fields the type defines. */
+    private pickingProperties(): Record<string, string> {
+        if (!this.pickingFields()) return {}
+        return typedPickingProperties(this.picking, this.fields, (name) =>
+            this.type.fields.has(name)
+        )
+    }
+
+    /** A fingerpicking pattern note's ```picking block for the preview; only one that draws. */
+    private pickingPreview(): string | null {
+        if (!this.pickingFields()) return null
+        const source = pickingSource(this.pickingProperties(), this.fields)
+        if (!source) return null
+        const probe = renderBlock('picking', source, createDiv())
+        probe.destroy()
+        return probe.ok ? source : null
+    }
+
     /** An arpeggio note's block for the preview, as the note will draw it; only one that draws. */
     private arpeggioPreview(): string | null {
         const language = this.language()
@@ -247,6 +278,8 @@ export class AddNoteModal extends Modal {
     private block(): NotationLanguage | null {
         if (this.strumFields())
             return this.blocksOn('strum') && this.strumPreview() ? 'strum' : null
+        if (this.pickingFields())
+            return this.blocksOn('picking') && this.pickingPreview() ? 'picking' : null
         const language = this.language()
         if (!language || !this.blocksOn(language)) return null
         if (language === 'chord') return this.preview() ? language : null
@@ -281,6 +314,7 @@ export class AddNoteModal extends Modal {
         const properties = {
             ...scale,
             ...this.strumProperties(),
+            ...this.pickingProperties(),
             ...(prerequisite ? { [this.fields.prerequisites]: [`[[${prerequisite}]]`] } : {})
         }
         return {
@@ -324,6 +358,7 @@ export class AddNoteModal extends Modal {
             this.scaleRoot = ''
             this.scaleType = ''
             this.strum = { pattern: '', time: '', feel: '' }
+            this.picking = { pattern: '', time: '', chord: '' }
             this.render()
         })
         this.formEl = this.contentEl.createDiv({ cls: 'mp-modal' })
@@ -434,6 +469,59 @@ export class AddNoteModal extends Modal {
             strumField('Pattern', this.fields.strumPattern, 'pattern', 'D DU UDU')
             strumField('Time signature', this.fields.timeSignature, 'time', '4/4')
             strumField('Feel', this.fields.strumFeel, 'feel', 'straight, swing, 60%')
+        }
+
+        // Fingerpicking patterns: the pattern (a named one suggested, or PIMA letters / string
+        // numbers), its time signature (the type's values when it lists them) and the chord.
+        if (this.pickingFields()) {
+            const pickingRow = el.createDiv({ cls: 'mp-form-row' })
+            const pickingField = (
+                label: string,
+                name: string,
+                key: 'pattern' | 'time' | 'chord',
+                placeholder: string,
+                suggestions: readonly string[] = []
+            ) => {
+                if (!this.type.fields.has(name)) return
+                const field = pickingRow.createEl('label', { cls: 'mp-field', text: label })
+                const values = this.type.allowedValues[name] ?? []
+                let control: HTMLSelectElement | HTMLInputElement
+                if (values.length) {
+                    const select = field.createEl('select', { cls: 'dropdown' })
+                    select.createEl('option', { text: '—', value: '' })
+                    for (const v of values)
+                        select.createEl('option', { text: v, value: v }).selected =
+                            v === this.picking[key]
+                    control = select
+                } else {
+                    control = field.createEl('input', { type: 'text', attr: { placeholder } })
+                    control.value = this.picking[key]
+                    if (suggestions.length) {
+                        const list = field.createEl('datalist')
+                        list.id = `mp-picking-${key}-${Math.random().toString(36).slice(2)}`
+                        for (const v of suggestions) list.createEl('option', { value: v })
+                        control.setAttribute('list', list.id)
+                    }
+                }
+                const update = () => {
+                    this.picking[key] = control.value
+                    refresh()
+                }
+                control.addEventListener('input', update)
+                control.addEventListener('change', update)
+                control.addEventListener('keydown', (event) => {
+                    if ((event as KeyboardEvent).key === 'Enter') void this.submit()
+                })
+            }
+            pickingField(
+                'Pattern',
+                this.fields.pickingPattern,
+                'pattern',
+                "Travis, or p i m a p' i m a",
+                PICKING_NAMES
+            )
+            pickingField('Time signature', this.fields.timeSignature, 'time', '4/4')
+            pickingField('Chord', this.fields.chordSymbol, 'chord', 'C')
         }
 
         const row = el.createDiv({ cls: 'mp-form-row' })
@@ -675,6 +763,12 @@ export class AddNoteModal extends Modal {
             const strum = this.blocksOn('strum') ? this.strumPreview() : null
             if (strum) {
                 this.diagrams.push(renderBlock('strum', strum, diagramEl, options()))
+                return
+            }
+            // Fingerpicking patterns: the pattern as the note will draw it, over its chord.
+            const picking = this.blocksOn('picking') ? this.pickingPreview() : null
+            if (picking) {
+                this.diagrams.push(renderBlock('picking', picking, diagramEl, options()))
                 return
             }
             // Arpeggios: drawn as the note will draw them (the chord's notes in its shape).
