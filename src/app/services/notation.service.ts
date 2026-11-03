@@ -436,7 +436,8 @@ export class NotationBlocks {
                             ...this.layout(),
                             ...(empty && own === null ? this.note(path) : null),
                             voicings: lookupGuitarVoicing,
-                            ...playOf(this.play())
+                            ...playOf(this.play()),
+                            ...this.exerciseTabs(path)
                         })
                     }
                     const key = (path: string) => {
@@ -456,6 +457,23 @@ export class NotationBlocks {
             } catch {
                 // Registry unreadable and another plugin was first: never try this one again.
                 this.taken.add(language)
+            }
+        }
+    }
+
+    /**
+     * The `tab` render option (#70): a fretboard's `exercise:` tab drawn by alphaTab under the
+     * diagram, as a tab block is (in the holder's window, once it's on the page), freed with the
+     * diagram or when the plugin unloads. None without a tab host: the alphaTex shows as text.
+     */
+    private exerciseTabs(sourcePath: string): Pick<RenderOptions, 'tab'> {
+        const tabs = this.tabs
+        if (!tabs) return {}
+        return {
+            tab: (source, holder) => {
+                const child = new TabChild(holder, 'tab', source, tabs, sourcePath, this.liveTabs)
+                child.load()
+                return () => child.unload()
             }
         }
     }
