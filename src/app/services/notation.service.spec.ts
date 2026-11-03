@@ -24,7 +24,10 @@ const allOn = (): NotationToggles => ({
     keyboard: true,
     fretboard: true,
     tab: true,
-    score: true
+    score: true,
+    strum: true,
+    progression: true,
+    circle: true
 })
 
 /** A plugin whose registrations are recorded; `refuse` languages throw like Obsidian does. */
@@ -50,7 +53,15 @@ describe('NotationBlocks', () => {
         const blocks = new NotationBlocks(plugin, allOn, undefined, () => false)
         blocks.sync()
         blocks.sync()
-        expect(calls).toEqual(['chord', 'chords', 'keyboard', 'fretboard'])
+        expect(calls).toEqual([
+            'chord',
+            'chords',
+            'keyboard',
+            'fretboard',
+            'strum',
+            'progression',
+            'circle'
+        ])
         expect(blocks.status('chord')).toBe('on')
     })
 
@@ -424,7 +435,12 @@ describe('NotationBlocks: tabs and scores', () => {
     it('offers to convert only the text tabs the library reads', () => {
         const { draw } = setup()
         const blank = 'e|--------|\nB|--------|\nG|--------|'
+        // A blank stave is a template: the library reads it as empty bars, but it stays text.
         expect(draw('tab', blank).map((m) => m.tag)).toEqual(['pre', 'code'])
+        // Drum tabs and short excerpts the library now reads can be converted.
+        const drums = 'HH|x-x-x-x-|\nS |----o---|\nBD|o-------|'
+        expect(draw('tab', drums).map((m) => m.tag)).toEqual(['pre', 'code', 'button'])
+        expect(draw('tab', 'A|--0--3--|').map((m) => m.tag)).toEqual(['pre', 'code', 'button'])
     })
 
     it('shows a block as code when its language is turned off', () => {

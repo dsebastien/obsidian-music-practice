@@ -140,6 +140,21 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         'Scores',
                         'Standard notation in alphaTex (or a score file), with playback.'
                     ),
+                    this.notationToggle(
+                        'strum',
+                        'Strumming patterns',
+                        'Down and up strums on a beat grid, with accents and chord changes, playable.'
+                    ),
+                    this.notationToggle(
+                        'progression',
+                        'Progressions',
+                        'Roman numerals or Nashville numbers in any key, with their chords.'
+                    ),
+                    this.notationToggle(
+                        'circle',
+                        'Circle of fifths',
+                        "The keys, their relative minors and a key's chords on the wheel."
+                    ),
                     {
                         name: 'Left-handed',
                         desc: 'Mirror guitar chord diagrams and fretboards (the low string on the right). A block can say otherwise with "hand: right".',

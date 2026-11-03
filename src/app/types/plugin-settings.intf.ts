@@ -83,7 +83,10 @@ export function createDefaultSettings(): PluginSettings {
             keyboard: true,
             fretboard: true,
             tab: true,
-            score: true
+            score: true,
+            strum: true,
+            progression: true,
+            circle: true
         },
         playback: createDefaultPlayback(),
         notationLayout: {
