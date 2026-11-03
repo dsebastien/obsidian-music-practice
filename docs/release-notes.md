@@ -1,5 +1,23 @@
 # Release Notes
 
+## 0.9.0 (2026-11-03)
+
+Strumming patterns, progressions and the circle of fifths, notes that light up as they play, and capo, arpeggios and piano voicings. From music-notation 0.8.0.
+
+- **Three new blocks**: ` ```strum `, ` ```progression ` and ` ```circle `. Each has its own toggle in Settings → Notation blocks (Strumming patterns, Progressions, Circle of fifths), on by default. Turn one off and its blocks show as code.
+- **Notes light up as they play**: while a chord, keyboard or fretboard plays, each note lights up on the drawing when you hear it: the dot, the key or the string's mark. A strummed chord lights its strings from the low one up, and a clicked note lights only what you clicked. On the first play, the lights wait for the soundfont to load, so they match the sound. In tabs and scores, a line now follows the beat and the notes that sound light up. Before, neither showed.
+- **Strumming patterns**: a ` ```strum ` block draws a pattern on a beat grid, with the counts, an arrow for each strum, accents (`D>`), muted strums (`X`), ghost strums (`(U)`) and chord changes (`[G]`). Paste it the way you find it on the web: `D - D U - U D U`, `D DU UDU` and `DDUUDU` all work, in 4/4, 3/4, 6/8 or 12/8. The bar under it plays the pattern over its chords, with loop, a count-in, tempo and volume, and lights the slot that plays.
+- **Progressions**: a ` ```progression ` block writes a progression once and shows its chords in any key, each with its numeral and a diagram. Roman numerals (`I V vi IV`), Nashville numbers (`1 5 6m 4`) or chord names; `key: G`, `transpose: -2`, `functions: yes`, and `---` for a key change. Guitar diagrams use the voicings that make the whole progression easiest.
+- **Circle of fifths**: a ` ```circle ` block draws the keys, their relative minors and the diminished chords, with the chosen key's chords tinted and numbered, in any mode. A click plays a key or a chord, and the play button plays the key's scale.
+- **Which scale fits**: `scales-for: G D Em C` on a fretboard or keyboard draws the scale that fits a song's chords. `scale:` with `chord:` keeps the scale drawn and marks the chord's notes: the notes to aim for when you solo over that chord.
+- **Capo**: `capo: 2` on a chord or fretboard block draws a capo bar and a "Capo 2" caption. Frets count from the capo, so an A shape is still `x02220`, and playback plays the notes that sound. `sounds: yes` adds the chord you hear ("Capo 2, sounds B").
+- **Arpeggios**: `arpeggio: Am7` on a fretboard draws a chord's notes with their intervals; add `positions: all` for its CAGED shapes up the neck.
+- **Piano voicings**: piano chords take `inversion: first`, `voicing: shell` (or `open`, `rootless A`, `rootless B`), `hands: left+right` and `fingering: auto`.
+- **Chord diagrams in chord charts**: `{diagrams}` in a ` ```chords ` block draws every chord the song uses as a row above it. `{define}` gives a chord your own shape, and `{chord: Am}` draws one chord where you write it. `{instrument: piano}` draws piano chords instead.
+- **More text tabs convert**: drum tabs, tabs with numbered strings (`1|` to `6|`) and a single named line now get the **Convert to a playable tab** button. Blank staves stay text: they are templates to fill in.
+- **Transposed chords spelled right**: a chart with `{key: G}` and `{transpose: -1}` now shows F# B C#. Before, it showed Gb B Db.
+- **Drums in tabs**: tab blocks and Guitar Pro files with drums show tablature for the guitar and notation for the drums, staff by staff, with the percussion clef. Before, the drums drew nothing in a tab block.
+
 ## 0.8.2 (2026-11-03)
 
 The piano plays, and a diagram's sound menu redraws it for the other instrument. From music-notation 0.7.0.
