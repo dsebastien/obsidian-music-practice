@@ -98,9 +98,10 @@ describe('helpers', () => {
     it('labels voicings by shape, else by fret', () => {
         const [open] = generateVoicings('C')
         expect(voicingLabel(open!, 1)).toBe('1. Open')
-        const unnamed = generateVoicings('C').filter((v) => v.shape === null)
-        expect(unnamed.length).toBeGreaterThan(0)
-        for (const v of unnamed) expect(voicingLabel(v, 3)).toBe(`3. ${v.baseFret}fr`)
+        // Since music-notation 0.11 every voicing of a known chord has a name (#72).
+        for (const v of generateVoicings('C')) expect(voicingLabel(v, 2)).toBe(`2. ${v.shape}`)
+        const unnamed = { ...generateVoicings('C')[0]!, shape: null, baseFret: 5 }
+        expect(voicingLabel(unnamed, 3)).toBe('3. 5fr')
     })
 })
 
