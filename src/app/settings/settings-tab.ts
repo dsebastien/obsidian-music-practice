@@ -520,7 +520,11 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             this.text('fields.quality', 'Session quality', ''),
                             this.text('fields.practiced', 'Practiced items', ''),
                             this.text('fields.activities', 'Activities', ''),
-                            this.text('fields.timeEntries', 'Time entries', 'On activities.'),
+                            this.text(
+                                'fields.timeEntries',
+                                'Time entries',
+                                'On activities. Read to compute their minutes; a log removes the entry of a Kanban Action Planner timer it takes over.'
+                            ),
                             this.text('fields.lastSession', 'Last session date', 'On activities.')
                         ]
                     }
