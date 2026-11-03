@@ -128,6 +128,11 @@ export class DrillService {
         )
     }
 
+    /** The pair of two chord notes, with its pair note's counts when it has one (#74). */
+    pairFor(a: string, b: string): DrillPair {
+        return pairsOf([a, b], this.pairNotes())[0] ?? { a, b, note: null, best: null, last: null }
+    }
+
     /** The pair a pair note drills; null for other notes. */
     pairOfNote(path: string): DrillPair | null {
         const note = this.pairNotes().find((n) => n.path === path)

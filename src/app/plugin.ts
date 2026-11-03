@@ -62,6 +62,8 @@ import { progressionOf } from './domain/progression'
 import { practiceBlockSource } from './domain/practice-blocks'
 import { pieceChords, pieceKey } from './domain/piece-key'
 import { PieceKeyModal } from './ui/piece-key-modal'
+import { chordChanges, easiestFrets, rankChanges } from './domain/chart-changes'
+import { ChartChangesModal } from './ui/chart-changes-modal'
 import type { TriadPick } from './ui/triads-modal'
 import { triadTitle } from './domain/triads'
 import type { StringSet } from './domain/triads'
@@ -81,7 +83,7 @@ import { learningTypeOf } from './domain/item-reader'
 import { safeTitle } from './domain/chord'
 import { propertyNamesOf, chordFromNotes, formatFrets, withAlias } from './domain/notation-note'
 import { ChooseChordModal } from './ui/choose-chord-modal'
-import { parseChord, readChord } from '@dsebastien/music-notation'
+import { parseChord, parseFrets, readChord } from '@dsebastien/music-notation'
 import type { GeneratedVoicing } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
 import type { NotationStatus } from './services/notation.service'
@@ -777,6 +779,16 @@ export class MusicPracticePlugin extends Plugin {
             }
         })
         this.addCommand({
+            id: 'chart-changes',
+            name: 'Suggest chord change drills from this piece',
+            checkCallback: (checking) => {
+                const file = this.app.workspace.getActiveFile()
+                if (!file || file.extension !== 'md') return false
+                if (!checking) void this.openChartChanges(file)
+                return true
+            }
+        })
+        this.addCommand({
             id: 'smooth-progression',
             name: 'Smooth this progression',
             checkCallback: (checking) => {
@@ -1357,6 +1369,62 @@ export class MusicPracticePlugin extends Plugin {
                           )
                   }
                 : {})
+        }).open()
+    }
+
+    /**
+     * The guitar chord notes by chord symbol, with their frets (#74): the most advanced note of a
+     * chord when it has several.
+     */
+    private chordNotesBySymbol(): Map<string, { path: string; frets: (number | null)[] | null }> {
+        const fields = this.effective().fields
+        const notes = new Map<string, { path: string; frets: (number | null)[] | null }>()
+        const chords = [...this.drills.chords()].sort((x, y) => (y.level ?? 0) - (x.level ?? 0))
+        for (const item of chords) {
+            const file = this.app.vault.getFileByPath(item.path)
+            const fm = file ? this.app.metadataCache.getFileCache(file)?.frontmatter : null
+            const raw: unknown = fm?.[fields.chordSymbol]
+            const symbol = typeof raw === 'string' ? readChord(raw.trim())?.symbol : null
+            if (!symbol || notes.has(symbol)) continue
+            const fretsRaw: unknown = fm?.[fields.frets]
+            const frets =
+                typeof fretsRaw === 'string' || typeof fretsRaw === 'number'
+                    ? parseFrets(String(fretsRaw).padStart(6, '0'))
+                    : null
+            notes.set(symbol, { path: item.path, frets: frets?.length === 6 ? frets : null })
+        }
+        return notes
+    }
+
+    /** Chord change drills from a chart (#74): the piece's changes, hardest first. */
+    private async openChartChanges(file: TFile): Promise<void> {
+        const sequence = progressionOf(
+            await this.app.vault.cachedRead(file),
+            Number.POSITIVE_INFINITY
+        )
+        const changes = chordChanges(sequence)
+        if (!changes.length) {
+            new Notice('This note has no chord chart (```chords) with a chord change.')
+            return
+        }
+        const notes = this.chordNotesBySymbol()
+        const ranked = rankChanges(
+            changes,
+            (symbol) => notes.get(symbol)?.frets ?? easiestFrets(symbol)
+        )
+        new ChartChangesModal(this.app, {
+            name: file.basename,
+            rows: ranked.map((change) => {
+                const noteA = notes.get(change.a)?.path ?? null
+                const noteB = notes.get(change.b)?.path ?? null
+                return {
+                    ...change,
+                    noteA,
+                    noteB,
+                    best: noteA && noteB ? this.drills.pairFor(noteA, noteB).best : null
+                }
+            }),
+            drill: (a, b) => this.openDrill(this.drills.pairFor(a, b))
         }).open()
     }
 
