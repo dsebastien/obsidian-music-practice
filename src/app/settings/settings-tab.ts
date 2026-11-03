@@ -220,7 +220,7 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                     this.num(
                         'playback.strum',
                         'Strum',
-                        'Milliseconds between two strings when a chord is strummed, from 0 to 200.'
+                        'Milliseconds between two strings when a guitar chord is strummed, from 0 to 200 (12 by default). Piano chords sound together.'
                     )
                 ]
             },

@@ -9,7 +9,7 @@ import type { PracticeRules } from '../domain/rules'
 import { ORIENTATIONS } from '../domain/notation-layout'
 import type { NotationLayout } from '../domain/notation-layout'
 import type { NotationToggles } from '../services/notation.service'
-import { createDefaultPlayback } from '../domain/playback'
+import { createDefaultPlayback, DEFAULT_STRUM, OLD_DEFAULT_STRUM } from '../domain/playback'
 import type { PlaybackSettings } from '../domain/playback'
 import { isUndoRecord } from '../domain/undo'
 import { createDefaultMetronomeSettings } from '../domain/metronome'
@@ -167,6 +167,9 @@ export function settingsFrom(loaded: unknown): PluginSettings {
         settings.timerPausedAt = 0
         settings.timerPausedMs = 0
     }
+    // The strum stored by versions before 0.10 (40 ms) was their default: the new default lets
+    // guitar chords strum at 12 ms and piano chords sound together.
+    if (settings.playback.strum === OLD_DEFAULT_STRUM) settings.playback.strum = DEFAULT_STRUM
     // An undo record edited by hand or from an older version: nothing to undo.
     if (!isUndoRecord(settings.lastLog)) settings.lastLog = null
     // Orientations are text: anything but the known values falls back to the default.

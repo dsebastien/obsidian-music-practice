@@ -20,13 +20,27 @@ export interface PlaybackSettings {
     strum: number
 }
 
+/**
+ * The library's own guitar strum (12 ms between strings). At this value the plugin passes no strum
+ * and the library's default applies; any value strums guitar chords only, piano chords always
+ * sound together (music-notation 0.9).
+ */
+export const DEFAULT_STRUM = 12
+
+/** The strum the plugin used before 0.10, stored in older settings: read as the default. */
+export const OLD_DEFAULT_STRUM = 40
+
 export const createDefaultPlayback = (): PlaybackSettings => ({
     enabled: true,
     engine: 'soundfont',
     volume: 80,
     bpm: 90,
-    strum: 40
+    strum: DEFAULT_STRUM
 })
+
+/** The strum to pass to the library: none at the default, so the instrument decides. */
+export const strumOption = (settings: PlaybackSettings): { strum?: number } =>
+    settings.strum === DEFAULT_STRUM ? {} : { strum: settings.strum }
 
 /** The library's `play` option for these settings; false when playback is off. */
 export function playOptions(
@@ -38,6 +52,6 @@ export function playOptions(
         ...(settings.engine === 'soundfont' && soundfont ? { player: soundfont } : {}),
         volume: Math.min(1, Math.max(0, settings.volume / 100)),
         bpm: settings.bpm,
-        strum: settings.strum
+        ...strumOption(settings)
     }
 }

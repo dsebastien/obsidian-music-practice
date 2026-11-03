@@ -9,8 +9,15 @@ describe('playOptions', () => {
         expect(playOptions(createDefaultPlayback(), player)).toEqual({
             player,
             volume: 0.8,
-            bpm: 90,
-            strum: 40
+            bpm: 90
+        })
+    })
+
+    it('passes no strum at the default, so guitar strums and piano sounds together', () => {
+        const options = playOptions(createDefaultPlayback(), player)
+        expect(options && 'strum' in options).toBe(false)
+        expect(playOptions({ ...createDefaultPlayback(), strum: 30 }, player)).toMatchObject({
+            strum: 30
         })
     })
 

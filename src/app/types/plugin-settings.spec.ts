@@ -128,3 +128,11 @@ describe('0.5 settings from a 0.4 data.json', () => {
         expect([settings.timerPausedAt, settings.timerPausedMs]).toEqual([0, 0])
     })
 })
+
+describe('settingsFrom: playback strum', () => {
+    it('reads the strum older versions stored by default (40) as the new default (12)', () => {
+        expect(settingsFrom({ playback: { strum: 40 } }).playback.strum).toBe(12)
+        expect(settingsFrom({ playback: { strum: 25 } }).playback.strum).toBe(25)
+        expect(settingsFrom({}).playback.strum).toBe(12)
+    })
+})
