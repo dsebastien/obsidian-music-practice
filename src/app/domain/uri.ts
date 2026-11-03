@@ -1,8 +1,9 @@
 /**
  * Obsidian URI actions (#47): `obsidian://music-practice?do=<action>[&minutes=<n>]`, for
- * shortcuts outside Obsidian (phone shortcuts, a Stream Deck, an NFC tag). Obsidian keeps the
- * handler's name in `action`, so the action is `do`; a query `action` that isn't the handler's
- * name is read too. Pure: no Obsidian imports.
+ * shortcuts outside Obsidian (phone shortcuts, a Stream Deck, an NFC tag). Obsidian replaces a
+ * query `action` with the handler's name, so the action is `do`. An `action` that isn't the
+ * handler's name is read too, for callers that pass the parameters themselves; Obsidian never does.
+ * Pure: no Obsidian imports.
  */
 
 /** The handler's name: `obsidian://music-practice`. */
