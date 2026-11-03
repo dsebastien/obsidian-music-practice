@@ -29,6 +29,8 @@ export interface FieldNames {
     changesLast: string
     /** Pieces: where they come from (links); imported score files are added here (#19). */
     sources: string
+    /** Pieces: the time signature ("3/4", "6/8"); the metronome counts it (#77). */
+    timeSignature: string
     /** Scales: root ("A"), type ("Minor pentatonic"), right-hand fingering (piano). */
     scaleRoot: string
     scaleType: string
@@ -71,6 +73,7 @@ export function createDefaultFieldNames(): FieldNames {
         changesBest: 'changes_best',
         changesLast: 'changes_last',
         sources: 'sources',
+        timeSignature: 'time_signature',
         scaleRoot: 'scale_root',
         scaleType: 'scale_type',
         fingeringRight: 'fingering_rh',

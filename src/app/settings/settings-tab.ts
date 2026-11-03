@@ -259,6 +259,16 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         'Bars between two steps (the "+" button steps at once).'
                     ),
                     this.num(
+                        'metronome.countInBars',
+                        'Count-in',
+                        'Bars of clicks before the first bar, from 0 (none) to 4. When it is on, a chord change drill counts 3, 2, 1 before its minute.'
+                    ),
+                    {
+                        name: 'Flash on each beat',
+                        desc: 'A light that flashes on each beat, beat one in another color: for noisy rooms.',
+                        control: { type: 'toggle', key: 'metronome.flash' }
+                    },
+                    this.num(
                         'drillSeconds',
                         'Chord change drill length',
                         'Seconds, from 10 to 600 (a minute is the classic drill).'
@@ -457,6 +467,11 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                                 'fields.sources',
                                 'Sources',
                                 'Pieces: links to where they come from; imported score files are added here.'
+                            ),
+                            this.text(
+                                'fields.timeSignature',
+                                'Time signature',
+                                'Pieces: "3/4", "6/8"… The metronome counts it when it practices the note.'
                             ),
                             this.text(
                                 'fields.shape',

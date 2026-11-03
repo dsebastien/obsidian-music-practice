@@ -15,6 +15,8 @@ export interface DrillDeps {
     chordSource: (path: string) => string | null
     renderOptions: () => RenderOptions
     seconds: () => number
+    /** Seconds of "3, 2, 1" before the drill's minute starts; 0 for none (#77). */
+    countIn?: () => number
     save: (
         pair: DrillPair,
         count: number
@@ -31,6 +33,8 @@ export class DrillModal extends Modal {
     private count = 0
     private remaining = 0
     private running = false
+    /** Count-in seconds left before the drill starts (#77). */
+    private counting = 0
     private timer: number | null = null
     private diagram: RenderResult | null = null
 
@@ -161,7 +165,7 @@ export class DrillModal extends Modal {
                 .addEventListener('click', () => this.deps.easiestWay?.(pair))
         const result = el.createDiv({ cls: 'mp-drill-result' })
         const show = () => {
-            clock.setText(`${this.remaining} s`)
+            clock.setText(this.counting > 0 ? `Ready… ${this.counting}` : `${this.remaining} s`)
             counter.setText(`+1 · ${this.count}`)
             counter.disabled = !this.running
         }
@@ -185,7 +189,20 @@ export class DrillModal extends Modal {
         this.onTick()
     }
 
-    private run(done: () => void): void {
+    private run(done: () => void, countIn = true): void {
+        // The count-in: 3, 2, 1, then the drill counts (#77). Changes aren't counted yet.
+        this.counting = countIn ? Math.max(0, Math.floor(this.deps.countIn?.() ?? 0)) : 0
+        if (this.counting > 0) {
+            this.onTick()
+            this.timer = window.setInterval(() => {
+                this.counting--
+                if (this.counting > 0) return this.onTick()
+                if (this.timer !== null) window.clearInterval(this.timer)
+                this.timer = null
+                this.run(done, false)
+            }, 1000)
+            return
+        }
         this.running = true
         this.onTick()
         this.timer = window.setInterval(() => {
@@ -203,6 +220,7 @@ export class DrillModal extends Modal {
         if (this.timer !== null) window.clearInterval(this.timer)
         this.timer = null
         this.running = false
+        this.counting = 0
     }
 
     private renderResult(el: HTMLElement): void {

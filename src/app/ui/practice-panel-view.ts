@@ -4,7 +4,7 @@ import type { NoteModel } from '../domain/note-model'
 import { withPaths, type PanelItem } from '../domain/panel'
 import type { LearningItem } from '../domain/practice'
 import { formatElapsed, timerElapsed, type TimerState } from '../domain/timer'
-import type { Metronome } from '../services/metronome.service'
+import type { ItemMeter, Metronome } from '../services/metronome.service'
 import { renderBadge } from './item-row'
 import { renderMetronome, type MetronomeViewDeps } from './metronome-view'
 
@@ -25,6 +25,8 @@ export interface PracticePanelDeps {
     planIntoPanel: () => void
     drill: () => void
     metronome: Metronome
+    /** A learning note's time signature, as the metronome counts it (#77). */
+    meterOf?: (path: string) => ItemMeter | null
     metronomeDeps: () => MetronomeViewDeps
 }
 
@@ -206,7 +208,8 @@ export class PracticePanelView extends ItemView {
                             path: item.path,
                             name: item.name,
                             bpmCurrent: entry.bpm ?? item.bpmCurrent,
-                            bpmTarget: item.bpmTarget
+                            bpmTarget: item.bpmTarget,
+                            meter: this.deps.meterOf?.(item.path) ?? null
                         })
                     )
             actions

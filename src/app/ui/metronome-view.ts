@@ -1,6 +1,11 @@
 import { Modal } from 'obsidian'
 import type { App } from 'obsidian'
-import { bpmFromTaps, type MetronomeSettings, type Subdivision } from '../domain/metronome'
+import {
+    bpmFromTaps,
+    MAX_COUNT_IN_BARS,
+    type MetronomeSettings,
+    type Subdivision
+} from '../domain/metronome'
 import type { Metronome } from '../services/metronome.service'
 
 export interface MetronomeViewDeps {
@@ -49,6 +54,9 @@ export function renderMetronome(
     nudge(5, '+5')
 
     const beats = el.createDiv({ cls: 'mp-metronome-beats', attr: { 'aria-hidden': 'true' } })
+    // A light for noisy rooms: it flashes on each beat, beat one in the accent color (#77).
+    const flash = el.createDiv({ cls: 'mp-metronome-flash', attr: { 'aria-hidden': 'true' } })
+    const status = el.createDiv({ cls: 'mp-metronome-status mp-muted' })
 
     const actions = el.createDiv({ cls: 'mp-metronome-actions' })
     const play = actions.createEl('button', { cls: 'mod-cta' })
@@ -67,6 +75,8 @@ export function renderMetronome(
     for (let n = 2; n <= 12; n++)
         beatsSelect.createEl('option', { text: String(n), value: String(n) })
     beatsSelect.addEventListener('change', () => {
+        // Beats chosen by hand win over the note's time signature.
+        metronome.clearMeter()
         void deps.saveSettings({ beatsPerBar: Number(beatsSelect.value) }).then(() => {
             lastControls = ''
             update()
@@ -77,8 +87,23 @@ export function renderMetronome(
     for (const [value, text] of SUBDIVISIONS)
         subSelect.createEl('option', { text, value: String(value) })
     subSelect.addEventListener('change', () => {
+        metronome.clearMeter()
         void deps.saveSettings({ subdivision: Number(subSelect.value) as Subdivision })
     })
+    const countField = options.createEl('label', { cls: 'mp-field', text: 'Count-in' })
+    const countSelect = countField.createEl('select', { cls: 'dropdown' })
+    for (let n = 0; n <= MAX_COUNT_IN_BARS; n++)
+        countSelect.createEl('option', {
+            text: n === 0 ? 'None' : `${n} bar${n > 1 ? 's' : ''}`,
+            value: String(n)
+        })
+    countSelect.addEventListener('change', () => {
+        void deps.saveSettings({ countInBars: Number(countSelect.value) })
+    })
+    const flashLabel = options.createEl('label', { cls: 'mp-check' })
+    const flashBox = flashLabel.createEl('input', { type: 'checkbox' })
+    flashLabel.appendText(' Flash')
+    flashBox.addEventListener('change', () => void deps.saveSettings({ flash: flashBox.checked }))
     const volumeField = el.createEl('label', { cls: 'mp-field', text: 'Volume' })
     const volume = volumeField.createEl('input', {
         type: 'range',
@@ -106,37 +131,56 @@ export function renderMetronome(
 
     // The beat moves up to 20 times a second: only the beat dots follow it; the controls are set
     // when something else changed, and never while you're using one.
-    let lastBeat = -1
+    let lastPulse = -1
+    let flashOff: number | null = null
+    const win = el.ownerDocument.defaultView ?? window
     const showBeat = () => {
         const s = metronome.state
-        const settings = deps.settings()
-        if (beats.childElementCount !== settings.beatsPerBar) {
+        const { beatsPerBar } = metronome.meterNow()
+        if (beats.childElementCount !== beatsPerBar) {
             beats.empty()
-            for (let n = 0; n < settings.beatsPerBar; n++)
-                beats.createSpan({ cls: 'mp-metronome-dot' })
+            for (let n = 0; n < beatsPerBar; n++) beats.createSpan({ cls: 'mp-metronome-dot' })
         }
+        beats.toggleClass('is-count-in', s.running && s.countIn)
         Array.from(beats.children).forEach((dot: Element, n) => {
             const on = s.running && n === s.beat
             dot.classList.toggle('is-accent', on && n === 0)
             dot.classList.toggle('is-on', on && n !== 0)
         })
+        if (deps.settings().flash && s.running && s.pulse !== lastPulse) {
+            flash.toggleClass('is-accent', s.beat === 0 && !s.countIn)
+            flash.toggleClass('is-count-in', s.countIn)
+            flash.addClass('is-on')
+            if (flashOff !== null) win.clearTimeout(flashOff)
+            flashOff = win.setTimeout(() => {
+                flashOff = null
+                flash.removeClass('is-on')
+            }, 120)
+        }
+        lastPulse = s.pulse
     }
     const update = () => {
         const s = metronome.state
-        if (s.running && s.beat !== lastBeat && lastControls === key(s)) {
-            lastBeat = s.beat
+        if (s.running && lastControls === key(s)) {
             showBeat()
             return
         }
-        lastBeat = s.beat
         lastControls = key(s)
         const settings = deps.settings()
         const focused = el.ownerDocument.activeElement
         if (focused !== bpmInput) bpmInput.value = String(s.bpm)
         play.setText(s.running ? 'Stop' : 'Start')
-        if (focused !== beatsSelect) beatsSelect.value = String(settings.beatsPerBar)
-        if (focused !== subSelect) subSelect.value = String(settings.subdivision)
+        const meter = metronome.meterNow()
+        if (focused !== beatsSelect) beatsSelect.value = String(meter.beatsPerBar)
+        if (focused !== subSelect) subSelect.value = String(meter.subdivision)
+        if (focused !== countSelect) countSelect.value = String(settings.countInBars)
+        flashBox.checked = settings.flash
+        flash.toggle(settings.flash)
         if (focused !== volume) volume.value = String(settings.volume)
+        status.setText(
+            s.running && s.countIn ? 'Count-in…' : s.meter ? `${s.meter.label}, from the note` : ''
+        )
+        status.toggle(status.getText() !== '')
         showBeat()
         itemEl.setText(
             s.item
@@ -154,12 +198,13 @@ export function renderMetronome(
     }
     // Everything but the beat: when it changes, the controls are set again.
     const key = (s: typeof metronome.state) =>
-        JSON.stringify([s.running, s.bpm, s.trainer, s.item, deps.settings()])
+        JSON.stringify([s.running, s.countIn, s.bpm, s.trainer, s.item, s.meter, deps.settings()])
     let lastControls = ''
     const unsubscribe = metronome.subscribe(update)
     update()
     return () => {
         unsubscribe()
+        if (flashOff !== null) win.clearTimeout(flashOff)
         el.remove()
     }
 }

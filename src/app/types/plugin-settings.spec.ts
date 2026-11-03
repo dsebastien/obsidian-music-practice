@@ -110,7 +110,13 @@ describe('0.5 settings from a 0.4 data.json', () => {
             lastLog: { at: 'yesterday' },
             panelItems: [{ path: 'A.md', done: true }, { nope: 1 }],
             drillSeconds: -5,
-            metronome: { subdivision: 7, volume: 3, trainerStep: 500 },
+            metronome: {
+                subdivision: 7,
+                volume: 3,
+                trainerStep: 500,
+                countInBars: 9,
+                flash: 'yes'
+            },
             timerStartedAt: 1000,
             timerPausedAt: 500,
             timerPausedMs: -3
@@ -123,7 +129,9 @@ describe('0.5 settings from a 0.4 data.json', () => {
             subdivision: 1,
             volume: 0.7,
             trainerStep: 2,
-            trainerBars: 4
+            trainerBars: 4,
+            countInBars: 1,
+            flash: false
         })
         expect([settings.timerPausedAt, settings.timerPausedMs]).toEqual([0, 0])
     })

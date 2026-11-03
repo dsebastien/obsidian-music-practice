@@ -47,7 +47,8 @@ import type { NoteContext } from './services/notation.service'
 import type { UndoResult } from './services/practice-log.service'
 import type { UndoRecord } from './domain/undo'
 import { Metronome } from './services/metronome.service'
-import type { MetronomeItem } from './services/metronome.service'
+import type { ItemMeter, MetronomeItem } from './services/metronome.service'
+import { drillCountIn, meterLabel, meterOf } from './domain/metronome'
 import { MetronomeModal } from './ui/metronome-view'
 import type { MetronomeViewDeps } from './ui/metronome-view'
 import { PRACTICE_PANEL_VIEW, PracticePanelView } from './ui/practice-panel-view'
@@ -1007,7 +1008,11 @@ export class MusicPracticePlugin extends Plugin {
             planIntoPanel: () => this.openPlan(),
             drill: () => this.openDrill(),
             metronome: this.metronome,
-            metronomeDeps: () => this.metronomeDeps()
+            metronomeDeps: () => this.metronomeDeps(),
+            meterOf: (path) => {
+                const file = this.app.vault.getFileByPath(path)
+                return file ? this.meterOfNote(file) : null
+            }
         }
     }
 
@@ -1041,6 +1046,7 @@ export class MusicPracticePlugin extends Plugin {
                     voicings: lookupGuitarVoicing
                 }),
                 seconds: () => this.settings.drillSeconds,
+                countIn: () => drillCountIn(this.settings.metronome.countInBars),
                 save: (p, count) => this.drills.save(p, count),
                 log: (path, minutes, note) =>
                     this.openLogPractice({ minutes, paths: [path], note }),
@@ -1277,9 +1283,19 @@ export class MusicPracticePlugin extends Plugin {
                   path: item.path,
                   name: item.name,
                   bpmCurrent: item.bpmCurrent,
-                  bpmTarget: item.bpmTarget
+                  bpmTarget: item.bpmTarget,
+                  meter: this.meterOfNote(file)
               }
             : null
+    }
+
+    /** A note's time signature, as the metronome counts it; null without one it can count (#77). */
+    private meterOfNote(file: TFile): ItemMeter | null {
+        const value = this.app.metadataCache.getFileCache(file)?.frontmatter?.[
+            this.effective().fields.timeSignature
+        ] as unknown
+        const meter = meterOf(value)
+        return meter ? { ...meter, label: meterLabel(String(value), meter) } : null
     }
 
     /** What the metronome views need from the plugin. */

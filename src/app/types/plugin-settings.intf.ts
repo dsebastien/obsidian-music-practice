@@ -12,7 +12,7 @@ import type { NotationToggles } from '../services/notation.service'
 import { createDefaultPlayback, DEFAULT_STRUM, OLD_DEFAULT_STRUM } from '../domain/playback'
 import type { PlaybackSettings } from '../domain/playback'
 import { isUndoRecord } from '../domain/undo'
-import { createDefaultMetronomeSettings } from '../domain/metronome'
+import { createDefaultMetronomeSettings, MAX_COUNT_IN_BARS } from '../domain/metronome'
 import { panelItemsFrom } from '../domain/panel'
 import type { PanelItem } from '../domain/panel'
 import type { MetronomeSettings } from '../domain/metronome'
@@ -151,6 +151,9 @@ export function settingsFrom(loaded: unknown): PluginSettings {
         m.trainerStep = d.trainerStep
     if (!Number.isInteger(m.trainerBars) || m.trainerBars < 1 || m.trainerBars > 64)
         m.trainerBars = d.trainerBars
+    if (!Number.isInteger(m.countInBars) || m.countInBars < 0 || m.countInBars > MAX_COUNT_IN_BARS)
+        m.countInBars = d.countInBars
+    if (typeof m.flash !== 'boolean') m.flash = d.flash
     if (
         !Number.isInteger(settings.drillSeconds) ||
         settings.drillSeconds < 10 ||
