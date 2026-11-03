@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { createDefaultFieldNames } from './fields'
 import {
-    addTimeEntry,
     applyItemUpdate,
     itemUpdate,
     sessionFileName,
@@ -140,34 +139,6 @@ describe('applyItemUpdate', () => {
     })
 })
 
-describe('addTimeEntry', () => {
-    const entry = {
-        startTime: '2026-10-28T18:00:00',
-        endTime: '2026-10-28T18:30:00',
-        description: '[[2026-10-28 (Guitar Practice Session)]]'
-    }
-
-    it('adds an entry, minutes and the last session date once', () => {
-        const fm: Record<string, unknown> = { time_spent: 60, time_entries: [null] }
-        expect(addTimeEntry(fm, entry, 30, DATE, fields)).toBe('added')
-        expect(addTimeEntry(fm, entry, 30, DATE, fields)).toBe('exists')
-        expect(fm).toEqual({ time_spent: 90, time_entries: [entry], date_last_session: DATE })
-    })
-
-    it("relabels the adopted timer's entry instead of adding one", () => {
-        const start = new Date('2026-10-28T18:00:20').getTime()
-        const fm: Record<string, unknown> = {
-            time_spent: 30,
-            time_entries: [{ ...entry, description: 'Timer' }]
-        }
-        expect(addTimeEntry(fm, entry, 30, DATE, fields, start)).toBe('adopted')
-        expect(fm['time_spent']).toBe(30)
-        expect((fm['time_entries'] as { description: string }[])[0]!.description).toBe(
-            entry.description
-        )
-    })
-})
-
 describe('session naming', () => {
     it('puts the focus after the date and sanitizes it', () => {
         expect(sessionTitle(DATE)).toBe(DATE)
@@ -188,25 +159,6 @@ describe('session naming', () => {
 })
 
 describe('robust writes', () => {
-    it('keeps unknown time entries, skips non-list or non-numeric values', () => {
-        const entry = {
-            startTime: '2026-10-28T18:00:00',
-            endTime: '2026-10-28T18:30:00',
-            description: '[[S]]'
-        }
-        const fm: Record<string, unknown> = {
-            time_entries: ['legacy text', null],
-            time_spent: '60'
-        }
-        expect(addTimeEntry(fm, entry, 30, DATE, fields)).toBe('added')
-        expect(fm['time_entries']).toEqual(['legacy text', entry])
-        expect(fm['time_spent']).toBe(90)
-        expect(addTimeEntry({ time_entries: 'oops' }, entry, 30, DATE, fields)).toBe('skipped')
-        const text: Record<string, unknown> = { time_spent: '1h' }
-        expect(addTimeEntry(text, entry, 30, DATE, fields)).toBe('skipped')
-        expect(text).toEqual({ time_spent: '1h' })
-    })
-
     it('never overwrites minutes that are not a number, nor moves review dates back', () => {
         const fm: Record<string, unknown> = {
             time_spent: '1h',

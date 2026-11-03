@@ -3,8 +3,9 @@ import type { App, TFile } from 'obsidian'
 import { isoDate } from '../domain/dates'
 import type { FieldNames } from '../domain/fields'
 import { mergeTags, tagsOf } from '../domain/item-reader'
+import { applyActivityTime, linkedSessionOf, planActivityTime } from '../domain/activity-time'
+import type { LinkedSession } from '../domain/activity-time'
 import {
-    addTimeEntry,
     applyItemUpdate,
     freshItem,
     itemUpdate,
@@ -15,7 +16,7 @@ import {
     splitMinutes,
     validateLogRequest
 } from '../domain/log'
-import type { LogItem, LogRequest, TimeEntryResult } from '../domain/log'
+import type { LogItem, LogRequest } from '../domain/log'
 import { expandTokens } from '../domain/local-model'
 import type { LearningType, NoteModel, SessionType } from '../domain/note-model'
 import type { LearningItem } from '../domain/practice'
@@ -42,10 +43,14 @@ export interface LogContext {
 }
 
 /**
- * `missing`: the adopted Kanban Action Planner timer didn't write its entry in time; nothing was
- * added, so the time is never counted twice (check the activity).
+ * What a log did to its activity's time, which is recomputed from the activity's time entries and
+ * the session notes linked to it (never added to). `updated` / `unchanged`: recomputed.
+ * `missing`: recomputed, but the adopted Kanban Action Planner timer's entry didn't appear in time,
+ * so it couldn't be removed (if it appears later, it counts twice until removed). `not-linked`:
+ * Obsidian's link index didn't see the new session in time; nothing was written on the activity.
+ * `skipped`: its time entries aren't a list; nothing was written.
  */
-export type ActivityResult = TimeEntryResult | 'missing'
+export type ActivityResult = 'updated' | 'unchanged' | 'missing' | 'not-linked' | 'skipped'
 
 export interface LogResult {
     sessionPath: string
@@ -58,12 +63,17 @@ export interface LogResult {
     undo: UndoRecord
 }
 
-/** What undoing the last log did, or why it didn't. */
+/**
+ * What undoing the last log did, or why it didn't. `keptKapEntry`: the log had adopted a Kanban
+ * Action Planner timer, whose time entry is on the activity again after the undo (put back when the
+ * log removed it).
+ */
 export type UndoResult =
     | { ok: true; sessionPath: string; keptKapEntry: boolean }
     | { ok: false; reason: string }
 
 const KAP_ENTRY_TIMEOUT_MS = 10_000
+const LINK_TIMEOUT_MS = 10_000
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms))
 const titleCase = (s: string) =>
     s.replace(
@@ -275,41 +285,31 @@ export class PracticeLogService {
             })
         }
 
-        // 4. The activity's time entry.
+        // 4. The activity's time: recomputed from its entries and linked sessions, never added to.
         let activityResult: LogResult['activity'] = null
         if (activity) {
-            if (adopted && !(await this.waitForKapEntry(activity, timer.startedAt))) {
-                activityResult = { path: activity.path, result: 'missing' }
-            } else {
-                let result: TimeEntryResult = 'skipped'
-                await this.app.fileManager.processFrontMatter(
-                    activity,
-                    (fm: Record<string, unknown>) => {
-                        const before = snapshot(fm)
-                        result = addTimeEntry(
-                            fm,
-                            {
-                                startTime: localIso(startMs),
-                                endTime: localIso(startMs + request.minutes * 60_000),
-                                description: `[[${file.basename}]]`
-                            },
-                            request.minutes,
-                            date,
-                            fields,
-                            adopted ? timer.startedAt : null
-                        )
-                        changes.push({
-                            path: activity.path,
-                            keys: changedKeys(before, snapshot(fm))
-                        })
-                    }
+            const linkable = session.fields.has(fields.activities)
+            const result = linkable
+                ? await this.recomputeActivity(
+                      activity,
+                      file,
+                      adopted ? timer.startedAt : null,
+                      changes
+                  )
+                : 'not-linked'
+            activityResult = { path: activity.path, result }
+            if (!linkable)
+                warnings.push(
+                    `${activity.basename}: the session note has no "${fields.activities}" field, so its time can't count for the activity.`
                 )
-                activityResult = { path: activity.path, result }
-                if (result === 'skipped')
-                    warnings.push(
-                        `${activity.basename}: its time entries or minutes have an unexpected shape, nothing was added.`
-                    )
-            }
+            else if (result === 'not-linked')
+                warnings.push(
+                    `${activity.basename}: Obsidian hadn't indexed the session's link yet, so the activity's time wasn't recomputed${adopted ? " and the timer's time entry is still on it (delete it: the session holds that time)" : ''}. Use the Kanban Action Planner's Recompute tracked time on it in a moment.`
+                )
+            if (result === 'skipped')
+                warnings.push(
+                    `${activity.basename}: its time entries aren't a list, so its time wasn't recomputed.`
+                )
         }
         return {
             sessionPath: file.path,
@@ -389,6 +389,75 @@ export class PracticeLogService {
         if (!info.exists) return {}
         const parsed: unknown = parseYaml(info.frontmatter)
         return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {}
+    }
+
+    /**
+     * Recompute an activity's stored time after a log (the rule in `domain/activity-time`): wait until
+     * Obsidian's link index sees the session link to it, then, for an adopted timer, until the timer's
+     * entry is on the activity (that entry is removed: the session holds the time). The entries are
+     * read again inside `processFrontMatter`, so a stale cache never drops or keeps the wrong entry.
+     */
+    private async recomputeActivity(
+        activity: TFile,
+        session: TFile,
+        adoptedStartMs: number | null,
+        changes: FileChanges[]
+    ): Promise<ActivityResult> {
+        const { fields } = this.context()
+        if (!(await this.waitForLink(session, activity))) return 'not-linked'
+        const found =
+            adoptedStartMs === null || (await this.waitForKapEntry(activity, adoptedStartMs))
+        const linked = this.linkedSessions(activity, fields)
+        const cache = this.app.metadataCache
+        const resolve = (link: string) =>
+            cache.getFirstLinkpathDest(link, activity.path)?.path ?? null
+        let result: ActivityResult = 'skipped'
+        await this.app.fileManager.processFrontMatter(activity, (fm: Record<string, unknown>) => {
+            const before = snapshot(fm)
+            const plan = planActivityTime(
+                fm,
+                fields,
+                linked,
+                resolve,
+                found ? adoptedStartMs : null
+            )
+            if (!plan) {
+                result = 'skipped'
+                return
+            }
+            applyActivityTime(fm, plan, fields)
+            result = !found ? 'missing' : plan.changed ? 'updated' : 'unchanged'
+            changes.push({ path: activity.path, keys: changedKeys(before, snapshot(fm)) })
+        })
+        return result
+    }
+
+    /** The session notes that link to an activity, by path (from Obsidian's link index). */
+    private linkedSessions(activity: TFile, fields: FieldNames): Map<string, LinkedSession> {
+        const cache = this.app.metadataCache
+        const linked = new Map<string, LinkedSession>()
+        for (const [source, targets] of Object.entries(cache.resolvedLinks)) {
+            if (source === activity.path || !targets[activity.path]) continue
+            const file = this.app.vault.getFileByPath(source)
+            if (!file) continue
+            const counted = linkedSessionOf(
+                cache.getFileCache(file)?.frontmatter,
+                fields,
+                (link) => cache.getFirstLinkpathDest(link, source)?.path === activity.path
+            )
+            if (counted) linked.set(source, counted)
+        }
+        return linked
+    }
+
+    /** Wait until Obsidian's link index sees the session link to the activity. */
+    private async waitForLink(session: TFile, activity: TFile): Promise<boolean> {
+        const deadline = Date.now() + LINK_TIMEOUT_MS
+        while (Date.now() < deadline) {
+            if (this.app.metadataCache.resolvedLinks[session.path]?.[activity.path]) return true
+            await sleep(250)
+        }
+        return false
     }
 
     /** Wait until the stopped Kanban Action Planner timer's entry shows up on the activity. */

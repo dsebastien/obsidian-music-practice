@@ -1514,7 +1514,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         new Notice(
             result.keptKapEntry
-                ? 'Practice log undone. The Kanban Action Planner timer kept its time entry on the activity.'
+                ? "Practice log undone. The Kanban Action Planner timer's time entry is on the activity again."
                 : 'Practice log undone: the notes are back as they were and the session note is in the trash.'
         )
         return result
@@ -1573,7 +1573,7 @@ export class MusicPracticePlugin extends Plugin {
                     )
                     if (result.activity?.result === 'missing')
                         new Notice(
-                            'The Kanban Action Planner timer was stopped but its time entry did not appear: check the activity, nothing was added to avoid counting the time twice.'
+                            'The Kanban Action Planner timer was stopped but its time entry did not appear in time. If it appears on the activity, delete it: the session note holds that time.'
                         )
                     return result.sessionPath
                         .substring(result.sessionPath.lastIndexOf('/') + 1)

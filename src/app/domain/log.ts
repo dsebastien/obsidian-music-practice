@@ -176,63 +176,6 @@ export function applyItemUpdate(
     return skipped
 }
 
-/** A Kanban Action Planner time entry. */
-export interface TimeEntry {
-    startTime: string
-    endTime: string
-    description: string
-}
-
-/**
- * `added`: a new entry. `exists`: an entry for this session was already there. `adopted`: the adopted
- * Kanban Action Planner timer's entry now points to the session. `skipped`: the activity's time
- * entries or minutes aren't in a shape that can be extended safely; nothing was written.
- */
-export type TimeEntryResult = 'added' | 'exists' | 'adopted' | 'skipped'
-
-const isEntry = (x: unknown): x is TimeEntry =>
-    typeof x === 'object' && x !== null && typeof (x as TimeEntry).startTime === 'string'
-
-/**
- * Add a session's time entry to an activity's frontmatter, deduplicated by its description (the
- * session link). When a Kanban Action Planner timer was adopted, its own entry (same start, within a
- * minute) is relabeled instead of adding a second one. Existing entries are kept as they are (empty
- * `[null]` placeholders aside); a value that isn't a list, or minutes that aren't a number, leave the
- * activity untouched. Duration and last-session date move with an added entry.
- */
-export function addTimeEntry(
-    fm: Record<string, unknown>,
-    entry: TimeEntry,
-    minutes: number,
-    date: string,
-    fields: FieldNames,
-    adoptedStartMs: number | null = null
-): TimeEntryResult {
-    const raw = fm[fields.timeEntries]
-    if (raw !== undefined && raw !== null && !Array.isArray(raw)) return 'skipped'
-    const list = ((raw as unknown[] | null | undefined) ?? []).filter(
-        (x) => x !== null && x !== undefined
-    )
-    const entries = list.filter(isEntry)
-    if (entries.some((x) => x.description === entry.description)) return 'exists'
-    if (adoptedStartMs !== null) {
-        const hit = entries
-            .filter((x) => Math.abs(new Date(x.startTime).getTime() - adoptedStartMs) < 60_000)
-            .pop()
-        if (hit) {
-            hit.description = entry.description
-            fm[fields.timeEntries] = list
-            return 'adopted'
-        }
-    }
-    if (!canAddMinutes(fm[fields.timeSpent])) return 'skipped'
-    fm[fields.timeEntries] = [...list, entry]
-    fm[fields.timeSpent] = (numberOf(fm[fields.timeSpent]) ?? 0) + minutes
-    const last = fm[fields.lastSession]
-    if (typeof last !== 'string' || last < date) fm[fields.lastSession] = date
-    return 'added'
-}
-
 /** Session title: `<date> <focus>`, or the date alone; the type's affixes come on top. */
 export function sessionTitle(date: string, focus?: string): string {
     const clean = (focus ?? '')
