@@ -215,7 +215,8 @@ export class MusicPracticePlugin extends Plugin {
 
     /**
      * The source of an empty block that Music Practice makes from a learning note's properties:
-     * an arpeggio (#56). Null for other notes and blocks (the library draws chords and scales).
+     * a strumming pattern (#58) or an arpeggio (#56). Null for other notes and blocks (the library
+     * draws chords and scales).
      */
     private practiceBlock(path: string, language: string): string | null {
         const file = this.app.vault.getFileByPath(path)

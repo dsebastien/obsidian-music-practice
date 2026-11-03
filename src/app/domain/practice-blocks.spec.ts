@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 import { createDefaultFieldNames } from './fields'
-import { arpeggioSource, cagedShape, practiceBlockSource } from './practice-blocks'
+import {
+    arpeggioSource,
+    cagedShape,
+    practiceBlockSource,
+    strumSource,
+    swingOf
+} from './practice-blocks'
 
 const fields = createDefaultFieldNames()
 
@@ -78,5 +84,58 @@ describe('arpeggioSource (#56)', () => {
                 'guitar'
             )
         ).toBe('arpeggio: D\nshape: C')
+    })
+})
+
+describe('swingOf', () => {
+    it('reads a feel as the strum block swing', () => {
+        expect(swingOf('swing')).toBe('yes')
+        expect(swingOf('Shuffle')).toBe('yes')
+        expect(swingOf('swung 8ths')).toBe('yes')
+        expect(swingOf('60%')).toBe('60%')
+        expect(swingOf('straight')).toBeNull()
+        expect(swingOf('')).toBeNull()
+    })
+})
+
+describe('strumSource (#58)', () => {
+    it("draws a strumming pattern note's pattern with its time signature, feel and tempo", () => {
+        const props = {
+            strum_pattern: 'D DU UDU',
+            time_signature: '4/4',
+            strum_feel: 'swing',
+            bpm_current: 80
+        }
+        expect(strumSource(props, fields)).toBe('D DU UDU\ntime: 4/4\nswing: yes\ntempo: 80')
+    })
+
+    it('draws one bar per line from a list, and the chord when the note has one', () => {
+        const props = {
+            strum_pattern: ['D - - D - -', 'D - U D - U'],
+            time_signature: '6/8',
+            chord_symbol: 'A Minor'
+        }
+        expect(strumSource(props, fields)).toBe('D - - D - -\nD - U D - U\ntime: 6/8\nchord: Am')
+    })
+
+    it('leaves out values the block would not read', () => {
+        const props = {
+            strum_pattern: 'D D D D',
+            time_signature: 'four four',
+            strum_feel: 'laid back',
+            bpm_current: 400
+        }
+        expect(strumSource(props, fields)).toBe('D D D D')
+    })
+
+    it('draws nothing without a pattern', () => {
+        expect(strumSource({ time_signature: '4/4' }, fields)).toBeNull()
+        expect(strumSource({ strum_pattern: '  ' }, fields)).toBeNull()
+    })
+
+    it('is the source of an empty strum block, whatever the kind', () => {
+        const props = { strum_pattern: 'DDUUDU' }
+        expect(practiceBlockSource('strum', props, fields, 'exercise', 'guitar')).toBe('DDUUDU')
+        expect(practiceBlockSource('strum', {}, fields, 'exercise', 'guitar')).toBeNull()
     })
 })

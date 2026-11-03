@@ -404,7 +404,7 @@ export class NotationBlocks {
         private readonly tabs: TabHost | null = null,
         /**
          * The source of an empty block that Music Practice makes from the note's properties (an
-         * arpeggio, #56); null leaves the block to the library's properties.
+         * arpeggio, #56; a strumming pattern, #58); null leaves the block to the library's properties.
          */
         private readonly own: (sourcePath: string, language: string) => string | null = () => null
     ) {}

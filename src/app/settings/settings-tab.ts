@@ -501,6 +501,21 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                                 'Scale fingering',
                                 'Piano scales, right hand: "1 2 3 1 2 3 4 5".'
                             ),
+                            this.text(
+                                'fields.strumPattern',
+                                'Strumming pattern',
+                                'Strumming patterns: "D DU UDU".'
+                            ),
+                            this.text(
+                                'fields.timeSignature',
+                                'Time signature',
+                                'Strumming patterns: "4/4", "6/8".'
+                            ),
+                            this.text(
+                                'fields.strumFeel',
+                                'Feel',
+                                'Strumming patterns: "straight", "swing" or a swing ratio ("60%").'
+                            ),
                             this.text('fields.lastReviewed', 'Last reviewed', ''),
                             this.text('fields.reviewInterval', 'Review interval', ''),
                             this.text('fields.reviewCount', 'Review count', '')

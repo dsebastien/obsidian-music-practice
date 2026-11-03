@@ -33,6 +33,10 @@ export interface FieldNames {
     scaleRoot: string
     scaleType: string
     fingeringRight: string
+    /** Strumming patterns (#58): the pattern ("D DU UDU"), time signature ("6/8"), feel ("swing"). */
+    strumPattern: string
+    timeSignature: string
+    strumFeel: string
     /** Spaced review (Kanban Action Planner: reviewed date / interval / count properties). */
     lastReviewed: string
     reviewInterval: string
@@ -74,6 +78,9 @@ export function createDefaultFieldNames(): FieldNames {
         scaleRoot: 'scale_root',
         scaleType: 'scale_type',
         fingeringRight: 'fingering_rh',
+        strumPattern: 'strum_pattern',
+        timeSignature: 'time_signature',
+        strumFeel: 'strum_feel',
         lastReviewed: 'last_reviewed',
         reviewInterval: 'review_interval',
         reviewCount: 'review_count',

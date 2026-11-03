@@ -24,7 +24,7 @@ import type {
 import { lookupGuitarVoicing, voicingCount } from '@dsebastien/music-notation/voicings'
 import { blockSource, chordBlock, formatFrets, voicingRow } from '../domain/notation-note'
 import { hasBarre, shapeValue } from '../domain/voicings'
-import { arpeggioSource } from '../domain/practice-blocks'
+import { arpeggioSource, strumSource } from '../domain/practice-blocks'
 import { triadDetail } from '../domain/triads'
 import type { StringSet } from '../domain/triads'
 import type { TriadPick } from './triads-modal'
@@ -59,6 +59,8 @@ export class AddNoteModal extends Modal {
     private text = ''
     private scaleRoot = ''
     private scaleType = ''
+    /** Strumming pattern types (#58): the pattern, time signature and feel typed. */
+    private strum = { pattern: '', time: '', feel: '' }
     private shape = ''
     private level: number | undefined
     /** Guitar chords: index of the voicing to prefill; -1 for none; PICKED for `picked`. */
@@ -191,6 +193,35 @@ export class AddNoteModal extends Modal {
         return probe.ok ? block : null
     }
 
+    /** Whether this is a strumming pattern type: it stores a pattern (#58). */
+    private strumFields(): boolean {
+        return this.type.fields.has(this.fields.strumPattern)
+    }
+
+    /** A strumming pattern note's properties: what was typed, for the fields the type defines. */
+    private strumProperties(): Record<string, string> {
+        if (!this.strumFields()) return {}
+        const { strumPattern, timeSignature, strumFeel } = this.fields
+        const typed: [string, string][] = [
+            [strumPattern, this.strum.pattern.trim()],
+            [timeSignature, this.strum.time.trim()],
+            [strumFeel, this.strum.feel.trim()]
+        ]
+        return Object.fromEntries(
+            typed.filter(([name, value]) => value && this.type.fields.has(name))
+        )
+    }
+
+    /** A strumming pattern note's ```strum block for the preview; only one that draws. */
+    private strumPreview(): string | null {
+        if (!this.strumFields()) return null
+        const source = strumSource(this.strumProperties(), this.fields)
+        if (!source) return null
+        const probe = renderBlock('strum', source, createDiv())
+        probe.destroy()
+        return probe.ok ? source : null
+    }
+
     /** An arpeggio note's block for the preview, as the note will draw it; only one that draws. */
     private arpeggioPreview(): string | null {
         const language = this.language()
@@ -214,6 +245,8 @@ export class AddNoteModal extends Modal {
      * only a language Music Practice draws.
      */
     private block(): NotationLanguage | null {
+        if (this.strumFields())
+            return this.blocksOn('strum') && this.strumPreview() ? 'strum' : null
         const language = this.language()
         if (!language || !this.blocksOn(language)) return null
         if (language === 'chord') return this.preview() ? language : null
@@ -247,6 +280,7 @@ export class AddNoteModal extends Modal {
         const prerequisite = chord ? this.triadPrerequisite(chord) : null
         const properties = {
             ...scale,
+            ...this.strumProperties(),
             ...(prerequisite ? { [this.fields.prerequisites]: [`[[${prerequisite}]]`] } : {})
         }
         return {
@@ -289,6 +323,7 @@ export class AddNoteModal extends Modal {
             this.shapeFromPick = false
             this.scaleRoot = ''
             this.scaleType = ''
+            this.strum = { pattern: '', time: '', feel: '' }
             this.render()
         })
         this.formEl = this.contentEl.createDiv({ cls: 'mp-modal' })
@@ -360,6 +395,46 @@ export class AddNoteModal extends Modal {
             }
         })
         input.value = this.text
+
+        // Strumming patterns: the pattern, its time signature and its feel (the type's values
+        // when it lists them).
+        if (this.strumFields()) {
+            const strumRow = el.createDiv({ cls: 'mp-form-row' })
+            const strumField = (
+                label: string,
+                name: string,
+                key: 'pattern' | 'time' | 'feel',
+                placeholder: string
+            ) => {
+                if (!this.type.fields.has(name)) return
+                const field = strumRow.createEl('label', { cls: 'mp-field', text: label })
+                const values = this.type.allowedValues[name] ?? []
+                let control: HTMLSelectElement | HTMLInputElement
+                if (values.length) {
+                    const select = field.createEl('select', { cls: 'dropdown' })
+                    select.createEl('option', { text: '—', value: '' })
+                    for (const v of values)
+                        select.createEl('option', { text: v, value: v }).selected =
+                            v === this.strum[key]
+                    control = select
+                } else {
+                    control = field.createEl('input', { type: 'text', attr: { placeholder } })
+                    control.value = this.strum[key]
+                }
+                const update = () => {
+                    this.strum[key] = control.value
+                    refresh()
+                }
+                control.addEventListener('input', update)
+                control.addEventListener('change', update)
+                control.addEventListener('keydown', (event) => {
+                    if ((event as KeyboardEvent).key === 'Enter') void this.submit()
+                })
+            }
+            strumField('Pattern', this.fields.strumPattern, 'pattern', 'D DU UDU')
+            strumField('Time signature', this.fields.timeSignature, 'time', '4/4')
+            strumField('Feel', this.fields.strumFeel, 'feel', 'straight, swing, 60%')
+        }
 
         const row = el.createDiv({ cls: 'mp-form-row' })
         const shapes = this.type.allowedValues[this.fields.shape] ?? []
@@ -594,6 +669,12 @@ export class AddNoteModal extends Modal {
                         instrument: this.instrument()!
                     })
                 )
+                return
+            }
+            // Strumming patterns: the pattern as the note will draw it.
+            const strum = this.blocksOn('strum') ? this.strumPreview() : null
+            if (strum) {
+                this.diagrams.push(renderBlock('strum', strum, diagramEl, options()))
                 return
             }
             // Arpeggios: drawn as the note will draw them (the chord's notes in its shape).
