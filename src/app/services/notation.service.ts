@@ -466,7 +466,7 @@ export class NotationBlocks {
      * diagram, as a tab block is (in the holder's window, once it's on the page), freed with the
      * diagram or when the plugin unloads. None without a tab host: the alphaTex shows as text.
      */
-    private exerciseTabs(sourcePath: string): Pick<RenderOptions, 'tab'> {
+    exerciseTabs(sourcePath: string): Pick<RenderOptions, 'tab'> {
         const tabs = this.tabs
         if (!tabs) return {}
         return {

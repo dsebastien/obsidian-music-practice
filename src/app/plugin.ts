@@ -1,5 +1,5 @@
 import { Menu, Notice, Platform, Plugin, debounce, setIcon } from 'obsidian'
-import type { TFile } from 'obsidian'
+import type { Editor, TFile } from 'obsidian'
 import { createDefaultSettings, settingsFrom } from './types/plugin-settings.intf'
 import type { PluginSettings } from './types/plugin-settings.intf'
 import { MusicPracticeSettingTab } from './settings/settings-tab'
@@ -74,6 +74,15 @@ import { ProgressionModal, TransitionModal } from './ui/transitions-modal'
 import type { HeldChord } from './ui/transitions-modal'
 import { progressionOf } from './domain/progression'
 import { practiceBlockSource } from './domain/practice-blocks'
+import {
+    defaultPosition,
+    exerciseBlock,
+    exercisePositions,
+    exerciseSubject,
+    exerciseTempo
+} from './domain/exercise'
+import type { ExerciseSubject } from './domain/exercise'
+import { ExerciseModal } from './ui/exercise-modal'
 import { pieceChords, pieceKey } from './domain/piece-key'
 import { PieceKeyModal } from './ui/piece-key-modal'
 import { chordChanges, easiestFrets, rankChanges } from './domain/chart-changes'
@@ -546,6 +555,56 @@ export class MusicPracticePlugin extends Plugin {
         }
     }
 
+    /**
+     * A guitar scale or arpeggio note's tab exercise (#70): what it plays, from its properties,
+     * and its shape and current BPM; null for other notes (piano notes: the tab is a guitar's).
+     */
+    private exerciseOf(
+        file: TFile
+    ): { subject: ExerciseSubject; shape: unknown; bpm: unknown } | null {
+        const type = this.items.typeOf(file)
+        if (type?.subject !== 'guitar') return null
+        const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter
+        if (!frontmatter) return null
+        const fields = this.effective().fields
+        const subject = exerciseSubject(type.kind, frontmatter, fields)
+        return subject
+            ? { subject, shape: frontmatter[fields.shape], bpm: frontmatter[fields.bpmCurrent] }
+            : null
+    }
+
+    /** Insert a tab exercise: pick the position, direction, rhythm and tempo, then the block. */
+    private openExercise(
+        editor: Editor,
+        file: TFile,
+        exercise: { subject: ExerciseSubject; shape: unknown; bpm: unknown }
+    ): void {
+        const { subject } = exercise
+        const positions = exercisePositions(subject)
+        if (!positions.length) {
+            new Notice(`No position to play ${subject.name} from.`)
+            return
+        }
+        new ExerciseModal(
+            this.app,
+            subject,
+            positions,
+            {
+                position: defaultPosition(positions, exercise.shape),
+                tempo: exerciseTempo(exercise.bpm)
+            },
+            () => ({ ...this.modalRenderOptions(), ...this.notation.exerciseTabs(file.path) }),
+            (at, choice) => {
+                try {
+                    const sections = this.app.metadataCache.getFileCache(file)?.sections
+                    insertBlock(editor, exerciseBlock(subject, at, choice), { sections })
+                } catch (error: unknown) {
+                    new Notice(error instanceof Error ? error.message : String(error))
+                }
+            }
+        ).open()
+    }
+
     /** Layout and playback, for diagrams drawn in modals. */
     private modalRenderOptions(): RenderOptions {
         const play = this.playOptions()
@@ -725,6 +784,18 @@ export class MusicPracticePlugin extends Plugin {
                     ? this.app.metadataCache.getFileCache(ctx.file)?.sections
                     : null
                 insertBlock(editor, fenced('tab', TAB_STARTER), { sections })
+            }
+        })
+        this.addCommand({
+            id: 'insert-tab-exercise',
+            name: 'Insert a tab exercise of this scale or arpeggio',
+            editorCheckCallback: (checking, editor, ctx) => {
+                const file = ctx.file
+                const exercise = file ? this.exerciseOf(file) : null
+                // The block is a tab: only when Music Practice draws tabs.
+                if (!file || !exercise || this.notation?.status('tab') !== 'on') return false
+                if (!checking) this.openExercise(editor, file, exercise)
+                return true
             }
         })
         this.addCommand({
