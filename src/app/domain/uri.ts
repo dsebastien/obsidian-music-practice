@@ -9,8 +9,18 @@
 /** The handler's name: `obsidian://music-practice`. */
 export const URI_HANDLER = 'music-practice'
 
-/** What a URI can do. Only the timer writes without a modal; the rest open the usual modals. */
-export const URI_ACTIONS = ['start-timer', 'stop-timer', 'log', 'practice-next', 'plan'] as const
+/**
+ * What a URI can do. Only starting the timer writes without a modal; the rest open the usual
+ * modals (discarding the timer asks first).
+ */
+export const URI_ACTIONS = [
+    'start-timer',
+    'stop-timer',
+    'discard-timer',
+    'log',
+    'practice-next',
+    'plan'
+] as const
 
 export type UriAction = (typeof URI_ACTIONS)[number]
 

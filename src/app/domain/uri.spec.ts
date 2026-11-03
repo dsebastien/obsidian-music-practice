@@ -9,6 +9,16 @@ describe('URI actions (#47)', () => {
             expect(parse({ do: action })).toEqual({ ok: true, action, minutes: null })
     })
 
+    it('has an action to discard the timer, which never takes minutes', () => {
+        expect(URI_ACTIONS).toContain('discard-timer')
+        expect(parse({ do: 'discard-timer' })).toEqual({
+            ok: true,
+            action: 'discard-timer',
+            minutes: null
+        })
+        expect(parse({ do: 'discard-timer', minutes: '5' })).toMatchObject({ ok: false })
+    })
+
     it('reads an action Obsidian left in action= too', () => {
         expect(parseUriRequest({ action: 'log' })).toEqual({
             ok: true,

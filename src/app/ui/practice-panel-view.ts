@@ -3,7 +3,7 @@ import type { App, WorkspaceLeaf } from 'obsidian'
 import type { NoteModel } from '../domain/note-model'
 import { withPaths, type PanelItem } from '../domain/panel'
 import type { LearningItem } from '../domain/practice'
-import { formatElapsed, timerElapsed, type TimerState } from '../domain/timer'
+import { formatElapsed, staleTimerLabel, timerElapsed, type TimerState } from '../domain/timer'
 import type { ItemMeter, Metronome } from '../services/metronome.service'
 import { renderBadge } from './item-row'
 import { renderMetronome, type MetronomeViewDeps } from './metronome-view'
@@ -20,6 +20,8 @@ export interface PracticePanelDeps {
     timer: () => TimerState
     startTimer: () => Promise<void>
     togglePause: () => Promise<void>
+    /** Throw the timer away without logging it (asks first); true when discarded. */
+    discardTimer: () => Promise<boolean>
     /** Log this session: the ticked items (or all), their BPMs, the timer's minutes when it runs. */
     logSession: () => void
     planIntoPanel: () => void
@@ -36,6 +38,7 @@ export interface PracticePanelDeps {
  */
 export class PracticePanelView extends ItemView {
     private timerText: HTMLElement | null = null
+    private timerStale: HTMLElement | null = null
     private timerButtons: HTMLElement | null = null
     private listEl: HTMLElement | null = null
     private metronomeCleanup: (() => void) | null = null
@@ -66,6 +69,7 @@ export class PracticePanelView extends ItemView {
 
         const timer = root.createDiv({ cls: 'mp-panel-section mp-panel-timer' })
         this.timerText = timer.createDiv({ cls: 'mp-panel-elapsed' })
+        this.timerStale = timer.createDiv({ cls: 'mp-panel-stale' })
         this.timerButtons = timer.createDiv({ cls: 'mp-actions' })
 
         const session = root.createDiv({ cls: 'mp-panel-section' })
@@ -120,7 +124,15 @@ export class PracticePanelView extends ItemView {
                 ? `${timer.pausedAt ? 'Paused · ' : ''}${formatElapsed(timerElapsed(timer, Date.now()))}`
                 : 'Timer off'
         )
+        const stale = staleTimerLabel(timer, Date.now())
+        this.timerStale?.setText(stale ?? '')
+        this.timerStale?.toggleClass('mp-is-hidden', stale === null)
+        // The buttons follow the stale state too: the panel redraws them when it changes.
+        const isStale = stale !== null
+        if (this.timerButtons && this.timerButtons.dataset['stale'] !== String(isStale))
+            buttons = true
         if (!buttons || !this.timerButtons) return
+        this.timerButtons.dataset['stale'] = String(isStale)
         const el = this.timerButtons
         el.empty()
         if (!timer.startedAt) {
@@ -134,6 +146,11 @@ export class PracticePanelView extends ItemView {
             'click',
             () => void this.deps.togglePause().then(() => this.refresh())
         )
+        el.createEl('button', {
+            cls: isStale ? 'mod-warning' : '',
+            text: 'Discard',
+            attr: { 'aria-label': 'Discard the practice timer without logging it' }
+        }).addEventListener('click', () => void this.deps.discardTimer().then(() => this.refresh()))
     }
 
     private renderList(): void {

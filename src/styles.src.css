@@ -282,6 +282,11 @@
     @apply hidden;
 }
 
+/* A timer that started hours or days ago: probably forgotten. */
+.mp-timer.mp-timer-stale {
+    color: var(--text-warning);
+}
+
 .mp-field.mp-is-hidden {
     @apply hidden;
 }
@@ -543,6 +548,15 @@
 .mp-panel-elapsed {
     font-size: 1.8em;
     font-variant-numeric: tabular-nums;
+}
+
+.mp-panel-stale {
+    color: var(--text-warning);
+    font-size: var(--font-ui-small);
+}
+
+.mp-panel-stale.mp-is-hidden {
+    @apply hidden;
 }
 
 .mp-panel-row {

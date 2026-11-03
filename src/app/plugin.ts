@@ -29,7 +29,18 @@ import type { LearningType, NoteModel } from './domain/note-model'
 import type { FieldNames } from './domain/fields'
 import type { PracticeRules } from './domain/rules'
 import type { LocalModelSettings } from './domain/local-model'
-import { clockTime, formatElapsed, timerElapsed, timerMinutes } from './domain/timer'
+import {
+    clockTime,
+    discardTimerMessage,
+    formatDuration,
+    formatElapsed,
+    LONG_TIMER_MS,
+    staleTimerLabel,
+    timerAge,
+    timerElapsed,
+    timerMinutes,
+    timerRunningMessage
+} from './domain/timer'
 import type { TimerState } from './domain/timer'
 import { NotationBlocks } from './services/notation.service'
 import type { BlockLanguage } from './services/notation.service'
@@ -53,6 +64,7 @@ import { parseUriRequest, URI_HANDLER } from './domain/uri'
 import { MetronomeModal } from './ui/metronome-view'
 import type { MetronomeViewDeps } from './ui/metronome-view'
 import { PRACTICE_PANEL_VIEW, PracticePanelView } from './ui/practice-panel-view'
+import { confirm } from './ui/confirm-modal'
 import { DrillModal } from './ui/drill-modal'
 import { DrillService } from './services/drill.service'
 import { VoicingNotesService } from './services/voicing-notes.service'
@@ -91,7 +103,6 @@ import { layoutDefaults } from './domain/notation-layout'
 import type { NotationStatus } from './services/notation.service'
 
 /** A timer running longer than this is probably forgotten: the log asks to check the minutes. */
-const LONG_TIMER_MS = 4 * 60 * 60_000
 
 export class MusicPracticePlugin extends Plugin {
     /**
@@ -415,6 +426,24 @@ export class MusicPracticePlugin extends Plugin {
         this.timerEl.addClass('mp-timer', 'mod-clickable')
         this.timerEl.setAttr('aria-label', 'Stop the practice timer and log the session')
         this.timerEl.addEventListener('click', () => this.stopTimer())
+        this.timerEl.addEventListener('contextmenu', (event) => {
+            event.preventDefault()
+            if (!this.settings.timerStartedAt) return
+            new Menu()
+                .addItem((item) =>
+                    item
+                        .setTitle('Stop and log the session')
+                        .setIcon('square')
+                        .onClick(() => this.stopTimer())
+                )
+                .addItem((item) =>
+                    item
+                        .setTitle('Discard the timer')
+                        .setIcon('trash')
+                        .onClick(() => void this.discardTimer())
+                )
+                .showAtMouseEvent(event)
+        })
         this.registerInterval(window.setInterval(() => this.renderTimer(), 1000))
         this.renderTimer()
 
@@ -967,6 +996,15 @@ export class MusicPracticePlugin extends Plugin {
                 return true
             }
         })
+        this.addCommand({
+            id: 'discard-timer',
+            name: 'Discard practice timer',
+            checkCallback: (checking) => {
+                if (!this.settings.timerStartedAt) return false
+                if (!checking) void this.discardTimer()
+                return true
+            }
+        })
     }
 
     /** The active note when it is a learning note. Cheap: the command palette calls it on every keystroke. */
@@ -990,8 +1028,13 @@ export class MusicPracticePlugin extends Plugin {
             switch (request.action) {
                 case 'start-timer':
                     if (this.settings.timerStartedAt)
-                        new Notice('The practice timer is already running.')
+                        new Notice(timerRunningMessage(this.timerState(), Date.now()), 10_000)
                     else await this.startTimer()
+                    return
+                case 'discard-timer':
+                    if (!this.settings.timerStartedAt)
+                        new Notice('The practice timer is not running.')
+                    else await this.discardTimer()
                     return
                 case 'stop-timer':
                     if (!this.settings.timerStartedAt)
@@ -1091,6 +1134,7 @@ export class MusicPracticePlugin extends Plugin {
             timer: () => this.timerState(),
             startTimer: () => this.startTimer(),
             togglePause: () => this.togglePause(),
+            discardTimer: () => this.discardTimer(),
             logSession: () => this.logPanelSession(),
             planIntoPanel: () => this.openPlan(),
             drill: () => this.openDrill(),
@@ -1659,7 +1703,8 @@ export class MusicPracticePlugin extends Plugin {
     }
 
     async startTimer(): Promise<void> {
-        if (this.settings.timerStartedAt) throw new Error('The practice timer is already running.')
+        if (this.settings.timerStartedAt)
+            throw new Error(timerRunningMessage(this.timerState(), Date.now()))
         await this.updateSettings((draft) => {
             draft.timerStartedAt = Date.now()
             draft.timerPausedAt = 0
@@ -1708,8 +1753,31 @@ export class MusicPracticePlugin extends Plugin {
             onLogged: () => {
                 void this.clearTimer()
                 preset.onLogged?.()
-            }
+            },
+            onDiscardTimer: () => void this.discardTimer()
         })
+    }
+
+    /**
+     * Throw the practice timer away without logging it, after a confirmation that says how long it
+     * ran. Resolves with true when it was discarded.
+     */
+    async discardTimer(): Promise<boolean> {
+        const timer = this.timerState()
+        if (!timer.startedAt) {
+            new Notice('The practice timer is not running.')
+            return false
+        }
+        const ok = await confirm(this.app, {
+            title: 'Discard the practice timer',
+            message: discardTimerMessage(timer, Date.now()),
+            confirm: 'Discard'
+        })
+        // The timer may have been stopped or replaced while the question was open.
+        if (!ok || this.settings.timerStartedAt !== timer.startedAt) return false
+        await this.clearTimer()
+        new Notice('Practice timer discarded: nothing was logged.')
+        return true
     }
 
     /** A notice with an Undo button for the log just written. */
@@ -1766,10 +1834,21 @@ export class MusicPracticePlugin extends Plugin {
         if (!el) return
         const timer = this.timerState()
         el.toggleClass('mp-is-hidden', !timer.startedAt)
-        if (timer.startedAt)
-            el.setText(
-                `${timer.pausedAt ? '⏸' : '♪'} ${formatElapsed(timerElapsed(timer, Date.now()))}`
-            )
+        if (!timer.startedAt) return
+        const now = Date.now()
+        const stale = staleTimerLabel(timer, now)
+        el.toggleClass('mp-timer-stale', stale !== null)
+        el.setText(
+            stale
+                ? `${timer.pausedAt ? '⏸' : '♪'} ${formatDuration(timerAge(timer, now))}: forgotten?`
+                : `${timer.pausedAt ? '⏸' : '♪'} ${formatElapsed(timerElapsed(timer, now))}`
+        )
+        el.setAttr(
+            'aria-label',
+            stale
+                ? `${stale} Click to log it; right-click to discard it.`
+                : 'Stop the practice timer and log the session (right-click to discard it)'
+        )
     }
 
     /** Open Log practice (once: a second call while it is open does nothing). */

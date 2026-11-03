@@ -27,6 +27,11 @@ export interface LogPracticePreset {
     note?: string
     /** Called after a successful log (the practice timer clears itself). */
     onLogged?: () => void
+    /**
+     * When the window was opened from the practice timer: throw the timer away instead of logging
+     * it (it asks first). Shown as "Discard timer" next to Cancel.
+     */
+    onDiscardTimer?: () => void
 }
 
 /** A Kanban Action Planner timer running on the activity of the current selection. */
@@ -161,6 +166,14 @@ export class LogPracticeModal extends Modal {
 
         const actions = contentEl.createDiv({ cls: 'mp-actions' })
         actions.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close())
+        const discard = this.preset.onDiscardTimer
+        if (discard)
+            actions
+                .createEl('button', { cls: 'mod-warning', text: 'Discard timer' })
+                .addEventListener('click', () => {
+                    this.close()
+                    discard()
+                })
         this.submitEl = actions.createEl('button', { cls: 'mod-cta', text: 'Log practice' })
         this.submitEl.addEventListener('click', () => void this.submit())
 
