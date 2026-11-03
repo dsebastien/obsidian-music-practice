@@ -458,6 +458,12 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                                 'Sources',
                                 'Pieces: links to where they come from; imported score files are added here.'
                             ),
+                            this.text('fields.key', 'Key', 'Pieces: "G major", "E minor".'),
+                            this.text(
+                                'fields.pieceChords',
+                                'Chords used',
+                                'Pieces: the chord notes they use (links).'
+                            ),
                             this.text(
                                 'fields.shape',
                                 'Shape',

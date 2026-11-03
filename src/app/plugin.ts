@@ -60,6 +60,8 @@ import { ProgressionModal, TransitionModal } from './ui/transitions-modal'
 import type { HeldChord } from './ui/transitions-modal'
 import { progressionOf } from './domain/progression'
 import { practiceBlockSource } from './domain/practice-blocks'
+import { pieceChords, pieceKey } from './domain/piece-key'
+import { PieceKeyModal } from './ui/piece-key-modal'
 import type { TriadPick } from './ui/triads-modal'
 import { triadTitle } from './domain/triads'
 import type { StringSet } from './domain/triads'
@@ -765,6 +767,16 @@ export class MusicPracticePlugin extends Plugin {
             }
         })
         this.addCommand({
+            id: 'piece-key',
+            name: 'Find the key and scales of this piece',
+            checkCallback: (checking) => {
+                const file = this.app.workspace.getActiveFile()
+                if (!file || file.extension !== 'md') return false
+                if (!checking) void this.openPieceKey(file)
+                return true
+            }
+        })
+        this.addCommand({
             id: 'smooth-progression',
             name: 'Smooth this progression',
             checkCallback: (checking) => {
@@ -1272,6 +1284,79 @@ export class MusicPracticePlugin extends Plugin {
             renderOptions: () => this.modalRenderOptions(),
             add: (voicing, symbol) =>
                 this.addVoicingNote(voicing, symbol, symbol === to.symbol ? b : a)
+        }).open()
+    }
+
+    /**
+     * The chord symbols of the chord notes a piece links in its chords property (#67), in order;
+     * links that don't lead to a note with a chord symbol are skipped.
+     */
+    private linkedChordSymbols(file: TFile): string[] {
+        const fields = this.effective().fields
+        const fm = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {}
+        const raw: unknown = fm[fields.pieceChords]
+        return (Array.isArray(raw) ? raw : [raw])
+            .filter((link): link is string => typeof link === 'string')
+            .map((link) =>
+                link
+                    .replace(/^\[\[|\]\]$/g, '')
+                    .split('|')[0]!
+                    .split('#')[0]!
+                    .trim()
+            )
+            .map((link) => this.app.metadataCache.getFirstLinkpathDest(link, file.path))
+            .map((note): unknown =>
+                note
+                    ? (this.app.metadataCache.getFileCache(note)?.frontmatter?.[
+                          fields.chordSymbol
+                      ] as unknown)
+                    : null
+            )
+            .filter(
+                (symbol): symbol is string => typeof symbol === 'string' && symbol.trim() !== ''
+            )
+    }
+
+    /** Scales for this progression (#67): the key and the scales of a piece's chords. */
+    private async openPieceKey(file: TFile): Promise<void> {
+        const chords = pieceChords(
+            await this.app.vault.cachedRead(file),
+            this.linkedChordSymbols(file)
+        )
+        if (!chords.length) {
+            new Notice(
+                'This note has no chord chart (```chords) and links no chord notes with a chord symbol.'
+            )
+            return
+        }
+        const result = pieceKey(chords)
+        if (!result) {
+            new Notice(`A chord of this piece doesn't read: ${chords.join(' ')}`)
+            return
+        }
+        const fields = this.effective().fields
+        const fm = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {}
+        const type = learningTypeOf(this.noteModel.get().learningTypes, fm)
+        const language = type?.subject === 'piano' ? 'keyboard' : 'fretboard'
+        const canSet = type ? type.fields.has(fields.key) : false
+        new PieceKeyModal(this.app, {
+            name: file.basename,
+            result,
+            language,
+            drawn: this.notation.status(language) === 'on',
+            renderOptions: () => this.modalRenderOptions(),
+            currentKey: fm[fields.key],
+            ...(canSet
+                ? {
+                      setKey: (key: string) =>
+                          this.app.fileManager.processFrontMatter(
+                              file,
+                              (frontmatter: Record<string, unknown>) => {
+                                  frontmatter[fields.key] = key
+                              }
+                          )
+                  }
+                : {})
         }).open()
     }
 

@@ -29,6 +29,9 @@ export interface FieldNames {
     changesLast: string
     /** Pieces: where they come from (links); imported score files are added here (#19). */
     sources: string
+    /** Pieces: their key ("G major") and the chord notes they use (links) (#67). */
+    key: string
+    pieceChords: string
     /** Scales: root ("A"), type ("Minor pentatonic"), right-hand fingering (piano). */
     scaleRoot: string
     scaleType: string
@@ -75,6 +78,8 @@ export function createDefaultFieldNames(): FieldNames {
         changesBest: 'changes_best',
         changesLast: 'changes_last',
         sources: 'sources',
+        key: 'key',
+        pieceChords: 'chords',
         scaleRoot: 'scale_root',
         scaleType: 'scale_type',
         fingeringRight: 'fingering_rh',
