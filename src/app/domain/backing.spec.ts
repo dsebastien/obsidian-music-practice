@@ -43,7 +43,8 @@ describe('chartBacking', () => {
             chords: ['G', 'G', 'D', 'Em', 'C'],
             time: '3/4',
             tempo: 96,
-            strum: null
+            strum: null,
+            sound: null
         })
     })
 
@@ -65,7 +66,8 @@ describe('chordsBacking', () => {
             chords: ['G', 'C', 'D7'],
             time: null,
             tempo: null,
-            strum: null
+            strum: null,
+            sound: null
         })
         expect(chordsBacking(['Xyz'])).toBeNull()
     })
@@ -86,7 +88,11 @@ function drawn(
 describe('progressionBacking', () => {
     it("reads a drawn block's chords with the notes its play bar sounds, and its settings", () => {
         const el = drawn({ 'data-mn-time': '6/8', 'data-mn-tempo': '70', 'data-mn-strum': 'bar' }, [
-            { 'data-mn-chord': 'G', 'data-mn-voicing': '43 47 50 55 59 67' },
+            {
+                'data-mn-chord': 'G',
+                'data-mn-voicing': '43 47 50 55 59 67',
+                'data-mn-sound': 'piano'
+            },
             { 'data-mn-chord': 'Em', 'data-mn-voicing': '40 47 52 55 59 64' },
             { 'data-mn-chord': 'C' }
         ])
@@ -99,7 +105,8 @@ describe('progressionBacking', () => {
             ],
             time: '6/8',
             tempo: 70,
-            strum: 'bar'
+            strum: 'bar',
+            sound: 'piano'
         })
     })
 

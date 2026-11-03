@@ -32,6 +32,8 @@ export interface BackingSource {
     tempo: number | null
     /** A progression block's `strum:` (beats, bar, arpeggio or a pattern), null without one. */
     strum: string | null
+    /** The instrument a drawn block's chords sound on (piano blocks), null for the note's own. */
+    sound: 'guitar' | 'piano' | null
 }
 
 /** The text of every ```progression (or ~~~progression) block of a note, in order. */
@@ -79,7 +81,8 @@ export function chartBacking(text: string): BackingSource | null {
         chords: chords.slice(0, MAX_PROGRESSION_BARS),
         time,
         tempo,
-        strum: null
+        strum: null,
+        sound: null
     }
 }
 
@@ -92,7 +95,8 @@ export function chordsBacking(symbols: readonly string[]): BackingSource | null 
               chords: chords.slice(0, MAX_PROGRESSION_BARS),
               time: null,
               tempo: null,
-              strum: null
+              strum: null,
+              sound: null
           }
         : null
 }
@@ -100,7 +104,7 @@ export function chordsBacking(symbols: readonly string[]): BackingSource | null 
 /** What the reader needs from a drawn ```progression block (its `.mn-progression` element). */
 export interface ProgressionElement {
     getAttribute(name: string): string | null
-    querySelectorAll(selector: string): Iterable<{ getAttribute(name: string): string | null }>
+    querySelectorAll(selector: string): ArrayLike<{ getAttribute(name: string): string | null }>
 }
 
 /**
@@ -110,9 +114,12 @@ export interface ProgressionElement {
  */
 export function progressionBacking(el: ProgressionElement, label: string): BackingSource | null {
     const chords: ProgressionChordInput[] = []
-    for (const cell of el.querySelectorAll('.mn-progression-chord[data-mn-chord]')) {
+    let sound: BackingSource['sound'] = null
+    for (const cell of Array.from(el.querySelectorAll('.mn-progression-chord[data-mn-chord]'))) {
         const chord = cell.getAttribute('data-mn-chord')
         if (!chord) continue
+        const instrument = cell.getAttribute('data-mn-sound')
+        if (!sound && (instrument === 'piano' || instrument === 'guitar')) sound = instrument
         const pitches = (cell.getAttribute('data-mn-voicing') ?? '')
             .split(' ')
             .filter(Boolean)
@@ -126,7 +133,8 @@ export function progressionBacking(el: ProgressionElement, label: string): Backi
         chords: chords.slice(0, MAX_PROGRESSION_BARS),
         time: el.getAttribute('data-mn-time'),
         tempo: tempoOf(el.getAttribute('data-mn-tempo')),
-        strum: el.getAttribute('data-mn-strum')
+        strum: el.getAttribute('data-mn-strum'),
+        sound
     }
 }
 
