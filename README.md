@@ -61,7 +61,7 @@ Add a chord from its symbol:
 
 - **Tabs and scores** with playback: play, slow down, loop, metronome and count-in. Write them in alphaTex, or use a Guitar Pro / MusicXML file. Export to Guitar Pro 7 or MIDI, or print. Everything is bundled, so it works offline, and in popout windows too.
 - **Hear the diagrams**: a play bar on every chord, keyboard and fretboard diagram, shown on hover. Chords strum, scales go up and down, and a click plays a note. Each note lights up on the drawing as you hear it.
-- **Imports**: Guitar Pro, MusicXML, Capella and ChordPro files, plus pasted text tabs (drum tabs too) and chord sheets. A text tab already in a note gets a **Convert to a playable tab** button.
+- **Imports**: Guitar Pro, MusicXML, Capella and ChordPro files, plus pasted text tabs (drum tabs too) and chord sheets. A text tab already in a note shows as tablature you can play, and **Edit as alphaTex** turns it into alphaTex. **Tab**, **Score** and **Both** in the player bar change the view.
 
 ![Tabs with a player](docs/images/tab.png)
 
