@@ -536,6 +536,108 @@ describe('NotationBlocks: tabs and scores', () => {
     })
 })
 
+describe('NotationBlocks: exercise tabs under fretboards (#70)', () => {
+    type Register = NotationHost['registerMarkdownCodeBlockProcessor']
+    type Processor = Parameters<Register>[1]
+    type Context = Parameters<Processor>[2]
+
+    function setup(withTabs: boolean) {
+        const processors = new Map<string, Processor>()
+        const plugin: NotationHost = {
+            registerMarkdownCodeBlockProcessor: (language: string, processor: Processor) => {
+                processors.set(language, processor)
+                return () => {}
+            },
+            app: { workspace: { getLeavesOfType: () => [] } }
+        }
+        const options: RenderOptions[] = []
+        const render = (
+            _language: NotationLanguage,
+            _source: string,
+            host: HTMLElement,
+            o: RenderOptions = {}
+        ): RenderResult => {
+            options.push(o)
+            return { ok: true, el: host, error: null, destroy: () => {} }
+        }
+        let resolve: (value: unknown) => void = () => {}
+        const loads: unknown[] = []
+        const tabs: TabHost = {
+            runtime: fake({
+                module: (win: unknown) => {
+                    loads.push(win)
+                    return new Promise((r) => (resolve = r))
+                }
+            }),
+            resolveFile: () => Promise.resolve(null)
+        }
+        const blocks = new NotationBlocks(
+            plugin,
+            allOn,
+            undefined,
+            () => false,
+            render,
+            undefined,
+            undefined,
+            withTabs ? tabs : null
+        )
+        blocks.sync()
+        const ctx = {
+            sourcePath: 'Scale.md',
+            addChild: (child: MarkdownRenderChild) => child.onload()
+        }
+        void processors.get('fretboard')!(
+            'scale: A minor pentatonic\nposition: 1\nexercise: up-down',
+            hostEl().el,
+            fake<Context>(ctx)
+        )
+        return { blocks, options, loads, resolve: (value: unknown) => resolve(value) }
+    }
+
+    it('gives fretboard blocks a tab hook only with a tab host', () => {
+        expect(setup(false).options[0]!.tab).toBeUndefined()
+        expect(typeof setup(true).options[0]!.tab).toBe('function')
+    })
+
+    /** A holder on the page: what it shows, and whether its "Loading…" was removed. */
+    function holder() {
+        const shown: string[] = []
+        const win = {}
+        const el = fake<HTMLElement>({
+            isConnected: true,
+            ownerDocument: { defaultView: win },
+            createDiv: (o: { text?: string }) => {
+                shown.push(o.text ?? '')
+                return { remove: () => shown.splice(shown.indexOf(o.text ?? ''), 1) }
+            },
+            onWindowMigrated: () => () => {}
+        })
+        return { el, win, shown }
+    }
+
+    it("draws an exercise's tab with the alphaTab of the holder's window, and frees it", async () => {
+        const { options, loads, resolve } = setup(true)
+        const { el, win, shown } = holder()
+        const free = options[0]!.tab!(':8 5.6 8.6', el)
+        expect(loads).toEqual([win])
+        expect(shown).toEqual(['Loading…'])
+        expect(typeof free).toBe('function')
+        ;(free as () => void)()
+        expect(shown).toEqual([])
+        resolve({})
+        await Promise.resolve()
+        expect(shown).toEqual([])
+    })
+
+    it('frees the exercise tabs still on screen when the plugin unloads', () => {
+        const { blocks, options } = setup(true)
+        const { el, shown } = holder()
+        options[0]!.tab!(':8 5.6 8.6', el)
+        blocks.unload()
+        expect(shown).toEqual([])
+    })
+})
+
 describe('isTextTab', () => {
     it('tells a plain-text tab from alphaTex', () => {
         expect(isTextTab('e|---0---|\nB|---1---|\nG|---0---|\nD|---2---|')).toBe(true)

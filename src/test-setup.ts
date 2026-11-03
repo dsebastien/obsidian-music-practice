@@ -32,6 +32,13 @@ void mock.module('obsidian', () => ({
         }
         onload() {}
         onunload() {}
+        load() {
+            this.onload()
+        }
+        unload() {
+            this.onunload()
+            for (const cleanup of this.registered) cleanup()
+        }
     },
     // Identify this chord asks which reading with a suggest modal.
     SuggestModal: class SuggestModal {},
