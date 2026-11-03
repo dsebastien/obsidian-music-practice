@@ -49,6 +49,7 @@ import type { UndoRecord } from './domain/undo'
 import { Metronome } from './services/metronome.service'
 import type { ItemMeter, MetronomeItem } from './services/metronome.service'
 import { drillCountIn, meterLabel, meterOf } from './domain/metronome'
+import { parseUriRequest, URI_HANDLER } from './domain/uri'
 import { MetronomeModal } from './ui/metronome-view'
 import type { MetronomeViewDeps } from './ui/metronome-view'
 import { PRACTICE_PANEL_VIEW, PracticePanelView } from './ui/practice-panel-view'
@@ -310,6 +311,10 @@ export class MusicPracticePlugin extends Plugin {
         )
 
         this.registerCommands()
+        // obsidian://music-practice?do=… for shortcuts outside Obsidian (#47).
+        this.registerObsidianProtocolHandler(URI_HANDLER, (params) => {
+            this.app.workspace.onLayoutReady(() => void this.runUri(params))
+        })
 
         // Notation code blocks (chord, chords, keyboard, fretboard), drawn by the notation library.
         // Registered once the layout is ready: plugins enabled at startup register theirs first, so
@@ -587,15 +592,7 @@ export class MusicPracticePlugin extends Plugin {
         this.addCommand({
             id: 'practice-next',
             name: 'Practice next',
-            callback: () => {
-                const model = this.ensureModel()
-                new PracticeNextModal(
-                    this.app,
-                    model,
-                    this.items.items(),
-                    this.settings.rules
-                ).open()
-            }
+            callback: () => this.openPracticeNext()
         })
         this.addCommand({
             id: 'practice-plan',
@@ -925,15 +922,57 @@ export class MusicPracticePlugin extends Plugin {
     }
 
     /** The active note when it is a learning note. Cheap: the command palette calls it on every keystroke. */
-    /** Plan a practice session (from the command and the panel). */
-    private openPlan(): void {
+    /** Practice next (from the command and the URI). */
+    private openPracticeNext(): void {
+        const model = this.ensureModel()
+        new PracticeNextModal(this.app, model, this.items.items(), this.settings.rules).open()
+    }
+
+    /**
+     * A URI action (#47). Only the timer's start writes at once (as its command does); stopping it,
+     * logging, planning and practice next open their modals, so nothing is written unseen.
+     */
+    async runUri(params: Record<string, string | undefined>): Promise<void> {
+        const request = parseUriRequest(params)
+        if (!request.ok) {
+            new Notice(request.error)
+            return
+        }
+        try {
+            switch (request.action) {
+                case 'start-timer':
+                    if (this.settings.timerStartedAt)
+                        new Notice('The practice timer is already running.')
+                    else await this.startTimer()
+                    return
+                case 'stop-timer':
+                    if (!this.settings.timerStartedAt)
+                        new Notice('The practice timer is not running.')
+                    else this.stopTimer()
+                    return
+                case 'log':
+                    return this.openLogPractice(
+                        request.minutes !== null ? { minutes: request.minutes } : {}
+                    )
+                case 'practice-next':
+                    return this.openPracticeNext()
+                case 'plan':
+                    return this.openPlan(request.minutes ?? undefined)
+            }
+        } catch (error: unknown) {
+            new Notice(`Music Practice: ${error instanceof Error ? error.message : String(error)}`)
+        }
+    }
+
+    /** Plan a practice session (from the command, the panel and the URI). */
+    private openPlan(minutes: number = this.settings.defaultPlanMinutes): void {
         const model = this.ensureModel()
         new PracticePlanModal(
             this.app,
             model,
             this.items.items(),
             this.settings.rules,
-            this.settings.defaultPlanMinutes,
+            minutes,
             (minutes, paths) => this.openLogPractice({ minutes, paths }),
             (paths) => void this.usePlanInPanel(paths)
         ).open()
