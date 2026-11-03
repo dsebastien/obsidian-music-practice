@@ -315,6 +315,58 @@ describe('NotationBlocks and note properties', () => {
         expect(drawn).toHaveLength(2)
     })
 
+    it('draws the source Music Practice makes for an empty block, and redraws when it changes (#56)', () => {
+        const processors = new Map<string, Processor>()
+        const plugin: NotationHost = {
+            registerMarkdownCodeBlockProcessor: (language: string, processor: Processor) => {
+                processors.set(language, processor)
+                return () => {}
+            },
+            app: { workspace: { getLeavesOfType: () => [] } }
+        }
+        const drawn: { source: string; properties: unknown }[] = []
+        const render = (
+            _language: NotationLanguage,
+            source: string,
+            host: HTMLElement,
+            options: RenderOptions = {}
+        ): RenderResult => {
+            drawn.push({ source, properties: options.properties })
+            return { ok: true, el: host, error: null, destroy: () => {} }
+        }
+        let own: string | null = 'arpeggio: Am7\nshape: E'
+        const blocks = new NotationBlocks(
+            plugin,
+            allOn,
+            () => ({}),
+            () => false,
+            render,
+            () => ({ properties: { chord_symbol: 'Am7' }, instrument: 'guitar' }),
+            () => false,
+            null,
+            (_path, language) => (language === 'fretboard' ? own : null)
+        )
+        blocks.sync()
+        const ctx: Pick<Context, 'addChild' | 'sourcePath'> = {
+            sourcePath: 'Am7.md',
+            addChild: (child) => child.onload()
+        }
+        void processors.get('fretboard')!('', hostEl().el, ctx as Context)
+        void processors.get('fretboard')!('scale: A minor', hostEl().el, ctx as Context)
+        expect(drawn[0]).toEqual({ source: 'arpeggio: Am7\nshape: E', properties: undefined })
+        expect(drawn[1]).toEqual({ source: 'scale: A minor', properties: undefined })
+        blocks.redrawNote('Am7.md')
+        expect(drawn).toHaveLength(2)
+        own = 'arpeggio: Am7\nshape: A'
+        blocks.redrawNote('Am7.md')
+        expect(drawn).toHaveLength(3)
+        expect(drawn[2]!.source).toBe('arpeggio: Am7\nshape: A')
+        // No source of its own: the library draws from the note's properties.
+        own = null
+        blocks.redrawNote('Am7.md')
+        expect(drawn[3]).toEqual({ source: '', properties: { chord_symbol: 'Am7' } })
+    })
+
     it('follows a renamed note', () => {
         const notes: Record<string, Record<string, unknown>> = {
             'A.md': { chord_symbol: 'A', frets: 'x02220' }

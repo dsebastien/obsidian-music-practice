@@ -29,12 +29,21 @@ export interface FieldNames {
     changesLast: string
     /** Pieces: where they come from (links); imported score files are added here (#19). */
     sources: string
-    /** Pieces: the time signature ("3/4", "6/8"); the metronome counts it (#77). */
+    /**
+     * Pieces and strumming patterns: the time signature ("3/4", "6/8"). The metronome counts it
+     * (#77); a strumming pattern's empty strum block draws in it (#58).
+     */
     timeSignature: string
+    /** Pieces: their key ("G major") and the chord notes they use (links) (#67). */
+    key: string
+    pieceChords: string
     /** Scales: root ("A"), type ("Minor pentatonic"), right-hand fingering (piano). */
     scaleRoot: string
     scaleType: string
     fingeringRight: string
+    /** Strumming patterns (#58): the pattern ("D DU UDU") and feel ("swing"); the meter is timeSignature. */
+    strumPattern: string
+    strumFeel: string
     /** Spaced review (Kanban Action Planner: reviewed date / interval / count properties). */
     lastReviewed: string
     reviewInterval: string
@@ -74,9 +83,13 @@ export function createDefaultFieldNames(): FieldNames {
         changesLast: 'changes_last',
         sources: 'sources',
         timeSignature: 'time_signature',
+        key: 'key',
+        pieceChords: 'chords',
         scaleRoot: 'scale_root',
         scaleType: 'scale_type',
         fingeringRight: 'fingering_rh',
+        strumPattern: 'strum_pattern',
+        strumFeel: 'strum_feel',
         lastReviewed: 'last_reviewed',
         reviewInterval: 'review_interval',
         reviewCount: 'review_count',

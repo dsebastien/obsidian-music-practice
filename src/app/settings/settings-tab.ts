@@ -468,10 +468,16 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                                 'Sources',
                                 'Pieces: links to where they come from; imported score files are added here.'
                             ),
+                            this.text('fields.key', 'Key', 'Pieces: "G major", "E minor".'),
+                            this.text(
+                                'fields.pieceChords',
+                                'Chords used',
+                                'Pieces: the chord notes they use (links).'
+                            ),
                             this.text(
                                 'fields.timeSignature',
                                 'Time signature',
-                                'Pieces: "3/4", "6/8"… The metronome counts it when it practices the note.'
+                                'Pieces and strumming patterns: "3/4", "6/8"… The metronome counts it when it practices the note.'
                             ),
                             this.text(
                                 'fields.shape',
@@ -515,6 +521,16 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                                 'fields.fingeringRight',
                                 'Scale fingering',
                                 'Piano scales, right hand: "1 2 3 1 2 3 4 5".'
+                            ),
+                            this.text(
+                                'fields.strumPattern',
+                                'Strumming pattern',
+                                'Strumming patterns: "D DU UDU".'
+                            ),
+                            this.text(
+                                'fields.strumFeel',
+                                'Feel',
+                                'Strumming patterns: "straight", "swing" or a swing ratio ("60%").'
                             ),
                             this.text('fields.lastReviewed', 'Last reviewed', ''),
                             this.text('fields.reviewInterval', 'Review interval', ''),

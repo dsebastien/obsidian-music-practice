@@ -61,6 +61,11 @@ import { TriadsModal } from './ui/triads-modal'
 import { ProgressionModal, TransitionModal } from './ui/transitions-modal'
 import type { HeldChord } from './ui/transitions-modal'
 import { progressionOf } from './domain/progression'
+import { practiceBlockSource } from './domain/practice-blocks'
+import { pieceChords, pieceKey } from './domain/piece-key'
+import { PieceKeyModal } from './ui/piece-key-modal'
+import { chordChanges, easiestFrets, rankChanges } from './domain/chart-changes'
+import { ChartChangesModal } from './ui/chart-changes-modal'
 import type { TriadPick } from './ui/triads-modal'
 import { triadTitle } from './domain/triads'
 import type { StringSet } from './domain/triads'
@@ -80,7 +85,7 @@ import { learningTypeOf } from './domain/item-reader'
 import { safeTitle } from './domain/chord'
 import { propertyNamesOf, chordFromNotes, formatFrets, withAlias } from './domain/notation-note'
 import { ChooseChordModal } from './ui/choose-chord-modal'
-import { parseChord, readChord } from '@dsebastien/music-notation'
+import { parseChord, parseFrets, readChord } from '@dsebastien/music-notation'
 import type { GeneratedVoicing } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
 import type { NotationStatus } from './services/notation.service'
@@ -214,6 +219,28 @@ export class MusicPracticePlugin extends Plugin {
         }
     }
 
+    /**
+     * The source of an empty block that Music Practice makes from a learning note's properties:
+     * a strumming pattern (#58) or an arpeggio (#56). Null for other notes and blocks (the library
+     * draws chords and scales).
+     */
+    private practiceBlock(path: string, language: string): string | null {
+        const file = this.app.vault.getFileByPath(path)
+        const frontmatter = file ? this.app.metadataCache.getFileCache(file)?.frontmatter : null
+        if (!frontmatter) return null
+        const type = learningTypeOf(this.noteModel.get().learningTypes, frontmatter)
+        if (!type) return null
+        const instrument =
+            type.subject === 'piano' || type.subject === 'guitar' ? type.subject : null
+        return practiceBlockSource(
+            language,
+            frontmatter,
+            this.effective().fields,
+            type.kind,
+            instrument
+        )
+    }
+
     /** Whether Music Practice draws a notation block language (for the settings tab). */
     notationStatus(language: BlockLanguage): NotationStatus {
         return this.notation.status(language)
@@ -336,7 +363,8 @@ export class MusicPracticePlugin extends Plugin {
                 decorate: (result, sourcePath) => this.decorateScore(result, sourcePath),
                 convert: (request) => void this.textTabs.convertBlock(request),
                 keepView: (request, staves) => void this.textTabs.keepView(request, staves)
-            }
+            },
+            (path, language) => this.practiceBlock(path, language)
         )
         // Empty blocks in chord and scale notes draw from the note's properties: redraw them when
         // the properties change.
@@ -735,6 +763,26 @@ export class MusicPracticePlugin extends Plugin {
                 const pair = file ? this.drills.pairOfNote(file.path) : null
                 if (!pair) return false
                 if (!checking) this.openEasiestWay(pair.a, pair.b)
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'piece-key',
+            name: 'Find the key and scales of this piece',
+            checkCallback: (checking) => {
+                const file = this.app.workspace.getActiveFile()
+                if (!file || file.extension !== 'md') return false
+                if (!checking) void this.openPieceKey(file)
+                return true
+            }
+        })
+        this.addCommand({
+            id: 'chart-changes',
+            name: 'Suggest chord change drills from this piece',
+            checkCallback: (checking) => {
+                const file = this.app.workspace.getActiveFile()
+                if (!file || file.extension !== 'md') return false
+                if (!checking) void this.openChartChanges(file)
                 return true
             }
         })
@@ -1293,6 +1341,135 @@ export class MusicPracticePlugin extends Plugin {
             renderOptions: () => this.modalRenderOptions(),
             add: (voicing, symbol) =>
                 this.addVoicingNote(voicing, symbol, symbol === to.symbol ? b : a)
+        }).open()
+    }
+
+    /**
+     * The chord symbols of the chord notes a piece links in its chords property (#67), in order;
+     * links that don't lead to a note with a chord symbol are skipped.
+     */
+    private linkedChordSymbols(file: TFile): string[] {
+        const fields = this.effective().fields
+        const fm = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {}
+        const raw: unknown = fm[fields.pieceChords]
+        return (Array.isArray(raw) ? raw : [raw])
+            .filter((link): link is string => typeof link === 'string')
+            .map((link) =>
+                link
+                    .replace(/^\[\[|\]\]$/g, '')
+                    .split('|')[0]!
+                    .split('#')[0]!
+                    .trim()
+            )
+            .map((link) => this.app.metadataCache.getFirstLinkpathDest(link, file.path))
+            .map((note): unknown =>
+                note
+                    ? (this.app.metadataCache.getFileCache(note)?.frontmatter?.[
+                          fields.chordSymbol
+                      ] as unknown)
+                    : null
+            )
+            .filter(
+                (symbol): symbol is string => typeof symbol === 'string' && symbol.trim() !== ''
+            )
+    }
+
+    /** Scales for this progression (#67): the key and the scales of a piece's chords. */
+    private async openPieceKey(file: TFile): Promise<void> {
+        const chords = pieceChords(
+            await this.app.vault.cachedRead(file),
+            this.linkedChordSymbols(file)
+        )
+        if (!chords.length) {
+            new Notice(
+                'This note has no chord chart (```chords) and links no chord notes with a chord symbol.'
+            )
+            return
+        }
+        const result = pieceKey(chords)
+        if (!result) {
+            new Notice(`A chord of this piece doesn't read: ${chords.join(' ')}`)
+            return
+        }
+        const fields = this.effective().fields
+        const fm = this.app.metadataCache.getFileCache(file)?.frontmatter ?? {}
+        const type = learningTypeOf(this.noteModel.get().learningTypes, fm)
+        const language = type?.subject === 'piano' ? 'keyboard' : 'fretboard'
+        const canSet = type ? type.fields.has(fields.key) : false
+        new PieceKeyModal(this.app, {
+            name: file.basename,
+            result,
+            language,
+            drawn: this.notation.status(language) === 'on',
+            renderOptions: () => this.modalRenderOptions(),
+            currentKey: fm[fields.key],
+            ...(canSet
+                ? {
+                      setKey: (key: string) =>
+                          this.app.fileManager.processFrontMatter(
+                              file,
+                              (frontmatter: Record<string, unknown>) => {
+                                  frontmatter[fields.key] = key
+                              }
+                          )
+                  }
+                : {})
+        }).open()
+    }
+
+    /**
+     * The guitar chord notes by chord symbol, with their frets (#74): the most advanced note of a
+     * chord when it has several.
+     */
+    private chordNotesBySymbol(): Map<string, { path: string; frets: (number | null)[] | null }> {
+        const fields = this.effective().fields
+        const notes = new Map<string, { path: string; frets: (number | null)[] | null }>()
+        const chords = [...this.drills.chords()].sort((x, y) => (y.level ?? 0) - (x.level ?? 0))
+        for (const item of chords) {
+            const file = this.app.vault.getFileByPath(item.path)
+            const fm = file ? this.app.metadataCache.getFileCache(file)?.frontmatter : null
+            const raw: unknown = fm?.[fields.chordSymbol]
+            const symbol = typeof raw === 'string' ? readChord(raw.trim())?.symbol : null
+            if (!symbol || notes.has(symbol)) continue
+            const fretsRaw: unknown = fm?.[fields.frets]
+            const frets =
+                typeof fretsRaw === 'string' || typeof fretsRaw === 'number'
+                    ? parseFrets(String(fretsRaw).padStart(6, '0'))
+                    : null
+            notes.set(symbol, { path: item.path, frets: frets?.length === 6 ? frets : null })
+        }
+        return notes
+    }
+
+    /** Chord change drills from a chart (#74): the piece's changes, hardest first. */
+    private async openChartChanges(file: TFile): Promise<void> {
+        const sequence = progressionOf(
+            await this.app.vault.cachedRead(file),
+            Number.POSITIVE_INFINITY
+        )
+        const changes = chordChanges(sequence)
+        if (!changes.length) {
+            new Notice('This note has no chord chart (```chords) with a chord change.')
+            return
+        }
+        const notes = this.chordNotesBySymbol()
+        const ranked = rankChanges(
+            changes,
+            (symbol) => notes.get(symbol)?.frets ?? easiestFrets(symbol)
+        )
+        new ChartChangesModal(this.app, {
+            name: file.basename,
+            rows: ranked.map((change) => {
+                const noteA = notes.get(change.a)?.path ?? null
+                const noteB = notes.get(change.b)?.path ?? null
+                return {
+                    ...change,
+                    noteA,
+                    noteB,
+                    best: noteA && noteB ? this.drills.pairFor(noteA, noteB).best : null
+                }
+            }),
+            drill: (a, b) => this.openDrill(this.drills.pairFor(a, b))
         }).open()
     }
 

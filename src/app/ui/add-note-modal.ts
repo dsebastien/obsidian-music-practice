@@ -24,6 +24,7 @@ import type {
 import { lookupGuitarVoicing, voicingCount } from '@dsebastien/music-notation/voicings'
 import { blockSource, chordBlock, formatFrets, voicingRow } from '../domain/notation-note'
 import { hasBarre, shapeValue } from '../domain/voicings'
+import { arpeggioSource, strumSource } from '../domain/practice-blocks'
 import { triadDetail } from '../domain/triads'
 import type { StringSet } from '../domain/triads'
 import type { TriadPick } from './triads-modal'
@@ -58,6 +59,8 @@ export class AddNoteModal extends Modal {
     private text = ''
     private scaleRoot = ''
     private scaleType = ''
+    /** Strumming pattern types (#58): the pattern, time signature and feel typed. */
+    private strum = { pattern: '', time: '', feel: '' }
     private shape = ''
     private level: number | undefined
     /** Guitar chords: index of the voicing to prefill; -1 for none; PICKED for `picked`. */
@@ -105,10 +108,16 @@ export class AddNoteModal extends Modal {
 
     /** The instrument whose notation a chord or scale note of this type gets; null for others. */
     private instrument(): 'guitar' | 'piano' | null {
-        if (this.type.kind !== 'chord' && this.type.kind !== 'scale') return null
+        if (this.type.kind !== 'chord' && this.type.kind !== 'scale' && !this.arpeggio())
+            return null
         return this.type.subject === 'guitar' || this.type.subject === 'piano'
             ? this.type.subject
             : null
+    }
+
+    /** Whether this is an arpeggio type: a chord's notes, learned one shape at a time (#56). */
+    private arpeggio(): boolean {
+        return this.type.kind === 'arpeggio' && this.type.fields.has(this.fields.chordSymbol)
     }
 
     /** The block language a note of this type gets; null when it gets none. */
@@ -128,7 +137,7 @@ export class AddNoteModal extends Modal {
 
     /** The chord typed: a symbol ("Am7"), words ("A Minor 7"), or recognized from frets. */
     private chord(): ParsedChord | null {
-        if (this.type.kind !== 'chord') return null
+        if (this.type.kind !== 'chord' && !this.arpeggio()) return null
         const frets = this.typedFrets()
         if (frets) {
             const detected = detectChordFromFrets(frets)
@@ -148,7 +157,10 @@ export class AddNoteModal extends Modal {
         if (frets) return { frets, fingers: fingerVoicing(frets) ?? frets.map(() => null) }
         if (this.voicingIndex === PICKED && this.picked) return this.picked
         const symbol = this.symbol()
-        return symbol && this.instrument() === 'guitar' && this.voicingIndex >= 0
+        return symbol &&
+            this.type.kind === 'chord' &&
+            this.instrument() === 'guitar' &&
+            this.voicingIndex >= 0
             ? lookupGuitarVoicing(symbol, this.voicingIndex)
             : null
     }
@@ -181,14 +193,64 @@ export class AddNoteModal extends Modal {
         return probe.ok ? block : null
     }
 
+    /** Whether this is a strumming pattern type: it stores a pattern (#58). */
+    private strumFields(): boolean {
+        return this.type.fields.has(this.fields.strumPattern)
+    }
+
+    /** A strumming pattern note's properties: what was typed, for the fields the type defines. */
+    private strumProperties(): Record<string, string> {
+        if (!this.strumFields()) return {}
+        const { strumPattern, timeSignature, strumFeel } = this.fields
+        const typed: [string, string][] = [
+            [strumPattern, this.strum.pattern.trim()],
+            [timeSignature, this.strum.time.trim()],
+            [strumFeel, this.strum.feel.trim()]
+        ]
+        return Object.fromEntries(
+            typed.filter(([name, value]) => value && this.type.fields.has(name))
+        )
+    }
+
+    /** A strumming pattern note's ```strum block for the preview; only one that draws. */
+    private strumPreview(): string | null {
+        if (!this.strumFields()) return null
+        const source = strumSource(this.strumProperties(), this.fields)
+        if (!source) return null
+        const probe = renderBlock('strum', source, createDiv())
+        probe.destroy()
+        return probe.ok ? source : null
+    }
+
+    /** An arpeggio note's block for the preview, as the note will draw it; only one that draws. */
+    private arpeggioPreview(): string | null {
+        const language = this.language()
+        const symbol = this.symbol()
+        if (!this.arpeggio() || !language || !symbol) return null
+        const source = arpeggioSource(
+            language,
+            { [this.fields.chordSymbol]: symbol, [this.fields.shape]: this.shape },
+            this.fields,
+            'arpeggio',
+            this.instrument()
+        )
+        if (!source) return null
+        const probe = renderBlock(language, source, createDiv())
+        probe.destroy()
+        return probe.ok ? source : null
+    }
+
     /**
      * The empty block the note gets (it draws from the properties): only one that would draw, and
      * only a language Music Practice draws.
      */
     private block(): NotationLanguage | null {
+        if (this.strumFields())
+            return this.blocksOn('strum') && this.strumPreview() ? 'strum' : null
         const language = this.language()
         if (!language || !this.blocksOn(language)) return null
         if (language === 'chord') return this.preview() ? language : null
+        if (this.arpeggio()) return this.arpeggioPreview() ? language : null
         return this.scaleProperties() ? language : null
     }
 
@@ -218,6 +280,7 @@ export class AddNoteModal extends Modal {
         const prerequisite = chord ? this.triadPrerequisite(chord) : null
         const properties = {
             ...scale,
+            ...this.strumProperties(),
             ...(prerequisite ? { [this.fields.prerequisites]: [`[[${prerequisite}]]`] } : {})
         }
         return {
@@ -260,6 +323,7 @@ export class AddNoteModal extends Modal {
             this.shapeFromPick = false
             this.scaleRoot = ''
             this.scaleType = ''
+            this.strum = { pattern: '', time: '', feel: '' }
             this.render()
         })
         this.formEl = this.contentEl.createDiv({ cls: 'mp-modal' })
@@ -271,6 +335,7 @@ export class AddNoteModal extends Modal {
         if (!el) return
         el.empty()
         const isChord = this.type.kind === 'chord'
+        const isArpeggio = this.arpeggio()
         const isScale = this.scaleFields()
         const guitarChord = isChord && this.instrument() === 'guitar'
         // Scales: a root and a scale or mode, from the type's values when it lists them.
@@ -319,15 +384,57 @@ export class AddNoteModal extends Modal {
                       ? 'Chord (F#m7, A Major) or frets (x02220)'
                       : isChord
                         ? 'Chord (F#m7, A Major)'
-                        : 'Name'
+                        : isArpeggio
+                          ? 'Chord of the arpeggio (Am7, A Minor 7)'
+                          : 'Name'
               })
         const input = (nameField ?? createDiv()).createEl('input', {
             type: 'text',
             attr: {
-                placeholder: isChord ? 'Am7' : "Knockin on Heaven's Door - Simplified"
+                placeholder: isChord || isArpeggio ? 'Am7' : "Knockin on Heaven's Door - Simplified"
             }
         })
         input.value = this.text
+
+        // Strumming patterns: the pattern, its time signature and its feel (the type's values
+        // when it lists them).
+        if (this.strumFields()) {
+            const strumRow = el.createDiv({ cls: 'mp-form-row' })
+            const strumField = (
+                label: string,
+                name: string,
+                key: 'pattern' | 'time' | 'feel',
+                placeholder: string
+            ) => {
+                if (!this.type.fields.has(name)) return
+                const field = strumRow.createEl('label', { cls: 'mp-field', text: label })
+                const values = this.type.allowedValues[name] ?? []
+                let control: HTMLSelectElement | HTMLInputElement
+                if (values.length) {
+                    const select = field.createEl('select', { cls: 'dropdown' })
+                    select.createEl('option', { text: '—', value: '' })
+                    for (const v of values)
+                        select.createEl('option', { text: v, value: v }).selected =
+                            v === this.strum[key]
+                    control = select
+                } else {
+                    control = field.createEl('input', { type: 'text', attr: { placeholder } })
+                    control.value = this.strum[key]
+                }
+                const update = () => {
+                    this.strum[key] = control.value
+                    refresh()
+                }
+                control.addEventListener('input', update)
+                control.addEventListener('change', update)
+                control.addEventListener('keydown', (event) => {
+                    if ((event as KeyboardEvent).key === 'Enter') void this.submit()
+                })
+            }
+            strumField('Pattern', this.fields.strumPattern, 'pattern', 'D DU UDU')
+            strumField('Time signature', this.fields.timeSignature, 'time', '4/4')
+            strumField('Feel', this.fields.strumFeel, 'feel', 'straight, swing, 60%')
+        }
 
         const row = el.createDiv({ cls: 'mp-form-row' })
         const shapes = this.type.allowedValues[this.fields.shape] ?? []
@@ -375,7 +482,7 @@ export class AddNoteModal extends Modal {
         // Guitar chords: pick one of the library's voicings; the note gets its frets, fingers and
         // a diagram. Piano chords get a keyboard diagram from the symbol.
         const voicingField =
-            this.instrument() === 'guitar'
+            isChord && this.instrument() === 'guitar'
                 ? el.createEl('label', { cls: 'mp-field', text: 'Voicing' })
                 : null
         const voicingSelect = voicingField?.createEl('select', { cls: 'dropdown' }) ?? null
@@ -539,6 +646,7 @@ export class AddNoteModal extends Modal {
             const symbol = this.symbol()
             if (
                 symbol &&
+                isChord &&
                 this.instrument() === 'guitar' &&
                 this.blocksOn('chord') &&
                 !this.typedFrets() &&
@@ -563,6 +671,18 @@ export class AddNoteModal extends Modal {
                 )
                 return
             }
+            // Strumming patterns: the pattern as the note will draw it.
+            const strum = this.blocksOn('strum') ? this.strumPreview() : null
+            if (strum) {
+                this.diagrams.push(renderBlock('strum', strum, diagramEl, options()))
+                return
+            }
+            // Arpeggios: drawn as the note will draw them (the chord's notes in its shape).
+            const arpeggio = this.arpeggioPreview()
+            if (arpeggio && language && this.blocksOn(language)) {
+                this.diagrams.push(renderBlock(language, arpeggio, diagramEl, options()))
+                return
+            }
             const block = this.blocksOn('chord') ? this.preview() : null
             if (!block) return
             this.diagrams.push(renderBlock('chord', blockSource(block), diagramEl, options()))
@@ -573,7 +693,7 @@ export class AddNoteModal extends Modal {
             preview.setText(
                 spec
                     ? `Note: ${spec.title}${spec.chordSymbol ? ` (alias ${spec.chordSymbol})` : ''}`
-                    : isChord
+                    : isChord || isArpeggio
                       ? this.typedFrets()
                           ? 'These frets make no chord the library knows: type the chord instead.'
                           : 'Type a chord: its name is spelled out, the symbol becomes an alias.'

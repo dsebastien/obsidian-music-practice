@@ -401,7 +401,12 @@ export class NotationBlocks {
         /** Playback on diagrams (#31): its options, or false when it's off. */
         private readonly play: () => PlayOptions | false = () => false,
         /** Tabs and scores; null leaves those languages alone. */
-        private readonly tabs: TabHost | null = null
+        private readonly tabs: TabHost | null = null,
+        /**
+         * The source of an empty block that Music Practice makes from the note's properties (an
+         * arpeggio, #56; a strumming pattern, #58); null leaves the block to the library's properties.
+         */
+        private readonly own: (sourcePath: string, language: string) => string | null = () => null
     ) {}
 
     /** Register every language turned on, not registered yet and not taken. */
@@ -425,14 +430,18 @@ export class NotationBlocks {
                     }
                     // An empty block draws from the note's properties, read at each draw.
                     const empty = !source.trim()
-                    const draw = (path: string) =>
-                        this.render(language, source, el, {
+                    const draw = (path: string) => {
+                        const own = empty ? this.own(path, language) : null
+                        return this.render(language, own ?? source, el, {
                             ...this.layout(),
-                            ...(empty ? this.note(path) : null),
+                            ...(empty && own === null ? this.note(path) : null),
                             voicings: lookupGuitarVoicing,
                             ...playOf(this.play())
                         })
+                    }
                     const key = (path: string) => {
+                        const own = this.own(path, language)
+                        if (own !== null) return own
                         const note = this.note(path)
                         const properties = note?.properties
                         if (!properties || typeof properties !== 'object') return null
