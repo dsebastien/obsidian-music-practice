@@ -20,7 +20,7 @@ import type { LogItem, LogRequest } from '../domain/log'
 import { expandTokens } from '../domain/local-model'
 import type { LearningType, NoteModel, SessionType } from '../domain/note-model'
 import type { LearningItem } from '../domain/practice'
-import { bodyOf, changedKeys, conflicts, loggedKeys, revert, snapshot } from '../domain/undo'
+import { bodyOf, changedKeys, conflicts, revert, snapshot } from '../domain/undo'
 import { SETTLE, waitUntilSettled } from '../domain/settle'
 import type { Clock } from '../domain/settle'
 import type { FileChanges, UndoRecord } from '../domain/undo'
@@ -186,6 +186,9 @@ export class PracticeLogService {
     async log(request: LogRequest, options: { adoptTimer?: boolean } = {}): Promise<LogResult> {
         if (this.busy) throw new Error('A practice log is already being written.')
         this.busy = true
+        // The previous undo's watch ends here: this log's session note can have the trashed one's
+        // path and body (same day, same request), and must not be taken for a late re-creation.
+        this.endUndoWatch()
         try {
             const result = await this.write(request, options)
             // Saved before returning, so an undo right after sees this log.
@@ -395,32 +398,37 @@ export class PracticeLogService {
         }
     }
 
+    /** Stops the last undo's watch, if one runs. */
+    private endUndoWatch: () => void = () => {}
+
     /**
-     * After an undo, watch the session note's path for a while: a late write by another plugin can
-     * create it again. A note created there with the body the log wrote is that session: it is
-     * trashed again, and the keys the log changed that are back as the log left them (a recompute
-     * that saw the session again) are put back once more. Anything else is left alone.
+     * After an undo, watch the session note's path for a while: a late write by another plugin
+     * (Templater's trigger on file creation) can create it again. A note created there with the body
+     * the log wrote is that session: it is trashed again. The watch only trashes: the practiced notes
+     * and the activity were put back before undo returned, and the next log ends the watch, so it
+     * never touches what that log writes.
      */
     private watchForRecreation(record: UndoRecord): void {
+        this.endUndoWatch()
         const vault = this.app.vault
+        let watching = true
         const ref = vault.on('create', (created) => {
-            if (created.path !== record.sessionPath) return
+            if (!watching || created.path !== record.sessionPath) return
             void (async () => {
                 const file = vault.getFileByPath(record.sessionPath)
-                if (!file || bodyOf(await vault.read(file)) !== record.sessionBody) return
+                if (!watching || !file || bodyOf(await vault.read(file)) !== record.sessionBody)
+                    return
                 await this.app.fileManager.trashFile(file)
-                for (const f of record.files) {
-                    const note = vault.getFileByPath(f.path)
-                    const fm = note && this.app.metadataCache.getFileCache(note)?.frontmatter
-                    if (!note || !fm || loggedKeys(fm, f.keys).length === 0) continue
-                    await this.app.fileManager.processFrontMatter(
-                        note,
-                        (x: Record<string, unknown>) => revert(x, f.keys)
-                    )
-                }
             })()
         })
-        void this.clock.sleep(SETTLE.watchMs).then(() => vault.offref(ref))
+        const end = () => {
+            if (!watching) return
+            watching = false
+            vault.offref(ref)
+            if (this.endUndoWatch === end) this.endUndoWatch = () => {}
+        }
+        this.endUndoWatch = end
+        void this.clock.sleep(SETTLE.watchMs).then(end)
     }
 
     /** A note's frontmatter read from the file itself (the metadata cache can lag a write). */
