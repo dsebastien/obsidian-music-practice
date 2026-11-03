@@ -19,7 +19,7 @@ export interface SettleOptions {
 }
 
 export const SETTLE: SettleOptions = {
-    afterCreateMs: 2_000,
+    afterCreateMs: 3_000,
     quietMs: 1_000,
     maxWaitMs: 5_000,
     pollMs: 100,
