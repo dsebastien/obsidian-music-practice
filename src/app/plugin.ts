@@ -79,7 +79,8 @@ import {
     exerciseBlock,
     exercisePositions,
     exerciseSubject,
-    exerciseTempo
+    exerciseTempo,
+    playedBpm
 } from './domain/exercise'
 import type { ExerciseSubject } from './domain/exercise'
 import { ExerciseModal } from './ui/exercise-modal'
@@ -482,6 +483,7 @@ export class MusicPracticePlugin extends Plugin {
             attr: { 'type': 'button', 'aria-label': 'Export', 'title': 'Export' }
         })
         setIcon(button, 'download')
+        this.addSaveBpm(bar, result, sourcePath)
         button.addEventListener('click', (event) => {
             const menu = new Menu()
             menu.addItem((item) =>
@@ -511,6 +513,42 @@ export class MusicPracticePlugin extends Plugin {
                     })
             )
             menu.showAtMouseEvent(event)
+        })
+    }
+
+    /**
+     * Save BPM in the player bar of a tab in a learning note (#70): the tempo it plays at (the
+     * score's tempo times the player's speed) goes to the note's current BPM, through Set BPM.
+     */
+    private addSaveBpm(bar: HTMLElement, result: TabResult, sourcePath: string): void {
+        const item = this.items.items().find((i) => i.path === sourcePath)
+        const api = result.api
+        if (!item || !api) return
+        const button = bar.createEl('button', {
+            cls: 'mp-score-save-bpm',
+            attr: {
+                'type': 'button',
+                'aria-label': 'Save the BPM it plays at to this note',
+                'title': 'Save BPM'
+            }
+        })
+        setIcon(button, 'gauge')
+        button.addEventListener('click', () => {
+            const current = this.items.items().find((i) => i.path === sourcePath) ?? item
+            const played = playedBpm(api.score?.tempo, api.playbackSpeed)
+            new BpmModal(
+                this.app,
+                current,
+                this.settings.rules.levels.tempo,
+                async (bpm) => {
+                    await this.practiceLog.setBpmAndLevel(
+                        current,
+                        bpm,
+                        bpm.atTempo ? this.settings.rules.levels.tempo : undefined
+                    )
+                },
+                played ?? undefined
+            ).open()
         })
     }
 

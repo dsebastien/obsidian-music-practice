@@ -172,3 +172,13 @@ export function exerciseFretboard(
         ...(choice.tempo !== undefined ? [`tempo: ${choice.tempo}`] : [])
     ].join('\n')
 }
+
+/**
+ * The BPM a tab plays at: its score's tempo times the player's speed (25 to 150%), rounded; what
+ * Save BPM offers as the note's current BPM. Null without a tempo or a speed.
+ */
+export function playedBpm(tempo: number | undefined, speed: number | undefined): number | null {
+    if (!tempo || !speed || !Number.isFinite(tempo) || !Number.isFinite(speed)) return null
+    const bpm = Math.round(tempo * speed)
+    return bpm > 0 ? bpm : null
+}

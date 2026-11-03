@@ -193,3 +193,20 @@ describe('exerciseBlock', () => {
         )
     })
 })
+
+describe('playedBpm', () => {
+    it("is the score's tempo at the player's speed, rounded", async () => {
+        const { playedBpm } = await import('./exercise')
+        expect(playedBpm(72, 1)).toBe(72)
+        expect(playedBpm(72, 1.25)).toBe(90)
+        expect(playedBpm(60, 0.55)).toBe(33)
+    })
+
+    it('is none without a tempo or a speed', async () => {
+        const { playedBpm } = await import('./exercise')
+        expect(playedBpm(0, 1)).toBeNull()
+        expect(playedBpm(Number.NaN, 1)).toBeNull()
+        expect(playedBpm(72, 0)).toBeNull()
+        expect(playedBpm(undefined, 1)).toBeNull()
+    })
+})
