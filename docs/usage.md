@@ -8,7 +8,7 @@ nav_order: 2
 ## Requirements
 
 - Either the [Obsidian Starter Kit](https://store.dsebastien.net/), whose note types define your learning notes and practice sessions, or nothing at all: the standalone note model recognizes learning notes by their tag (`type/music/guitar/chord`) and a mastery level. See [Configuration](configuration.md).
-- Optional: the Kanban Action Planner. When it's installed, Music Practice writes time entries and review fields with the same property names, and can take over its running timer.
+- Optional: the Kanban Action Planner. When it's installed, Music Practice uses its property names for minutes, time entries and review fields, and can take over its running timer.
 
 ## Learning notes
 
@@ -128,13 +128,13 @@ The block goes at the cursor of the note you're editing. If the cursor is in the
 
 ## Undo
 
-The notice after a log has an **Undo** button, and **Undo last practice log** does the same later: the practiced notes and the activity get back what the log changed, and its session note goes to the trash. If any of them changed since, nothing is undone and the notice says which. A Kanban Action Planner timer's own time entry stays (it's real time). Dates the Obsidian Starter Kit stamps when a level changes (started, mastered) aren't part of the log, so they stay too.
+The notice after a log has an **Undo** button, and **Undo last practice log** does the same later: the practiced notes and the activity get back what the log changed, and its session note goes to the trash. If any of them changed since, nothing is undone and the notice says which. If the log took over a Kanban Action Planner timer, the timer's time entry comes back on the activity. Dates the Obsidian Starter Kit stamps when a level changes (started, mastered) aren't part of the log, so they stay too.
 
 ## Log practice
 
 ![Log practice](images/log-practice.png)
 
-1. Enter the minutes, the date and an optional focus ("Barre chords"). When a Kanban Action Planner timer is running on the activity of this session, the log takes it over (tick the box: its minutes fill the Minutes field), so the time is counted once.
+1. Enter the minutes, the date and an optional focus ("Barre chords"). When a Kanban Action Planner timer is running on the activity of this session, the log takes it over (tick the box: its minutes fill the Minutes field), so the time is counted once. The timer's own time entry is removed from the activity: the session note holds that time.
 2. Tick what you practiced. Items you planned or that are due come first; type to filter. Items of another instrument are dimmed: log them in their own session.
 3. For each item, if it applies:
     - change its mastery (the rubric for its kind shows what the level means);
@@ -146,9 +146,9 @@ What gets written:
 
 - **Each item**: last practiced date, minutes (the session split evenly), BPM, review date, count and interval, new mastery. The first review interval starts when an item reaches "Can play slowly".
 - **A session note** in the session type's folder, named `<date> <focus>` (or `<date>`, then `<date> 2`… for more sessions that day), with the date, start time, minutes, quality, the practiced items and the activity.
-- **The activity** the session counts towards (the one your previous session of that instrument linked to, or a note named "Learn Guitar"): one time entry per session, its minutes and its last session date. An activity never gets two entries for the same session.
+- **The activity** the session counts towards (the one your previous session of that instrument linked to, or a note named "Learn Guitar") gets no time entry: the session note links to it and carries the minutes. The activity's minutes and last session date are recomputed from its time entries and its linked session notes, never added to, so logging twice never counts twice.
 
-Everything is checked before anything is written, and one log runs at a time. Minutes are never added to a value that isn't a number, and existing time entries are kept as they are. Instrument-less items (ear training) ask which instrument's session they belong to.
+Everything is checked before anything is written, and one log runs at a time. Minutes are never added to a value that isn't a number, and existing time entries are kept as they are (only a taken-over timer's own entry is removed). Instrument-less items (ear training) ask which instrument's session they belong to.
 
 Dates the Obsidian Starter Kit stamps on mastery changes (started, mastered) are left to it.
 
