@@ -2044,20 +2044,24 @@ export class MusicPracticePlugin extends Plugin {
         const name = path.substring(path.lastIndexOf('/') + 1).replace(/\.md$/, '')
         const settle = async (choice: 'keep' | 'drop') => {
             notice.hide()
+            if (this.surplusNotice === notice) this.surplusNotice = null
             try {
-                const keys = await this.practiceLog.settleActivityTime(path, choice)
-                if (this.settings.lastLog?.at === record.at && keys.length)
+                const done = await this.practiceLog.settleActivityTime(path, choice)
+                if (this.settings.lastLog?.at === record.at && done.keys.length)
                     await this.updateSettings((draft) => {
                         const last = draft.lastLog
                         if (!last) return
                         const own = last.files.find((f) => f.path === path)
-                        if (own) own.keys = mergeChanges(own.keys, keys)
-                        else last.files.push({ path, keys })
+                        if (own) own.keys = mergeChanges(own.keys, done.keys)
+                        else last.files.push({ path, keys: done.keys })
                     })
+                // The difference as recomputed now: the notes may have changed meanwhile.
                 new Notice(
-                    choice === 'keep'
-                        ? `${name}: ${decision.difference} min kept as a "Manual adjustment" time entry.`
-                        : `${name}: ${decision.difference} min dropped, its time is now ${decision.computed} min.`
+                    done.difference === 0
+                        ? `${name}: nothing left to settle, its time was left as it is.`
+                        : choice === 'keep'
+                          ? `${name}: ${done.difference} min kept as a "Manual adjustment" time entry.`
+                          : `${name}: ${done.difference} min dropped, its time is now ${done.minutes ?? '?'} min.`
                 )
             } catch (error: unknown) {
                 new Notice(error instanceof Error ? error.message : String(error))
@@ -2076,9 +2080,14 @@ export class MusicPracticePlugin extends Plugin {
                 () => void settle('drop')
             )
         })
-        // Stays until answered: nothing changes without the user's choice.
+        // Stays until answered (or the log is undone): nothing changes without the user's choice.
+        this.surplusNotice?.hide()
         const notice = new Notice(fragment, 0)
+        this.surplusNotice = notice
     }
+
+    /** The open Keep or Drop question on the last log's activity, hidden when that log is undone. */
+    private surplusNotice: Notice | null = null
 
     /** A notice with an Undo button for the log just written. */
     private noticeWithUndo(message: string, record: UndoRecord): void {
@@ -2112,10 +2121,17 @@ export class MusicPracticePlugin extends Plugin {
         await this.updateSettings((draft) => {
             draft.lastLog = null
         })
+        this.surplusNotice?.hide()
+        this.surplusNotice = null
+        const choice = record.activityChoice
+        const kept = choice
+            ? ` ${choice.path.substring(choice.path.lastIndexOf('/') + 1).replace(/\.md$/, '')} ${choice.kind === 'created' ? 'stays (you created it)' : 'keeps the session type in its session types'}.`
+            : ''
         new Notice(
-            result.keptKapEntry
+            (result.keptKapEntry
                 ? "Practice log undone. The Kanban Action Planner timer's time entry is on the activity again."
-                : 'Practice log undone: the notes are back as they were and the session note is in the trash.'
+                : 'Practice log undone: the notes are back as they were and the session note is in the trash.') +
+                kept
         )
         return result
     }
@@ -2182,12 +2198,15 @@ export class MusicPracticePlugin extends Plugin {
                     for (const warning of result.warnings) new Notice(warning)
                     if (result.createdActivity)
                         new Notice(`Activity created: ${result.createdActivity}`)
-                    this.noticeWithUndo(
-                        result.reused
-                            ? 'Already logged: the session note of that log was reused, nothing counted twice.'
-                            : `Practice logged: ${result.items.length} item(s).`,
-                        result.undo
-                    )
+                    if (result.reused)
+                        new Notice(
+                            'Already logged: the session note of that log was used again, nothing counted twice. Undo last practice log still undoes the first log.'
+                        )
+                    else
+                        this.noticeWithUndo(
+                            `Practice logged: ${result.items.length} item(s).`,
+                            result.undo
+                        )
                     const decision = result.activity?.decision
                     if (result.activity && decision)
                         this.askActivitySurplus(result.activity.path, decision, result.undo)

@@ -12,7 +12,12 @@ import {
     sessionDay
 } from '../domain/activity-time'
 import type { LinkedSession, LowerChoice, LowerDecision } from '../domain/activity-time'
-import { planItemTime, practicedMinutesValues, sessionItemMinutes } from '../domain/item-time'
+import {
+    firstLinkPath,
+    planItemTime,
+    practicedMinutesValues,
+    sessionItemMinutes
+} from '../domain/item-time'
 import {
     applyItemUpdate,
     freshItem,
@@ -35,11 +40,13 @@ import type { Clock } from '../domain/settle'
 import type { FileChanges, KeyChange, UndoRecord } from '../domain/undo'
 import type { PracticeRules } from '../domain/rules'
 import { fillSection, renderTemplate } from '../domain/template-render'
-import { ActivityService } from './activity.service'
+import { ActivityService, folderBase } from './activity.service'
+import type { ActivityEntry } from './activity.service'
 import type { ItemRepository } from './item-repository'
 import { kapActiveTimer, stopKapTimer } from './kanban-action-planner.service'
 import type { KapTimer } from './kanban-action-planner.service'
 import {
+    listNoteTypes,
     resolveNoteTypeAffixes,
     resolveNoteTypeFolder,
     starterKitRunsAutomations
@@ -119,11 +126,16 @@ interface Resolved {
 
 /** The activity a log counts for, settled before anything is written. */
 interface ActivityPlan {
+    /** The activity note (null for a new one, until it is created). */
     file: TFile | null
+    /** Its note name, which the session note links to. */
+    name: string | null
     /** Create this activity (path checked) and count the session type for it. */
     create: string | null
     /** Count the session type for this existing activity. */
     map: TFile | null
+    /** The activities as read once for this log. */
+    list: ActivityEntry[]
 }
 
 /** Writes a practice log: the session note, the practiced notes and the activity's time. */
@@ -194,8 +206,9 @@ export class PracticeLogService {
         this.endUndoWatch()
         try {
             const result = await this.write(request, options)
-            // Saved before returning, so an undo right after sees this log.
-            await this.onLogged(result.undo)
+            // Saved before returning, so an undo right after sees this log. A run again keeps the
+            // original log's record: that one is what undo takes back.
+            if (!result.reused) await this.onLogged(result.undo)
             return result
         } finally {
             this.busy = false
@@ -206,7 +219,8 @@ export class PracticeLogService {
      * The activity of a log, checked before any write: the dialog's answer (`mapTo`,
      * `createActivity`), the request's (`activity`: a note, or null for none), else the activity
      * whose `session_types` lists the session type (the previous rules in a vault without
-     * `session_types`). No activity lists it: the log counts for none, with a warning.
+     * `session_types`). No activity lists it: the log counts for none, with a warning. `mapTo` and
+     * `activity` must be activities; `mapTo` moves the type from any other activity listing it.
      */
     private planActivity(
         session: SessionType,
@@ -214,28 +228,31 @@ export class PracticeLogService {
         options: LogOptions,
         warnings: string[]
     ): ActivityPlan {
-        const none: ActivityPlan = { file: null, create: null, map: null }
+        const none: ActivityPlan = { file: null, name: null, create: null, map: null, list: [] }
+        const list = this.activities.activities()
         if (options.createActivity !== undefined) {
-            const target = this.activities.newActivityPath(options.createActivity)
+            const target = this.activities.newActivityPath(options.createActivity, list)
             if ('error' in target) throw new Error(target.error)
-            return { ...none, create: options.createActivity.trim() }
+            const name = target.path.substring(
+                target.path.lastIndexOf('/') + 1,
+                target.path.length - 3
+            )
+            return { ...none, name, create: options.createActivity.trim(), list }
         }
         if (options.mapTo !== undefined) {
-            const file = this.app.vault.getFileByPath(options.mapTo)
-            if (!file) throw new Error(`No activity note at ${options.mapTo}.`)
-            return { ...none, file, map: file }
+            const file = this.activities.findActivity(options.mapTo, list)
+            if (!file) throw new Error(`Not an activity: ${options.mapTo}.`)
+            return { ...none, file, name: file.basename, map: file, list }
         }
         if (request.activity === null) return none
         if (typeof request.activity === 'string') {
-            const name = request.activity.trim()
-            const file =
-                this.app.vault.getFileByPath(name) ??
-                this.app.metadataCache.getFirstLinkpathDest(name.replace(/\.md$/, ''), '')
-            if (!file) throw new Error(`No activity note named "${name}".`)
-            return { ...none, file }
+            const file = this.activities.findActivity(request.activity, list)
+            if (!file) throw new Error(`No activity note named "${request.activity.trim()}".`)
+            return { ...none, file, name: file.basename, list }
         }
-        const choice = this.activities.choiceFor(session)
-        if (choice.kind !== 'ask') return { ...none, file: choice.file }
+        const choice = this.activities.choiceFor(session, list)
+        if (choice.kind !== 'ask')
+            return { ...none, file: choice.file, name: choice.file?.basename ?? null, list }
         const { fields } = this.context()
         warnings.push(
             choice.conflict.length
@@ -292,13 +309,7 @@ export class PracticeLogService {
         })
         const target = existing ? null : await this.sessionTarget(session, date, request)
 
-        // 2. The activity the user asked for: created or mapped to this session type.
-        let activity = plan.file
-        if (plan.create !== null)
-            activity = await this.activities.create(plan.create, session.typeName)
-        else if (plan.map) await this.activities.mapSessionType(session.typeName, plan.map)
-
-        // 3. The session note, before the items.
+        // 2. The session note, before the items (and before any change to an activity).
         if (adopted && !stopKapTimer(this.app))
             throw new Error('Could not stop the Kanban Action Planner timer.')
         let file: TFile
@@ -332,8 +343,23 @@ export class PracticeLogService {
                         shares
                     )
                 )
-                if (activity) put(fields.activities, [`[[${activity.basename}]]`])
+                if (plan.name) put(fields.activities, [`[[${plan.name}]]`])
             })
+        }
+
+        // 3. The activity the user chose: created or mapped to this session type, once the timer is
+        // stopped and the session note written. Undo never takes this choice back.
+        let activity = plan.file
+        let choice: UndoRecord['activityChoice'] = undefined
+        if (plan.create !== null) {
+            activity = await this.activities.create(plan.create, session.typeName, {
+                stampCreated: stampDates,
+                list: plan.list
+            })
+            choice = { kind: 'created', path: activity.path }
+        } else if (plan.map) {
+            await this.activities.mapSessionType(session.typeName, plan.map, plan.list)
+            choice = { kind: 'mapped', path: plan.map.path }
         }
 
         // 4. The practiced notes, each computed from its own current frontmatter; their time is
@@ -343,11 +369,14 @@ export class PracticeLogService {
             file,
             timed.map((r) => r.file)
         )
+        const contributionsOf = this.itemContributions(
+            timed.filter((r) => linked.has(r.file.path)).map((r) => r.file.path)
+        )
         const changes: FileChanges[] = []
         for (const { item, type, log, file: note } of resolved) {
             const contributions =
                 type.fields.has(fields.timeSpent) && linked.has(note.path)
-                    ? this.itemContributions(note)
+                    ? (contributionsOf.get(note.path) ?? [])
                     : null
             await this.app.fileManager.processFrontMatter(note, (fm: Record<string, unknown>) => {
                 const before = snapshot(fm)
@@ -385,8 +414,28 @@ export class PracticeLogService {
         }
 
         // 5. The activity's time: recomputed from its entries and linked sessions, never added to.
+        // A reused session note that links to another activity (or none) is left as it is.
         let activityResult: LogResult['activity'] = null
-        if (activity) {
+        const linksActivity = (): boolean => {
+            if (!existing || !activity) return true
+            const fm: Record<string, unknown> =
+                this.app.metadataCache.getFileCache(existing)?.frontmatter ?? {}
+            const raw = prop(fm, fields.activities)
+            const links = (Array.isArray(raw) ? (raw as unknown[]) : raw ? [raw] : [])
+                .map((v) => firstLinkPath(v))
+                .filter((l): l is string => l !== null)
+            return links.some(
+                (l) =>
+                    l === activity.basename ||
+                    this.app.metadataCache.getFirstLinkpathDest(l, existing.path)?.path ===
+                        activity.path
+            )
+        }
+        if (activity && !linksActivity()) {
+            warnings.push(
+                `The session note of that log (${existing!.basename}) counts for another activity or none, not ${activity.basename}: its activity was left as it is.`
+            )
+        } else if (activity) {
             const linkable = session.fields.has(fields.activities)
             const outcome = linkable
                 ? await this.recomputeActivity(
@@ -416,7 +465,7 @@ export class PracticeLogService {
             reused: existing !== null,
             items: resolved.map(({ item }) => item.path),
             activity: activityResult,
-            createdActivity: plan.create !== null && activity ? activity.path : null,
+            createdActivity: choice?.kind === 'created' ? choice.path : null,
             adoptedTimer: adopted,
             warnings,
             undo: {
@@ -426,12 +475,16 @@ export class PracticeLogService {
                 sessionBody: bodyOf(await this.app.vault.read(file)),
                 files: changes.filter((c) => c.keys.length > 0),
                 adoptedTimer: adopted,
-                ...(existing ? { reused: true } : {})
+                ...(existing ? { reused: true } : {}),
+                ...(choice ? { activityChoice: choice } : {})
             }
         }
     }
 
-    /** A session note of this type that already holds this log (see `holdsLog`), or null. */
+    /**
+     * A session note of this type that already holds this log (see `holdsLog`), or null. Only the
+     * notes in the session type's folder (without its date tokens) are read.
+     */
     private findLoggedSession(
         session: SessionType,
         key: Parameters<typeof holdsLog>[1]
@@ -439,31 +492,41 @@ export class PracticeLogService {
         const { fields } = this.context()
         const cache = this.app.metadataCache
         const tag = session.typeTag.toLowerCase()
+        const base = session.naming
+            ? folderBase(session.naming.folder)
+            : folderBase(listNoteTypes(this.app).find((t) => t.id === session.id)?.associatedFolder)
+        const now = Date.now()
         for (const f of this.app.vault.getMarkdownFiles()) {
+            if (base && !f.path.startsWith(`${base}/`)) continue
             const fm = cache.getFileCache(f)?.frontmatter
-            if (fm && tagsOf(fm).includes(tag) && holdsLog(fm, key, fields)) return f
+            if (fm && tagsOf(fm).includes(tag) && holdsLog(fm, key, fields, now - f.stat.ctime))
+                return f
         }
         return null
     }
 
     /**
-     * The minutes each session note linking to this learning note gives it (its minutes-per-item
-     * entry, else an even share when only listed as practiced), from Obsidian's link index.
+     * The minutes each session note gives each of these learning notes (its minutes-per-item entry,
+     * else an even share when only listed as practiced), in one pass over Obsidian's link index.
      */
-    private itemContributions(note: TFile): number[] {
+    private itemContributions(paths: readonly string[]): Map<string, number[]> {
         const { fields } = this.context()
         const cache = this.app.metadataCache
-        const out: number[] = []
+        const out = new Map<string, number[]>(paths.map((p) => [p, []]))
+        if (paths.length === 0) return out
         for (const [source, targets] of Object.entries(cache.resolvedLinks)) {
-            if (source === note.path || !targets[note.path]) continue
+            if (!paths.some((p) => p !== source && targets[p])) continue
             const f = this.app.vault.getFileByPath(source)
             if (!f) continue
-            const minutes = sessionItemMinutes(
+            const given = sessionItemMinutes(
                 cache.getFileCache(f)?.frontmatter,
                 fields,
                 (link) => cache.getFirstLinkpathDest(link, source)?.path ?? null
-            ).get(note.path)
-            if (minutes !== undefined) out.push(minutes)
+            )
+            for (const p of paths) {
+                const minutes = p !== source && targets[p] ? given.get(p) : undefined
+                if (minutes !== undefined) out.get(p)!.push(minutes)
+            }
         }
         return out
     }
@@ -487,13 +550,14 @@ export class PracticeLogService {
 
     /**
      * Settle an activity whose stored minutes are above the computed ones (a log left them as they
-     * were): `keep` the difference as a "Manual adjustment" time entry dated on the activity's
-     * `created` day, or `drop` it. Returns the keys it changed (for the last log's undo).
+     * were): `keep` the difference as a "Manual adjustment" time entry from the activity's
+     * `created` day, or `drop` it. Returns the keys it changed (for the last log's undo) and the
+     * difference as recomputed now (0 when nothing was left to settle).
      */
     async settleActivityTime(
         path: string,
         choice: Exclude<LowerChoice, null>
-    ): Promise<KeyChange[]> {
+    ): Promise<{ keys: KeyChange[]; difference: number; minutes: number | null }> {
         const activity = this.app.vault.getFileByPath(path)
         if (!activity) throw new Error(`The activity is gone: ${path}`)
         const { fields } = this.context()
@@ -501,15 +565,32 @@ export class PracticeLogService {
         const cache = this.app.metadataCache
         const resolve = (link: string) =>
             cache.getFirstLinkpathDest(link, activity.path)?.path ?? null
-        let keys: KeyChange[] = []
+        const out: { keys: KeyChange[]; difference: number; minutes: number | null } = {
+            keys: [],
+            difference: 0,
+            minutes: null
+        }
         await this.app.fileManager.processFrontMatter(activity, (fm: Record<string, unknown>) => {
             const before = snapshot(fm)
-            const plan = planActivityTime(fm, fields, linked, resolve, null, choice)
-            if (!plan) throw new Error(`${activity.basename}: its time entries aren't a list.`)
+            const now = Date.now()
+            const pending = planActivityTime(fm, fields, linked, resolve)
+            if (!pending) throw new Error(`${activity.basename}: its time entries aren't a list.`)
+            const plan = planActivityTime(
+                fm,
+                fields,
+                linked,
+                resolve,
+                null,
+                choice,
+                now,
+                activity.stat.ctime
+            )!
             applyActivityTime(fm, plan, fields)
-            keys = changedKeys(before, snapshot(fm))
+            out.keys = changedKeys(before, snapshot(fm))
+            out.difference = pending.decision?.difference ?? 0
+            out.minutes = plan.minutes
         })
-        return keys
+        return out
     }
 
     /**
@@ -518,6 +599,11 @@ export class PracticeLogService {
      */
     async undo(record: UndoRecord): Promise<UndoResult> {
         if (this.busy) return { ok: false, reason: 'A practice log is being written.' }
+        if (record.reused)
+            return {
+                ok: false,
+                reason: 'That run reused the session note of an earlier log: it changed nothing to undo.'
+            }
         this.busy = true
         try {
             // A session note just created is written again by plugins that run on file creation
@@ -528,22 +614,13 @@ export class PracticeLogService {
             }, this.clock)
             // Checked against the notes as they are on disk now, not the metadata cache.
             const session = this.app.vault.getFileByPath(record.sessionPath)
-            // A run again of an earlier log reused that log's session note: it stays.
-            const reused = record.reused === true
-            if (
-                !reused &&
-                (!session || (record.sessionCtime && session.stat.ctime !== record.sessionCtime))
-            )
+            if (!session || (record.sessionCtime && session.stat.ctime !== record.sessionCtime))
                 return {
                     ok: false,
                     reason: `The session note of that log was moved or deleted (${record.sessionPath}): nothing was undone.`
                 }
             const changed: string[] = []
-            if (
-                !reused &&
-                session &&
-                bodyOf(await this.app.vault.read(session)) !== record.sessionBody
-            )
+            if (bodyOf(await this.app.vault.read(session)) !== record.sessionBody)
                 changed.push(session.basename)
             const files: { keys: UndoRecord['files'][number]['keys']; file: TFile }[] = []
             for (const f of record.files) {
@@ -568,10 +645,8 @@ export class PracticeLogService {
                         (fm: Record<string, unknown>) => revert(fm, keys)
                     )
                 }
-                if (!reused && session) {
-                    await this.app.fileManager.trashFile(session)
-                    this.watchForRecreation(record)
-                }
+                await this.app.fileManager.trashFile(session)
+                this.watchForRecreation(record)
             } catch (error: unknown) {
                 // What was put back stays put back; undoing again finishes the job.
                 return {

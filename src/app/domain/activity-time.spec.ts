@@ -3,6 +3,7 @@ import {
     MANUAL_ADJUSTMENT,
     applyActivityTime,
     createdDayStart,
+    manualAdjustment,
     isSessionNote,
     linkedSessionOf,
     planActivityTime,
@@ -192,15 +193,15 @@ describe('activity time: never lowered on its own', () => {
             time_spent: 120,
             time_entries: [timer]
         }
-        const plan = planActivityTime(fm, fields, linked, resolve, null, 'keep')!
+        const now = new Date('2026-11-04T09:30:00').getTime()
+        const plan = planActivityTime(fm, fields, linked, resolve, null, 'keep', now)!
         expect([plan.minutes, plan.decision, plan.adjusted]).toEqual([120, null, 70])
         applyActivityTime(fm, plan, fields)
-        const start = new Date('2026-09-15T00:00:00').getTime()
         expect(fm['time_entries']).toEqual([
             timer,
             {
-                startTime: new Date(start).toISOString(),
-                endTime: new Date(start + 70 * 60_000).toISOString(),
+                startTime: '2026-09-15T00:00:00',
+                endTime: '2026-09-15T01:10:00',
                 description: MANUAL_ADJUSTMENT
             }
         ])
@@ -210,10 +211,28 @@ describe('activity time: never lowered on its own', () => {
         expect([again.changed, again.decision, again.minutes]).toEqual([false, null, 120])
     })
 
-    it("dates the adjustment at local midnight of the created day, else of today's", () => {
+    it('never ends the adjustment in the future (created today, or a created date ahead)', () => {
+        const now = new Date('2026-11-04T01:00:00').getTime()
+        // 300 minutes don't fit since midnight: the entry ends now.
+        expect(manualAdjustment('2026-11-04T00:30:00', null, 300, now)).toEqual({
+            startTime: '2026-11-03T20:00:00',
+            endTime: '2026-11-04T01:00:00',
+            description: MANUAL_ADJUSTMENT
+        })
+        expect(manualAdjustment('2027-01-01', null, 30, now)).toMatchObject({
+            startTime: '2026-11-04T00:30:00',
+            endTime: '2026-11-04T01:00:00'
+        })
+    })
+
+    it("without created: midnight of the file's creation day, else of today", () => {
         const now = new Date('2026-11-04T09:30:00').getTime()
+        const ctime = new Date('2026-08-20T16:45:00').getTime()
+        expect(manualAdjustment(undefined, ctime, 15, now)).toMatchObject({
+            startTime: '2026-08-20T00:00:00',
+            endTime: '2026-08-20T00:15:00'
+        })
+        expect(manualAdjustment('soon', null, 15, now).startTime).toBe('2026-11-04T00:00:00')
         expect(createdDayStart('2026-09-15', now)).toBe(new Date('2026-09-15T00:00:00').getTime())
-        expect(createdDayStart(undefined, now)).toBe(new Date('2026-11-04T00:00:00').getTime())
-        expect(createdDayStart('soon', now)).toBe(new Date('2026-11-04T00:00:00').getTime())
     })
 })

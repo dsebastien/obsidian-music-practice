@@ -211,24 +211,32 @@ describe('holdsLog: a run again of the same log', () => {
         start_time: '18:30',
         practiced: ['[[A Minor]]', '[[E Minor|Em]]']
     }
-    const key = { date: DATE, minutes: 30, items: ['e minor', 'A Minor'] }
-    it('matches the same date, minutes and items, in any order and case', () => {
-        expect(holdsLog(session, key, fields)).toBe(true)
-        expect(holdsLog({ ...session, date: `${DATE}T18:30` }, key, fields)).toBe(true)
-        expect(holdsLog({ ...session, time_spent: '30' }, key, fields)).toBe(true)
+    const key = { date: DATE, minutes: 30, items: ['e minor', 'A Minor'], startTime: '18:30' }
+    const OLD = 24 * 3_600_000
+    it('matches the same date, minutes, start and items, in any order and case', () => {
+        expect(holdsLog(session, key, fields, OLD)).toBe(true)
+        expect(holdsLog({ ...session, date: `${DATE}T18:30` }, key, fields, OLD)).toBe(true)
+        expect(holdsLog({ ...session, time_spent: '30' }, key, fields, OLD)).toBe(true)
+        expect(holdsLog(session, { ...key, startTime: '19:00' }, fields, OLD)).toBe(false)
     })
-    it('compares the start time only when the log gives one', () => {
-        expect(holdsLog(session, { ...key, startTime: '18:30' }, fields)).toBe(true)
-        expect(holdsLog(session, { ...key, startTime: '19:00' }, fields)).toBe(false)
-        expect(holdsLog({ ...session, start_time: '07:00' }, key, fields)).toBe(true)
+    it('without a start time: only a note without one, created less than 15 minutes ago', () => {
+        const bare = { ...session, start_time: '' }
+        const noStart = { ...key, startTime: null }
+        expect(holdsLog(bare, noStart, fields, 60_000)).toBe(true)
+        expect(holdsLog({ ...session, start_time: undefined }, noStart, fields, 60_000)).toBe(true)
+        // Two real sessions that day: the earlier note is older than 15 minutes.
+        expect(holdsLog(bare, noStart, fields, 15 * 60_000)).toBe(false)
+        expect(holdsLog(bare, noStart, fields, OLD)).toBe(false)
+        // A note with a start time is another session.
+        expect(holdsLog(session, noStart, fields, 60_000)).toBe(false)
     })
     it('does not match another date, other minutes or other items', () => {
-        expect(holdsLog(session, { ...key, date: '2026-10-29' }, fields)).toBe(false)
-        expect(holdsLog(session, { ...key, minutes: 31 }, fields)).toBe(false)
-        expect(holdsLog(session, { ...key, items: ['A Minor'] }, fields)).toBe(false)
-        expect(holdsLog(session, { ...key, items: ['A Minor', 'E Minor', 'G'] }, fields)).toBe(
+        expect(holdsLog(session, { ...key, date: '2026-10-29' }, fields, OLD)).toBe(false)
+        expect(holdsLog(session, { ...key, minutes: 31 }, fields, OLD)).toBe(false)
+        expect(holdsLog(session, { ...key, items: ['A Minor'] }, fields, OLD)).toBe(false)
+        expect(holdsLog(session, { ...key, items: ['A Minor', 'E Minor', 'G'] }, fields, OLD)).toBe(
             false
         )
-        expect(holdsLog({ ...session, practiced: '[[A Minor]]' }, key, fields)).toBe(false)
+        expect(holdsLog({ ...session, practiced: '[[A Minor]]' }, key, fields, OLD)).toBe(false)
     })
 })

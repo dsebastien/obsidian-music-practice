@@ -4,6 +4,7 @@ import { keyOf, prop } from '../domain/activity-time'
 import { isoDate } from '../domain/dates'
 import type { FieldNames } from '../domain/fields'
 import { mergeTags, tagsOf } from '../domain/item-reader'
+import { localIso } from '../domain/log'
 import { noteTypeSlug } from '../domain/note-model'
 import type { SessionType } from '../domain/note-model'
 import {
@@ -62,8 +63,17 @@ const BAD_NAME = /[\\/:*?"<>|#^[\]]/
 const isActivityTag = (tag: string, root: string): boolean =>
     tag === root || tag.startsWith(`${root}/`)
 
+/** One activity note: its file and what the mapping reads. */
+export interface ActivityEntry {
+    file: TFile
+    note: ActivityNote
+}
+
+const under = (path: string, folder: string | null): boolean =>
+    folder !== null && (folder === '' || path.startsWith(`${folder}/`))
+
 /** A type folder without its date tokens ("Activities/{{year}}" → "Activities"). */
-const folderBase = (folder: string | null | undefined): string | null => {
+export const folderBase = (folder: string | null | undefined): string | null => {
     if (!folder) return null
     const cut = folder.split(/\{/)[0]!.replace(/\/+$/, '').trim()
     return cut ? normalizePath(cut) : null
@@ -103,26 +113,32 @@ export class ActivityService {
         return own ?? ACTIVITY_TAG
     }
 
-    /** The active activity notes. */
-    activities(): { file: TFile; note: ActivityNote }[] {
+    /**
+     * The active activity notes. With the Obsidian Starter Kit's activities type and its folder:
+     * every note in that folder (as the vault engine reads them); else the notes tagged with the
+     * activity tag. Notes in the type's archive folder never count.
+     */
+    activities(): ActivityEntry[] {
         const type = this.starterKitType()
         const base = type ? folderBase(type.associatedFolder) : null
+        const archive = type ? folderBase(type.archive?.folder) : null
         const tag = this.activityTag(type)
         const cache = this.app.metadataCache
-        const out: { file: TFile; note: ActivityNote }[] = []
+        const out: ActivityEntry[] = []
         for (const file of this.app.vault.getMarkdownFiles()) {
-            if (base !== null && !file.path.startsWith(`${base}/`)) continue
-            const fm = cache.getFileCache(file)?.frontmatter
-            if (!fm || !tagsOf(fm).some((t) => isActivityTag(t, tag))) continue
+            if (under(file.path, archive)) continue
+            if (base !== null && !under(file.path, base)) continue
+            const fm: Record<string, unknown> = cache.getFileCache(file)?.frontmatter ?? {}
+            if (base === null && !tagsOf(fm).some((t) => isActivityTag(t, tag))) continue
             out.push({ file, note: { path: file.path, name: file.basename, frontmatter: fm } })
         }
         return out
     }
 
     /** Which activity a session of this type counts for (see `ActivityChoice`). */
-    choiceFor(session: SessionType): ActivityChoice {
+    choiceFor(session: SessionType, list?: readonly ActivityEntry[]): ActivityChoice {
         const { fields, activityName } = this.context()
-        const activities = this.activities()
+        const activities = list ?? this.activities()
         const mapping = activityForSessionType(
             activities.map((a) => a.note),
             session.typeName,
@@ -138,12 +154,22 @@ export class ActivityService {
             typeName: session.typeName,
             conflict: mapping.kind === 'conflict' ? mapping.activities.map(fileOf) : [],
             candidates: closestActivities(
-                activities.map((a) => a.file),
+                activities.map((a) => ({ name: a.file.basename, file: a.file })),
                 proposedName,
                 session.subject
-            ),
+            ).map((a) => a.file),
             proposedName
         }
+    }
+
+    /** The activity among these with this name or path (`.md` optional), or null. */
+    findActivity(nameOrPath: string, list?: readonly ActivityEntry[]): TFile | null {
+        const wanted = nameOrPath.trim().replace(/\.md$/, '')
+        const all = list ?? this.activities()
+        const hit =
+            all.find((a) => a.file.path === `${wanted}.md`) ??
+            all.find((a) => a.file.basename === wanted)
+        return hit?.file ?? null
     }
 
     /**
@@ -202,10 +228,14 @@ export class ActivityService {
      * `session_types`, and drop it from any other activity listing it (one activity per type).
      * Returns the activities it was moved from.
      */
-    async mapSessionType(typeName: string, activity: TFile): Promise<TFile[]> {
+    async mapSessionType(
+        typeName: string,
+        activity: TFile,
+        list?: readonly ActivityEntry[]
+    ): Promise<TFile[]> {
         const { fields } = this.context()
         const key = fields.sessionTypes
-        const others = this.activities()
+        const others = (list ?? this.activities())
             .filter(
                 (a) =>
                     a.file.path !== activity.path &&
@@ -228,7 +258,10 @@ export class ActivityService {
      * Kit: its activities type's folder and name affixes (in a folder of its own when the existing
      * activities each have one); without it: the folder most activities live in.
      */
-    newActivityPath(name: string): { path: string } | { error: string } {
+    newActivityPath(
+        name: string,
+        list?: readonly ActivityEntry[]
+    ): { path: string } | { error: string } {
         const clean = name.trim()
         if (!clean) return { error: 'Name the new activity.' }
         if (BAD_NAME.test(clean))
@@ -240,7 +273,7 @@ export class ActivityService {
         const prefix = affixes && !affixes.prefixOptional ? affixes.prefix : ''
         const suffix = affixes && !affixes.suffixOptional ? affixes.suffix : ''
         const basename = `${prefix}${clean}${suffix}`
-        const existing = this.activities()
+        const existing = list ?? this.activities()
         let folder =
             (type
                 ? (resolveNoteTypeFolder(this.app, type.id, isoDate()) ??
@@ -271,8 +304,12 @@ export class ActivityService {
      * Starter Kit's activities type (template, tags, an active status) when available, else a note
      * tagged type/activity.
      */
-    async create(name: string, typeName: string): Promise<TFile> {
-        const target = this.newActivityPath(name)
+    async create(
+        name: string,
+        typeName: string,
+        options: { stampCreated: boolean; list?: readonly ActivityEntry[] }
+    ): Promise<TFile> {
+        const target = this.newActivityPath(name, options.list)
         if ('error' in target) throw new Error(target.error)
         const { fields } = this.context()
         const type = this.starterKitType()
@@ -298,6 +335,8 @@ export class ActivityService {
                 typeName
             )
             if (status && active && !fm[status.property]) fm[status.property] = active
+            // The Starter Kit's automations stamp it when they run; else the plugin does.
+            if (options.stampCreated && !fm['created']) fm['created'] = localIso(Date.now())
         })
         return file
     }

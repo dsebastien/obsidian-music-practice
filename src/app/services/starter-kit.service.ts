@@ -27,6 +27,8 @@ export interface SkNoteType {
     noteNameSuffix?: string | null
     /** The type's mandatory tags. */
     tags?: string[]
+    /** Where the type's notes are archived ("Archives/Activities/{{year}}"). */
+    archive?: { folder?: string | null } | null
 }
 
 export type SkStatusRole = 'backlog' | 'scheduled' | 'active' | 'waiting'

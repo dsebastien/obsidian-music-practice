@@ -35,8 +35,13 @@ export interface UndoRecord {
     files: FileChanges[]
     /** The log adopted a Kanban Action Planner timer, whose entry undo leaves in place. */
     adoptedTimer: boolean
-    /** The log was a run again of an earlier one and reused its session note: undo keeps it. */
+    /** The log was a run again of an earlier one and reused its session note: nothing to undo. */
     reused?: boolean
+    /**
+     * The activity choice the log carried out (a new activity, or the session type mapped to an
+     * activity). Undo never takes it back: it was the user's explicit choice.
+     */
+    activityChoice?: { kind: 'created' | 'mapped'; path: string }
 }
 
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)

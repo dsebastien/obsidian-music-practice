@@ -43,7 +43,7 @@ export function testVault(
     initial: Record<string, Record<string, unknown>>,
     plugins: Record<string, unknown> = {}
 ): TestVault {
-    let now = 1_000
+    let now = Date.now()
     const notes = new Map<string, TestNote>()
     for (const [path, fm] of Object.entries(initial))
         notes.set(path, { fm: { ...fm }, body: '', ctime: 1, mtime: 1 })

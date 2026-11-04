@@ -12,6 +12,7 @@
  * it. Pure: no Obsidian imports.
  */
 import type { FieldNames } from './fields'
+import { localIso } from './log'
 
 /** Session notes carry this tag or a child of it. */
 export const SESSION_TAG = 'type/session'
@@ -129,13 +130,35 @@ export const MANUAL_ADJUSTMENT = 'Manual adjustment'
 
 /**
  * Local midnight of a note's `created` day (its first 10 characters when they are a date), else
- * of `now`'s day: the "Manual adjustment" entry is dated there, so no week's budget jumps.
+ * of `fallbackMs`'s day (the file's creation time): the "Manual adjustment" entry starts there, so
+ * no week's budget jumps.
  */
-export function createdDayStart(created: unknown, now: number): number {
+export function createdDayStart(created: unknown, fallbackMs: number): number {
     const day = typeof created === 'string' ? sessionDay(created) : null
-    const d = day ? new Date(`${day}T00:00:00`) : new Date(now)
-    if (!Number.isFinite(d.getTime())) return new Date(new Date(now).setHours(0, 0, 0, 0)).getTime()
+    const d = day ? new Date(`${day}T00:00:00`) : new Date(fallbackMs)
+    if (!Number.isFinite(d.getTime()))
+        return new Date(new Date(fallbackMs).setHours(0, 0, 0, 0)).getTime()
     return new Date(d.setHours(0, 0, 0, 0)).getTime()
+}
+
+/**
+ * The "Manual adjustment" entry for a surplus of `minutes`: from local midnight of the created day
+ * (else of the file's creation day), or earlier when it would end after `now` (created today, or a
+ * `created` in the future), so it never ends in the future. Local times without offset, as the
+ * Kanban Action Planner and the vault engine write them.
+ */
+export function manualAdjustment(
+    created: unknown,
+    fileCtimeMs: number | null,
+    minutes: number,
+    now: number
+): { startTime: string; endTime: string; description: string } {
+    const start = Math.min(createdDayStart(created, fileCtimeMs ?? now), now - minutes * 60_000)
+    return {
+        startTime: localIso(start),
+        endTime: localIso(start + minutes * 60_000),
+        description: MANUAL_ADJUSTMENT
+    }
 }
 
 /**
@@ -152,7 +175,9 @@ export function planActivityTime(
     resolve: (linkpath: string) => string | null,
     adoptedStartMs: number | null = null,
     lower: LowerChoice = null,
-    now: number = Date.now()
+    now: number = Date.now(),
+    /** The activity file's creation time, for a "Manual adjustment" when it has no `created`. */
+    fileCtimeMs: number | null = null
 ): ActivityTimePlan | null {
     const raw = prop(fm, fields.timeEntries)
     if (raw !== undefined && raw !== null && !Array.isArray(raw)) return null
@@ -209,12 +234,7 @@ export function planActivityTime(
     if (minutes !== null && Number.isFinite(stored) && Math.round(stored) > minutes) {
         const difference = Math.round(stored) - minutes
         if (lower === 'keep') {
-            const start = createdDayStart(prop(fm, 'created'), now)
-            entries.push({
-                startTime: new Date(start).toISOString(),
-                endTime: new Date(start + difference * 60_000).toISOString(),
-                description: MANUAL_ADJUSTMENT
-            })
+            entries.push(manualAdjustment(prop(fm, 'created'), fileCtimeMs, difference, now))
             adjusted = difference
             minutes += difference
         } else if (lower !== 'drop') {

@@ -7,7 +7,7 @@ import { levelOf } from '../domain/mastery'
 import type { LearningType, NoteModel, SessionType } from '../domain/note-model'
 import { computeItems } from '../domain/practice'
 import { createDefaultRules } from '../domain/rules'
-import type { FileChanges } from '../domain/undo'
+import type { FileChanges, UndoRecord } from '../domain/undo'
 import { mergeChanges, revert } from '../domain/undo'
 import type { LogRequest } from '../domain/log'
 import type { ItemRepository } from './item-repository'
@@ -467,17 +467,20 @@ function logVault(
         activityName: 'Learn {subject}'
     })
     // Old notes: undo doesn't wait for them to settle.
-    const clock = { now: () => 1e12, sleep: () => Promise.resolve() }
+    const clock = { now: () => Date.now() + 3_600_000, sleep: () => Promise.resolve() }
+    const saved: UndoRecord[] = []
     const service = new PracticeLogService(
         v.app,
         () => model,
         repo,
         context,
-        () => {},
+        (r) => {
+            saved.push(r)
+        },
         clock
     )
     const sessions = () => [...v.notes.keys()].filter((p) => p.startsWith('Sessions/'))
-    return { ...v, service, sessions }
+    return { ...v, service, sessions, saved }
 }
 
 /** The message a promise is rejected with ('' when it resolves). */
@@ -602,13 +605,46 @@ describe('practice log: a run again of the same log', () => {
         expect(v.sessions()).toHaveLength(3)
     })
 
-    it('undoing a run again keeps the session note it reused', async () => {
+    it('a run again keeps the first log as the one to undo; its own undo does nothing', async () => {
         const v = logVault(notes())
         const first = await v.service.log(request())
         const again = await v.service.log(request())
         expect(again.undo.reused).toBe(true)
-        expect((await v.service.undo(again.undo)).ok).toBe(true)
+        expect(v.saved.map((r) => r.at)).toEqual([first.undo.at])
+        expect(await v.service.undo(again.undo)).toMatchObject({ ok: false })
         expect(v.notes.has(first.sessionPath)).toBe(true)
+        expect(await v.service.undo(first.undo)).toMatchObject({ ok: true })
+        expect(v.notes.has(first.sessionPath)).toBe(false)
+    })
+
+    it('without a start time: a new note when the earlier one is older than 15 minutes', async () => {
+        const v = logVault(notes())
+        const first = await v.service.log(request())
+        v.notes.get(first.sessionPath)!.ctime = Date.now() - 20 * 60_000
+        const second = await v.service.log(request())
+        expect(second.reused).toBe(false)
+        expect(v.sessions()).toHaveLength(2)
+    })
+
+    it('without a start time: a note that has one is another session', async () => {
+        const v = logVault(notes())
+        const first = await v.service.log(request())
+        v.notes.get(first.sessionPath)!.fm['start_time'] = '18:00'
+        expect((await v.service.log(request())).reused).toBe(false)
+    })
+
+    it('a reused note that counts for another activity is left as it is, without waiting', async () => {
+        const v = logVault({ ...notes(), 'Activities/Other.md': { tags: ['type/activity'] } })
+        const first = await v.service.log(request())
+        v.notes.get(first.sessionPath)!.fm['related_activities'] = ['[[Other]]']
+        const activityBefore = JSON.stringify(v.notes.get(GUITAR_ACTIVITY)!.fm)
+        const started = Date.now()
+        const again = await v.service.log(request({ activity: 'Learn Guitar' }))
+        expect(Date.now() - started).toBeLessThan(1_000)
+        expect(again.reused).toBe(true)
+        expect(again.activity).toBeNull()
+        expect(again.warnings.join('\n')).toMatch(/counts for another activity or none/)
+        expect(JSON.stringify(v.notes.get(GUITAR_ACTIVITY)!.fm)).toBe(activityBefore)
     })
 })
 
@@ -786,6 +822,98 @@ describe('practice log: which activity', () => {
     })
 })
 
+describe('practice log: activities, as the vault engine reads them', () => {
+    const base = () => ({ [AM]: chord(), [EM]: chord() })
+
+    it('with the Starter Kit, every note in the activities folder counts, tagged or not', () => {
+        const v = logVault(
+            {
+                ...base(),
+                'Activities/Learn Guitar/Learn Guitar (Activity).md': {
+                    session_types: ['guitar-practice-sessions']
+                }
+            },
+            starterKit()
+        )
+        expect(v.service.activities.choiceFor(sessionType)).toMatchObject({ kind: 'mapped' })
+    })
+
+    it('ignores the archive folder, even when the type has no folder', () => {
+        const api = starterKit()['obsidian-starter-kit'].api
+        const listed = { tags: ['type/activity'], session_types: ['guitar-practice-sessions'] }
+        const v = logVault(
+            { ...base(), 'Archives/Activities/2025/Old (Activity).md': listed },
+            {
+                'obsidian-starter-kit': {
+                    api: {
+                        ...api,
+                        listNoteTypes: () =>
+                            api.listNoteTypes().map((t) => ({
+                                ...t,
+                                associatedFolder: null,
+                                archive: { folder: 'Archives/Activities/{{year}}' }
+                            }))
+                    }
+                }
+            }
+        )
+        expect(v.service.activities.activities()).toHaveLength(0)
+        expect(v.service.activities.choiceFor(sessionType).kind).toBe('ask')
+    })
+
+    it('offers activities by name, closest first', () => {
+        const v = logVault(
+            {
+                ...base(),
+                'Activities/Run (Activity).md': {},
+                'Activities/Learn Guitar Theory (Activity).md': {},
+                'Activities/Learn Piano (Activity).md': {}
+            },
+            starterKit()
+        )
+        const choice = v.service.activities.choiceFor(sessionType)
+        if (choice.kind !== 'ask') throw new Error(choice.kind)
+        expect(choice.candidates.map((f) => f.basename)).toEqual([
+            'Learn Guitar Theory (Activity)',
+            'Learn Piano (Activity)',
+            'Run (Activity)'
+        ])
+    })
+
+    it('refuses an activity or a mapping target that is not an activity', async () => {
+        const v = logVault(
+            { ...base(), 'Notes/Learn Guitar.md': { tags: ['type/note'] } },
+            starterKit()
+        )
+        expect(await failure(v.service.log(request({ activity: 'Learn Guitar' })))).toMatch(
+            /No activity note/
+        )
+        expect(await failure(v.service.log(request(), { mapTo: 'Notes/Learn Guitar.md' }))).toMatch(
+            /Not an activity/
+        )
+        expect(v.sessions()).toHaveLength(0)
+    })
+
+    it('creates the activity after the session note, with created when nothing stamps it', async () => {
+        const v = logVault(base(), starterKit())
+        const result = await v.service.log(request(), { createActivity: 'Learn Guitar' })
+        const created = result.createdActivity!
+        expect(v.writes.indexOf(result.sessionPath)).toBeLessThan(v.writes.indexOf(created))
+        expect(String(v.notes.get(created)!.fm['created'])).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+        expect(result.undo.activityChoice).toEqual({ kind: 'created', path: created })
+    })
+
+    it('maps after the session note too; undo keeps the mapping', async () => {
+        const path = 'Activities/A (Activity).md'
+        const v = logVault({ ...base(), [path]: { tags: ['type/activity'] } }, starterKit())
+        const result = await v.service.log(request(), { mapTo: path })
+        expect(v.writes.indexOf(result.sessionPath)).toBeLessThan(v.writes.indexOf(path))
+        expect(result.undo.activityChoice).toEqual({ kind: 'mapped', path })
+        expect(await v.service.undo(result.undo)).toMatchObject({ ok: true })
+        expect(v.notes.get(path)!.fm['session_types']).toEqual(['guitar-practice-sessions'])
+    })
+})
+
 describe('practice log: an activity storing more than it counts', () => {
     const notes = () => ({
         [AM]: chord(),
@@ -808,15 +936,13 @@ describe('practice log: an activity storing more than it counts', () => {
     it('Keep adds a "Manual adjustment" entry; undo takes it back with the log', async () => {
         const v = logVault(notes())
         const result = await v.service.log(request())
-        const keys = await v.service.settleActivityTime(GUITAR_ACTIVITY, 'keep')
+        const { keys } = await v.service.settleActivityTime(GUITAR_ACTIVITY, 'keep')
         const fm = v.notes.get(GUITAR_ACTIVITY)!.fm
         expect(fm['time_spent']).toBe(300)
         expect(fm['time_entries']).toEqual([
             {
-                startTime: new Date('2026-09-01T00:00:00').toISOString(),
-                endTime: new Date(
-                    new Date('2026-09-01T00:00:00').getTime() + 275 * 60_000
-                ).toISOString(),
+                startTime: '2026-09-01T00:00:00',
+                endTime: '2026-09-01T04:35:00',
                 description: 'Manual adjustment'
             }
         ])

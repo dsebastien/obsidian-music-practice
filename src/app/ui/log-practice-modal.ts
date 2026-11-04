@@ -369,11 +369,18 @@ export class LogPracticeModal extends Modal {
         const why = choice.conflict.length
             ? `${choice.conflict.map((f) => f.basename).join(' and ')} list ${choice.typeName} in their session types: pick the one it counts for.`
             : `No activity lists ${choice.typeName} in its session types yet.`
+        // One activity per type: picking one moves the type away from the others listing it.
+        const moved = (path: string) => {
+            const others = choice.conflict.filter((f) => f.path !== path).map((f) => f.basename)
+            return others.length
+                ? ` It is removed from the session types of ${others.join(' and ')}.`
+                : ''
+        }
         const describe = () => {
             const a = this.answers.get(choice.typeName)
             const what =
                 a?.kind === 'existing'
-                    ? `Adds ${choice.typeName} to its session types${choice.conflict.length ? ' and removes it from the others' : ''}: later sessions count for it too.`
+                    ? `Adds ${choice.typeName} to its session types: later sessions count for it too.${moved(a.path)}`
                     : a?.kind === 'create'
                       ? `Creates this activity with ${choice.typeName} in its session types.`
                       : a?.kind === 'none'
