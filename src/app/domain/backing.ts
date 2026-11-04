@@ -4,13 +4,11 @@
  * imports (a drawn progression block is read through the attributes the library puts on it).
  */
 import {
-    keyPrefersFlats,
+    chartChords,
     MAX_PROGRESSION_BARS,
     parseChordPro,
     parseTime,
     readChord,
-    transposeChord,
-    transposeKey,
     type ProgressionChordInput
 } from '@dsebastien/music-notation'
 import { chordCharts } from './progression'
@@ -50,32 +48,83 @@ const tempoOf = (text: string | null | undefined): number | null => {
     return text && Number.isFinite(n) && n > 0 ? n : null
 }
 
+/** Beats in a bar and the note that is a beat, as the library counts them, and how it reads. */
+export interface BackingMeter {
+    beatsPerBar: number
+    beatUnit: number
+    label: string
+}
+
+const readTime = (text: string | null | undefined): BackingMeter | null => {
+    const clean = typeof text === 'string' ? text.trim() : ''
+    if (!clean) return null
+    try {
+        return { ...parseTime(clean), label: clean }
+    } catch {
+        return null
+    }
+}
+
+/** A chord mark of a drawn chart (`[data-mn-bar]`): its sounding notes in `data-mn-voicing`. */
+export interface DrawnChartMark {
+    getAttribute(name: string): string | null
+}
+
+const voicingOf = (mark: DrawnChartMark): number[] =>
+    (mark.getAttribute('data-mn-voicing') ?? '')
+        .split(' ')
+        .filter(Boolean)
+        .map(Number)
+        .filter(Number.isFinite)
+
 /**
- * A note's chord charts as one progression: every chord they show, in order, one a bar (a chord
- * written twice plays two bars: ChordPro marks no bars), each chart's `{transpose}` applied; the
- * first `{time}` and `{tempo}`. Null when no chord reads.
+ * A note's chord charts as one progression (#69, #89): each chart's chords as the library plays
+ * it in time (`chartChords`: a chord a bar, or as its bar lines, beat dots and slashes say; a `%`
+ * or empty bar holds the chord before; a bar of N.C. is a bar of silence), each chart's
+ * `{transpose}` applied; the first `{time}` and `{tempo}`. A chart without `{time}` counts its
+ * beats in the note's time signature (`noteTime`), the meter the loop then plays in. `drawn`
+ * gives the chart's drawn chord marks: when they line up with its chords, each chord plays their
+ * notes (a `{define}` shape, the sound under a `{capo}`); else names only, and a name the library
+ * can't read as a chord (a `{define}` name) is left out. Null when no chord plays.
  */
-export function chartBacking(text: string): BackingSource | null {
-    const chords: string[] = []
+export function chartBacking(
+    text: string,
+    options: {
+        noteTime?: unknown
+        drawn?: (chart: string) => readonly DrawnChartMark[] | null
+    } = {}
+): BackingSource | null {
+    const chords: ProgressionChordInput[] = []
     let time: string | null = null
     let tempo: number | null = null
+    const noteTime =
+        typeof options.noteTime === 'number'
+            ? String(options.noteTime)
+            : typeof options.noteTime === 'string'
+              ? options.noteTime.trim()
+              : ''
     for (const chart of chordCharts(text)) {
         const song = parseChordPro(chart)
-        time ??= song.time?.trim() || null
+        const own = song.time?.trim() || null
+        time ??= own
         tempo ??= tempoOf(song.tempo)
-        const semitones = song.transpose
-        const key = song.key && semitones ? transposeKey(song.key, semitones) : null
-        const flats = key ? keyPrefersFlats(key) : undefined
-        for (const section of song.sections)
-            for (const line of section.lines) {
-                if (line.kind !== 'lyrics') continue
-                for (const segment of line.segments) {
-                    const read = segment.chord ? readChord(segment.chord)?.symbol : null
-                    if (read) chords.push(semitones ? transposeChord(read, semitones, flats) : read)
-                }
+        if (!own && readTime(noteTime)) song.time = noteTime
+        const read = chartChords(song)
+        const marks = options.drawn?.(chart) ?? null
+        const lined = marks !== null && marks.length === read.chords.length
+        read.chords.forEach((c, i) => {
+            const beats = c.beats === undefined ? {} : { beats: c.beats }
+            if (c.chord === null) {
+                chords.push({ chord: null, pitches: [], ...beats })
+                return
             }
+            const pitches = lined ? voicingOf(marks[i]!) : []
+            if (pitches.length) chords.push({ chord: c.chord, pitches, ...beats })
+            else if (readChord(c.chord))
+                chords.push(c.beats === undefined ? c.chord : { chord: c.chord, ...beats })
+        })
     }
-    if (!chords.length) return null
+    if (!chords.some((c) => typeof c === 'string' || c.chord !== null)) return null
     return {
         label: 'Chord chart',
         chords: chords.slice(0, MAX_PROGRESSION_BARS),
@@ -84,6 +133,15 @@ export function chartBacking(text: string): BackingSource | null {
         strum: null,
         sound: null
     }
+}
+
+/** How many bars a progression lasts: a bar a chord, or its `beats` (part of a bar counts). */
+export function backingBars(chords: readonly ProgressionChordInput[], beatsPerBar: number): number {
+    const beats = chords.reduce(
+        (sum, c) => sum + (typeof c !== 'string' && c.beats !== undefined ? c.beats : beatsPerBar),
+        0
+    )
+    return Math.max(1, Math.ceil(beats / beatsPerBar))
 }
 
 /** The chord notes a piece links, one a bar in the order linked; null when none reads. */
@@ -135,23 +193,6 @@ export function progressionBacking(el: ProgressionElement, label: string): Backi
         tempo: tempoOf(el.getAttribute('data-mn-tempo')),
         strum: el.getAttribute('data-mn-strum'),
         sound
-    }
-}
-
-/** Beats in a bar and the note that is a beat, as the library counts them, and how it reads. */
-export interface BackingMeter {
-    beatsPerBar: number
-    beatUnit: number
-    label: string
-}
-
-const readTime = (text: string | null | undefined): BackingMeter | null => {
-    const clean = typeof text === 'string' ? text.trim() : ''
-    if (!clean) return null
-    try {
-        return { ...parseTime(clean), label: clean }
-    } catch {
-        return null
     }
 }
 

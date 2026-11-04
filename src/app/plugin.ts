@@ -1682,7 +1682,31 @@ export class MusicPracticePlugin extends Plugin {
             result.destroy()
             if (source) sources.push(source)
         })
-        const chart = chartBacking(text)
+        // Each chart's chord marks as drawn (#89): the notes they sound ({define} shapes, the
+        // capo), read before the offscreen drawing is freed.
+        const drawn = (chart: string) => {
+            const holder = createDiv()
+            const result = renderBlock('chords', chart, holder, {
+                voicings: lookupGuitarVoicing,
+                ...(piano ? { instrument: 'piano' as const } : {})
+            })
+            const marks = Array.from(result.el.querySelectorAll('.mn-chord[data-mn-bar]')).map(
+                (mark) => {
+                    const voicing = mark.getAttribute('data-mn-voicing')
+                    return {
+                        getAttribute: (name: string) =>
+                            name === 'data-mn-voicing' ? voicing : null
+                    }
+                }
+            )
+            result.destroy()
+            return marks
+        }
+        const noteTime: unknown =
+            this.app.metadataCache.getFileCache(file)?.frontmatter?.[
+                this.effective().fields.timeSignature
+            ]
+        const chart = chartBacking(text, { noteTime, drawn })
         if (chart) sources.push(chart)
         const linked = chordsBacking(this.linkedChordSymbols(file))
         if (linked) sources.push(linked)
