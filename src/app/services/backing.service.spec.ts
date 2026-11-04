@@ -83,6 +83,27 @@ describe('BackingTrack', () => {
         expect(calls[0]!.options.strum).toBeUndefined()
     })
 
+    it('lights the chord that sounds (onChord), the bars still counted by onBar (#89)', () => {
+        const { calls, play } = fakePlay()
+        const track = new BackingTrack(play)
+        track.start(
+            request({
+                chords: [
+                    { chord: 'C', beats: 3 },
+                    { chord: 'G', beats: 1 }
+                ]
+            })
+        )
+        expect(typeof calls[0]!.options.onChord).toBe('function')
+        calls[0]!.options.onChord!(1, 'G', 1)
+        expect(track.state.chord).toBe(1)
+        calls[0]!.options.onBar!(0, 'C', 1)
+        expect(track.state.bar).toBe(0)
+        expect(track.state.chord).toBe(1)
+        track.stop()
+        expect(track.state.chord).toBeNull()
+    })
+
     it('lights the bar that sounds and tells its listeners', () => {
         const { calls, play } = fakePlay()
         const track = new BackingTrack(play)

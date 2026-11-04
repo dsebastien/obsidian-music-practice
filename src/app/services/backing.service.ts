@@ -40,6 +40,8 @@ export interface BackingState {
     bpm: number
     /** The bar sounding now (from 0), null when nothing plays. */
     bar: number | null
+    /** The chord sounding now (its index in the progression), null when nothing plays (#89). */
+    chord: number | null
     /** The pass (from 1). */
     pass: number
     trainer: Trainer | null
@@ -48,7 +50,14 @@ export interface BackingState {
 type Play = typeof playProgression
 
 export class BackingTrack {
-    state: BackingState = { running: false, bpm: 80, bar: null, pass: 0, trainer: null }
+    state: BackingState = {
+        running: false,
+        bpm: 80,
+        bar: null,
+        chord: null,
+        pass: 0,
+        trainer: null
+    }
     private handle: ProgressionHandle | null = null
     /** Bars heard since the start or the last tempo set by hand: the trainer counts them. */
     private bars = 0
@@ -94,10 +103,16 @@ export class BackingTrack {
                 if (this.handle !== handle) return
                 this.onBar(bar, pass)
             },
+            // A chord can last more or less than a bar (#89): the chips follow the chords.
+            onChord: (index, _chord, pass) => {
+                if (this.handle !== handle) return
+                this.state = { ...this.state, chord: index, pass }
+                this.changed()
+            },
             onEnd: () => {
                 if (this.handle !== handle) return
                 this.handle = null
-                this.state = { ...this.state, running: false, bar: null }
+                this.state = { ...this.state, running: false, bar: null, chord: null }
                 this.changed()
             }
         })
@@ -106,6 +121,7 @@ export class BackingTrack {
             running: true,
             bpm,
             bar: null,
+            chord: null,
             pass: 0,
             trainer: request.trainer ? { ...request.trainer, start: bpm } : null
         }
@@ -131,8 +147,8 @@ export class BackingTrack {
         const handle = this.handle
         this.handle = null
         handle?.stop()
-        if (this.state.running || this.state.bar !== null) {
-            this.state = { ...this.state, running: false, bar: null }
+        if (this.state.running || this.state.bar !== null || this.state.chord !== null) {
+            this.state = { ...this.state, running: false, bar: null, chord: null }
             this.changed()
         }
     }
