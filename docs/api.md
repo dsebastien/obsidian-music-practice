@@ -72,14 +72,17 @@ await api.logPractice({
     focus: 'Barre chords', // optional, part of the session note's name
     quality: '★★★★', // optional, a value of the session type's quality property
     note: 'Clean changes at 70 BPM', // optional
+    activity: 'Learn Guitar', // optional: an activity note's name or path, null for none
     items: [
         { path: '…/F Major - Barre (Guitar Chord).md', bpm: 70, level: 30 },
         { path: '…/A Minor - Open (Guitar Chord).md', review: 'good' }
     ]
 })
-// → { sessionPath, items, activity: { path, result } | null, adoptedTimer, warnings }
+// → { sessionPath, reused, items, activity: { path, result, decision } | null, createdActivity, adoptedTimer, warnings, undo }
 ```
 
 The request is checked before anything is written: a `YYYY-MM-DD` date, whole minutes from 1 to 1440, an `HH:MM` start time, each item once, whole BPMs, review results `good`, `shaky` or `failed`, levels the item's type has. Items of several instruments are refused (one log is one session); for instrument-less items, pass `sessionTypeId`. One log runs at a time.
 
-`activity.result` is `updated` or `unchanged` (the activity's minutes and last session date were recomputed from its time entries and the session notes linked to it), `missing` (recomputed, but the adopted timer's entry didn't appear in time, so it wasn't removed), `not-linked` (Obsidian hadn't indexed the session's link yet; nothing written) or `skipped` (the activity's time entries aren't a list; nothing written). When a Kanban Action Planner timer runs on the activity, pass `{ adoptTimer: true }`, or the log is refused so the time is never counted twice. `warnings` lists what was left alone on purpose (minutes on a note that aren't a number…).
+`activity` in the request names the activity note (its name or path), or `null` for none. Without it, the session counts for the activity whose `session_types` lists the session note type; when none does, it counts for none and `warnings` says so (only Log practice asks, and only it creates or maps an activity). `reused` is `true` when a session note already held this log (same session type, date, items, minutes, and start time when given): nothing was created and a review already recorded that day wasn't counted again.
+
+`activity.result` is `updated` or `unchanged` (the activity's minutes and last session date were recomputed from its time entries and the session notes linked to it), `missing` (recomputed, but the adopted timer's entry didn't appear in time, so it wasn't removed), `not-linked` (Obsidian hadn't indexed the session's link yet; nothing written) or `skipped` (the activity's time entries aren't a list; nothing written). When a Kanban Action Planner timer runs on the activity, pass `{ adoptTimer: true }`, or the log is refused so the time is never counted twice. `activity.decision` (`{ stored, computed, difference }`) means the activity stores more minutes than its time entries and sessions give: they were left as they are. `warnings` lists what was left alone on purpose (an item's minutes above what its sessions give, minutes that aren't a number…).

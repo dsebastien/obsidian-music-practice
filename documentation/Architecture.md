@@ -8,7 +8,9 @@
     - `kanban-action-planner.service.ts`: the Kanban Action Planner's property names (time, review) and its running timer.
     - `note-model.service.ts`: learning and session types from OSK, or the standalone model inferred from the notes; keeps the same model object while nothing changes.
     - `item-repository.ts`: learning notes → `LearningItemInput`, from the metadata cache, cached until the vault or the model changes.
-    - `practice-log.service.ts`: the log writer (checks everything first, then session note, practiced notes, activity), mastery and BPM writes, activity lookup, timer guard, and undo of the last log (from the record the log keeps).
+    - `practice-log.service.ts`: the log writer (checks everything first, then the activity the user asked for, session note, practiced notes with their time recomputed, activity time), a run again reusing its session note, Keep or Drop of an activity's surplus, mastery and BPM writes, timer guard, and undo of the last log (from the record the log keeps).
+    - `activity.service.ts`: activities (OSK activities type in its folder, else notes tagged `type/activity`), which one a session type counts for (`session_types`, the standalone fallback, or a question), mapping a type to an activity, creating one on the user's request.
+    - `test-vault.ts`: test support only (an in-memory vault with a live link index for service specs); never imported by the plugin.
     - `metronome.service.ts`: one Web Audio metronome (look-ahead scheduling, speed trainer) shared by the panel, the modal and the commands.
     - `drill.service.ts`: chord change drill pairs (from the current chords and the pair exercise notes), saving best and last counts, creating pair notes.
     - `alphatab.service.ts`: alphaTab, embedded (script, font, soundfont as virtual modules), loaded per window from a blob URL (release checked against another plugin's); its assets; the soundfont player for diagrams (light fallback); frees a window on popout close and every window on unload.

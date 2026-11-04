@@ -218,7 +218,7 @@ The block goes at the cursor of the note you're editing. If the cursor is in the
 
 ## Undo
 
-The notice after a log has an **Undo** button, and **Undo last practice log** does the same later: the practiced notes and the activity get back what the log changed, and its session note goes to the trash. If any of them changed since, nothing is undone and the notice says which. If the log took over a Kanban Action Planner timer, the timer's time entry comes back on the activity. Dates the Obsidian Starter Kit stamps when a level changes (started, mastered) aren't part of the log, so they stay too.
+The notice after a log has an **Undo** button, and **Undo last practice log** does the same later: the practiced notes and the activity get back what the log changed, and its session note goes to the trash (not when the log used an existing session note again). A Keep or Drop on the activity's minutes is undone with the log. An activity the log created, or the session type it added to an activity's `session_types`, stays. If any of them changed since, nothing is undone and the notice says which. If the log took over a Kanban Action Planner timer, the timer's time entry comes back on the activity. Dates the Obsidian Starter Kit stamps when a level changes (started, mastered) aren't part of the log, so they stay too.
 
 ## Log practice
 
@@ -234,13 +234,25 @@ When you stop the timer, Log practice opens with its minutes, its start time and
     - rate the review: **Good**, **Shaky** or **Failed**.
 4. Pick the session quality and add a note if you want, then **Log practice**.
 
+When no activity counts this kind of session yet, Log practice asks **Counts for the activity** before you can log:
+
+- an existing activity (the closest names come first): the session type is added to its `session_types`, so later sessions count for it too;
+- **New activity…**: a new activity with the name you type ("Learn Guitar" is proposed). It is created when you select **Log practice**, with the session type in its `session_types`;
+- **No activity**: the session counts for no activity.
+
 What gets written:
 
-- **Each item**: last practiced date, minutes (the session split evenly), BPM, review date, count and interval, new mastery. The first review interval starts when an item reaches "Can play slowly".
-- **A session note** in the session type's folder, named `<date> <focus>` (or `<date>`, then `<date> 2`… for more sessions that day), with the date, start time, minutes, quality, the practiced items and the activity.
-- **The activity** the session counts towards (the one your previous session of that instrument linked to, or a note named "Learn Guitar") gets no time entry: the session note links to it and carries the minutes. The activity's minutes and last session date are recomputed from its time entries and its linked session notes, never added to, so logging twice never counts twice.
+- **A session note** first, in the session type's folder, named `<date> <focus>` (or `<date>`, then `<date> 2`… for more sessions that day), with the date, start time, minutes, quality, the practiced items, the minutes each item got (`practiced_minutes`: `"13 [[A Minor]]"`) and the activity.
+- **Each item**: last practiced date, BPM, review date, count and interval, new mastery. The first review interval starts when an item reaches "Can play slowly". Its minutes are recomputed from its session notes: its value in `practiced_minutes`, or an even share of the session's minutes for older sessions that only list it.
+- **The activity** gets no time entry: the session note links to it and carries the minutes. The activity's minutes and last session date are recomputed from its time entries and its linked session notes.
 
-Everything is checked before anything is written, and one log runs at a time. Minutes are never added to a value that isn't a number, and existing time entries are kept as they are (only a taken-over timer's own entry is removed). Instrument-less items (ear training) ask which instrument's session they belong to.
+Minutes are recomputed, never added to, so logging twice never counts twice. If you log the same session again (same items, date, minutes, and start time when there is one), the session note that holds it is used again and a review is not counted twice.
+
+Minutes are never lowered on their own. When an item stores more minutes than its sessions give, its minutes stay and a notice says so. When the activity stores more minutes than its time entries and sessions give, a notice asks what to do: **Keep** adds the difference as a "Manual adjustment" time entry on the day the activity was created, **Drop** lowers the activity's minutes.
+
+Which activity a session counts for: the activity whose `session_types` lists the session note type (for example `guitar-practice-sessions`). A type listed by two activities counts for neither, and Log practice asks. Without the Obsidian Starter Kit, and when no note uses `session_types`, it is the activity your previous session of that instrument linked to, or the note named by the **Activity name** setting ("Learn Guitar").
+
+Everything is checked before anything is written, and one log runs at a time. Minutes that aren't a number (`"1h"`) are never overwritten, and existing time entries are kept as they are (only a taken-over timer's own entry is removed). Instrument-less items (ear training) ask which instrument's session they belong to.
 
 Dates the Obsidian Starter Kit stamps on mastery changes (started, mastered) are left to it.
 

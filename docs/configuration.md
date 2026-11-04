@@ -9,12 +9,12 @@ Every rule the plugin applies is a setting, with defaults that work on install. 
 
 ## Main settings
 
-| Setting                      | Default         | What it does                                                                            |
-| ---------------------------- | --------------- | --------------------------------------------------------------------------------------- |
-| Note types                   | (information)   | Where the note types come from: the Obsidian Starter Kit, or the standalone note model. |
-| Default practice plan length | 30              | Minutes offered when you plan a session.                                                |
-| Session notes heading        | Notes           | Section of the session note that receives a log's note.                                 |
-| Activity name                | Learn {subject} | Activity your sessions count towards when no earlier session links one.                 |
+| Setting                      | Default         | What it does                                                                                                                                                                |
+| ---------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Note types                   | (information)   | Where the note types come from: the Obsidian Starter Kit, or the standalone note model.                                                                                     |
+| Default practice plan length | 30              | Minutes offered when you plan a session.                                                                                                                                    |
+| Session notes heading        | Notes           | Section of the session note that receives a log's note.                                                                                                                     |
+| Activity name                | Learn {subject} | The name Log practice proposes for a new activity. Without the Starter Kit and `session_types`: the activity your sessions count towards when no earlier session links one. |
 
 ## Notation blocks
 
@@ -71,7 +71,7 @@ What each level means, for chords, for arrangements and pieces, and for scales, 
 
 ## Property names
 
-The frontmatter properties the plugin reads and writes (last practiced, BPMs, priority, prerequisites, review fields, a guitar chord's frets, fingers and position, a piano chord's pitches and fingering, a scale's root, type and fingering, what an exercise trains and a chord change drill's best and last counts, minutes, session fields, time entries…).
+The frontmatter properties the plugin reads and writes (last practiced, BPMs, priority, prerequisites, review fields, a guitar chord's frets, fingers and position, a piano chord's pitches and fingering, a scale's root, type and fingering, what an exercise trains and a chord change drill's best and last counts, minutes, session fields, the minutes per item of a session (`practiced_minutes`), time entries, the session types of an activity (`session_types`)…).
 
 Pieces, strumming and picking patterns have their own:
 

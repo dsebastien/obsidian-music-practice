@@ -8,8 +8,11 @@ Code: `src/app/domain/`. Pure TypeScript, no Obsidian imports; rules in `Busines
 - **Review** (`review.ts`): `reviewStatus`, `reviewOutcome`, `intervalOnLevelChange` (light SM-2).
 - **Practice** (`practice.ts`): `LearningItemInput` (read from a note) and `LearningItem` (plus derived state: review, BPM progress, prerequisites, ready, unlocks, focus, score), `computeItems`, `practiceNext`, `readyToLearn`.
 - **Plan** (`plan.ts`): `buildPlan(items, minutes, rules)` → warm-up / focus / review / fun blocks adding up to the session.
-- **Log** (`log.ts`): `LogRequest` and `validateLogRequest`, `itemUpdate` / `levelChange` (what a practiced or re-levelled note gets), `freshItem` (the item as its frontmatter says at write time), `applyItemUpdate`, `addTimeEntry` (Kanban Action Planner format, deduplicated, lossless), `splitMinutes`, session naming.
-- **Note model** (`note-model.ts`): `LearningType`, `SessionType`, `buildNoteModel` from type descriptors (OSK).
+- **Log** (`log.ts`): `LogRequest` (with `activity`) and `validateLogRequest`, `itemUpdate` / `levelChange` (what a practiced or re-levelled note gets; no minutes), `freshItem` (the item as its frontmatter says at write time), `applyItemUpdate`, `holdsLog` (a session note that already holds a log: a run again), `splitMinutes`, session naming.
+- **Item time** (`item-time.ts`): `sessionItemMinutes` (what one session note gives each item: `practiced_minutes`, else an even share), `planItemTime` (recompute, never lowered on its own), `practicedMinutesValues`.
+- **Activity time** (`activity-time.ts`): `planActivityTime` / `applyActivityTime` (entries + linked sessions; a higher stored total gives a `decision`; `lower: keep|drop` settles it), `linkedSessionOf`, `createdDayStart`.
+- **Session activities** (`session-activities.ts`): `activityForSessionType` (mapped, conflict, unmapped from `session_types`), `usesSessionTypes`, `withSessionType` / `withoutSessionType`, `proposedActivityName`, `closestActivities`.
+- **Note model** (`note-model.ts`): `LearningType`, `SessionType` (with `typeName`, the note type name activities list), `buildNoteModel` from type descriptors (OSK), `noteTypeSlug` (the Starter Kit's slug rule).
 - **Standalone model** (`local-model.ts`): `LocalModelSettings`, `buildLocalModel` from observed notes, `expandTokens`.
 - **Item reader** (`item-reader.ts`): `tagsOf`, `mergeTags`, `learningTypeOf` (most specific type wins), `toLearningItemInput`.
 - **Rubric** (`rubric.ts`): rubric texts per kind group, by role; `rubricFor(kind, rubric, rules)`.
@@ -19,7 +22,7 @@ Code: `src/app/domain/`. Pure TypeScript, no Obsidian imports; rules in `Busines
 - **Panel** (`panel.ts`): the practice panel's list and what Log this session sends.
 - **Metronome** (`metronome.ts`): tempo bounds, click kinds, the speed trainer's BPM, tap tempo.
 - **Drill** (`drill.ts`): chord pairs, pair titles, best and last counts.
-- **Undo** (`undo.ts`): the record a log keeps (keys before and after, the session note) and what undoing restores or refuses.
+- **Undo** (`undo.ts`): the record a log keeps (keys before and after, the session note, `reused` for a run again) and what undoing restores or refuses; `mergeChanges` (a Keep or Drop on top of the log).
 - **Voicings** (`voicings.ts`): the voicings modal's filters → the library's options, shape values for a note type, `shapeConflict` (a note only takes voicings of its own shape), free titles for new voicing notes, frets read from a property.
 - **Triads** (`triads.ts`): string sets, triad note titles.
 - **Progression** (`progression.ts`): the chords of a note's chord charts, in order.
