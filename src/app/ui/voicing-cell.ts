@@ -1,3 +1,5 @@
+import { alignTitleLines } from '@dsebastien/music-notation'
+
 /**
  * A selectable diagram in a grid of voicings or triads. Not a <button>: the diagram inside has
  * its own playback buttons, and buttons can't nest. Click, Enter or Space selects it; clicks on
@@ -40,4 +42,19 @@ export function selectCell(grid: HTMLElement, cell: HTMLElement): void {
         c.toggleClass('is-selected', on)
         c.setAttr('aria-pressed', String(on))
     })
+}
+
+/** The chord diagrams drawn in a grid (each cell's `svg.mn-svg`), in order. */
+export function gridDiagrams<T>(grid: { querySelectorAll(selectors: string): ArrayLike<T> }): T[] {
+    return Array.from(grid.querySelectorAll('svg.mn-svg'))
+}
+
+/**
+ * Lines up the necks of a grid's chord diagrams (#87): music-notation 0.12 wraps a long title
+ * (a voicing name such as "E shape (strings 1-4)") instead of widening the diagram, so a cell drawn
+ * on its own with a two-line title would sit lower. Every diagram gets the room of the longest
+ * (the library's `alignTitleLines`).
+ */
+export function alignGrid(grid: ParentNode): void {
+    alignTitleLines(gridDiagrams(grid))
 }
