@@ -1,5 +1,9 @@
 # Release Notes
 
+## 0.15.1 (2026-11-04)
+
+- **Reliable reload, for good**: when Obsidian reloaded the plugin twice in quick succession (an update and a restart of the plugin close together), it could run two copies at once and the newer one drew no music blocks until Obsidian restarted. The plugin now replaces an older copy that is still running before it starts (#90).
+
 ## 0.15.0 (2026-11-04)
 
 Fingering in words, both hands' scale fingering and the chords of any scale, from music-notation 0.13.0. The plugin also loads reliably after a quick reload.

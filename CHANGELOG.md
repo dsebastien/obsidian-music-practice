@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.1](https://github.com/dsebastien/obsidian-music-practice/compare/0.15.0...0.15.1) (2026-11-04)
+
+- **Reliable reload, for good**: when Obsidian reloaded the plugin twice in quick succession (an update and a restart of the plugin close together), it could run two copies at once and the newer one drew no music blocks until Obsidian restarted. The plugin now replaces an older copy that is still running before it starts (#90).
+
 ## [0.15.0](https://github.com/dsebastien/obsidian-music-practice/compare/0.14.0...0.15.0) (2026-11-04)
 
 Fingering in words, both hands' scale fingering and the chords of any scale, from music-notation 0.13.0. The plugin also loads reliably after a quick reload.
@@ -276,6 +280,7 @@ The first release of Music Practice: learn an instrument in your notes.
 - A public API lets scripts and AI assistants log and plan practice with the same rules.
 
 Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
+
 
 
 
