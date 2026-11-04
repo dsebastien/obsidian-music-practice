@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.0](https://github.com/dsebastien/obsidian-music-practice/compare/0.14.0...0.15.0) (2026-11-04)
+
+Fingering in words, both hands' scale fingering and the chords of any scale, from music-notation 0.13.0. The plugin also loads reliably after a quick reload.
+
+- **Fingering in words**: `caption: fingering` on a `chord` block writes how to play the chord under its diagram: "Strum from the 5th string (A). Index on the D string, 2nd fret. Middle on the G string, 2nd fret." It names barres, the thumb, muted and open strings and the capo. In drop D, DADGAD and open tunings, strings go by number and note ("the 4th string (D)"). Piano chords say each hand's fingers on their keys. Put it in a first part before `---` to caption a whole row.
+- **Both hands' scale fingering**: `fingering: auto both` on a keyboard scale draws two keyboards, the right hand's standard fingering, then the left hand's an octave lower, each playable on its own.
+- **The chords of any scale**: a `progression` block with `key:` and `harmonize: triads`, `sevenths`, `sus` or `power`, and no chords, draws the chord on each degree with its numeral, diagrams and the play bar. It works for any 7-note scale: major, minor, the modes, harmonic and melodic minor. Several scales go in one block, separated by `---`.
+- **Reliable reload**: when Obsidian reloaded the plugin while it was still starting (a quick disable and enable, or an update while it loaded), the plugin could fail to load ("Failed to load plugin"), and an older copy kept drawing the music blocks until Obsidian restarted. It now stops the older copy's start-up, and a leftover `obsidian://music-practice` link handler no longer stops the plugin from loading (#90).
+
 ## [0.14.0](https://github.com/dsebastien/obsidian-music-practice/compare/0.13.0...0.14.0) (2026-11-04)
 
 Chord charts play bar by bar, the play bars of a learning note's patterns, progressions and charts get Save BPM, and voicing grids keep their necks in line. From music-notation 0.12.0.
@@ -267,6 +276,7 @@ The first release of Music Practice: learn an instrument in your notes.
 - A public API lets scripts and AI assistants log and plan practice with the same rules.
 
 Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
+
 
 
 
