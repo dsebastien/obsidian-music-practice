@@ -47,7 +47,7 @@ A chord chart with its chord diagrams, lighting the chord that plays:
 - **Practice next**: everything ranked by priority, staleness, BPM gap and what it unlocks.
 - **Practice panel**: the timer, your session list from a plan, BPM nudges, the metronome, Log this session.
 - **Metronome and speed trainer**: accents, subdivisions, tap tempo, a count-in and a beat flash, and the meter of the piece you practice. The speed trainer steps up to the note's target BPM, and Save BPM keeps the tempo you reached.
-- **Practice a progression in time**: a song's chords, one a bar, as a backing loop with a click, a count-in and the speed trainer, to practice the changes or to solo over them. Save BPM keeps the tempo you reached.
+- **Practice a progression in time**: a song's chords, one a bar or as its chart's bar lines say, as a backing loop with a click, a count-in and the speed trainer, to practice the changes or to solo over them. Save BPM keeps the tempo you reached.
 - **Chord change drills**: count the changes between two chords in a minute. Your best and last counts go on the pair's note.
 - **Key, scales and hard changes of a piece**: find a song's key and the scales to solo with, and drill its hardest chord changes first.
 - **Mastery and spaced review**: a rubric for each kind of item, and a light SM-2 review that catches what's getting rusty.
@@ -67,7 +67,7 @@ A chord chart with its chord diagrams, lighting the chord that plays:
 - **Scales and modes**: positions (boxes, CAGED, 3NPS), characteristic notes, comparisons, every mode of a key. Arpeggios in their CAGED shapes, the scale that fits a song's chords, and a chord's notes over a scale.
 - **Strumming patterns**: paste a pattern the way you find it on the web (`D DU UDU`), see it on a beat grid and hear it over its chords, straight or swung.
 - **Fingerpicking patterns**: Travis, alternate bass, 1-2-3-4 or your own (`p i m a`), as learning notes with mastery and BPM, played in time over a chord or a progression.
-- **Progressions and the circle of fifths**: write `I V vi IV` (or `1 5 6m 4`) once and see it in any key, with a diagram for each chord, and play it in time. Chord charts play in time too. The circle shows a key's chords on the wheel; click one to hear it.
+- **Progressions and the circle of fifths**: write `I V vi IV` (or `1 5 6m 4`) once and see it in any key, with a diagram for each chord, and play it in time. Chord charts play in time too, bar by bar when you write bar lines. The circle shows a key's chords on the wheel; click one to hear it.
 - **Capo and piano voicings**: a capo on any guitar chord or fretboard, with the chord it sounds. Piano chords in any inversion, shell or rootless, with both hands.
 
 ![Six voicings of A, one per shape, each named: Open, G shape, Open strings, Open bass, E shape and Open bass](docs/images/voicings-light.png)

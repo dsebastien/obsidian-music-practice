@@ -88,9 +88,29 @@ Songs in [ChordPro](https://www.chordpro.org/): chords in brackets inside the ly
 
 Want the chord shapes next to the song? `{diagrams}` draws every chord the song uses as a row above it, in the order they first appear (`{diagrams: bottom}` puts it under). `{define}` gives a chord your own shape, `{chord: Am}` draws one chord where you write it, and `{instrument: piano}` draws piano chords instead. With `{capo: 2}`, guitar diagrams show the shapes you play, with the capo drawn. See the [guide](https://dsebastien.github.io/music-notation/blocks.html#chord-diagrams-in-a-chart).
 
-A chart has a play bar above the song, the same as a [progression](#progressions): each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. A chord defined with `{define}` plays that shape, and the capo moves the sound. A chord the chart can't read (N.C.) is skipped. The chord that plays lights up in the lyrics.
+A chart has a play bar above the song, the same as a [progression](#progressions): each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. Bar lines change that (see [Bars in a chart](#bars-in-a-chart)). A chord defined with `{define}` plays that shape, and the capo moves the sound. A chord the chart can't read (N.C.) is skipped, except a bar of N.C. between bar lines: that bar is silent. The chord that plays lights up in the lyrics.
 
 ![The same chart while it plays: the C of the second line is lit](images/notation-chart-playing.png)
+
+### Bars in a chart
+
+Write bar lines `|` in a chart line to say how long its chords last when the chart plays:
+
+````markdown
+```chords
+{time: 4/4}
+| [G5]. . [D5]. [A5]. | [C] / / [G] | % | [N.C.] |
+```
+````
+
+- The chords between two bar lines share the bar: `| [C] [G] |` in 4/4 is two beats each.
+- Dots give each chord its beats, one dot a beat: `| [G5]. . [D5]. [A5]. |` is two beats of G5, then one of D5 and one of A5.
+- A slash adds a beat to the chord before it: `| [C] / / [G] |` is three beats of C and one of G.
+- A bar with no chord, or with only `%` or lyrics in it, holds the chord before it. Above, G lasts five beats.
+- A bar of N.C. is a bar of silence. It keeps its time.
+- A line without a bar line plays one chord a bar.
+
+Dots and slashes count only when they add up to the beats of the bar. Else the chords share it. In 6/8, 9/8 and 12/8, a beat is a dotted quarter. The bar lines stay in the lyrics as you wrote them, so the chart looks the same. A chart you already wrote with bar lines, such as a 12-bar blues grid, plays with those lengths too. **Practice this progression in time** reads the bars the same way (see [Usage](usage.md#progressions-in-time)). Every rule is in the [guide](https://dsebastien.github.io/music-notation/blocks.html#how-long-each-chord-lasts).
 
 ## Strumming patterns
 
@@ -188,7 +208,7 @@ D xx0232 xx0132
 
 ![G, C and D chord diagrams in a row, with their fingers and the roots in a second color](images/notation-row.png)
 
-Settings shared by every diagram go first, before the first `---` (`orientation`, `hand`, `labels`, and `tuning` or `range`); `columns: 3` draws a grid. A mistake in one diagram doesn't hide the others. Works in `chord`, `keyboard` and `fretboard` blocks; chord charts keep `---` as text. See the library's [guide](https://dsebastien.github.io/music-notation/blocks.html#several-diagrams).
+Settings shared by every diagram go first, before the first `---` (`orientation`, `hand`, `labels`, and `tuning` or `range`); `columns: 3` draws a grid. A mistake in one diagram doesn't hide the others. Works in `chord`, `keyboard` and `fretboard` blocks; chord charts keep `---` as text. A long title on a chord diagram or a fretboard, such as "F#m7b5, Drop 3 (strings 2-4, 6)", wraps onto two or three lines instead of making the diagram wider. The other diagrams of the block keep the same room above them, so their necks stay in line. See the library's [guide](https://dsebastien.github.io/music-notation/blocks.html#several-diagrams).
 
 ## Orientation and left-handed diagrams
 
@@ -218,7 +238,7 @@ The blocks accept chords in words and recognize chords from their frets, and dra
 
     ![The Am7 arpeggio in its five CAGED shapes (E, D, C, A and G), each on its own fretboard, with R, b3, 5 and b7 in the dots](images/notation-arpeggio.png)
 
-- `exercise: up-down` (or `up`, `down`) on a fretboard with one position (`position: 1`, `shape: E`) draws the run of the scale or arpeggio as a tab under the diagram, to play in time. `rhythm:` is `8ths` (the default), `triplets` or `16ths`, and `tempo: 80` sets the tempo. **Insert a tab exercise of this scale or arpeggio** writes the same run as a tab block in a scale or arpeggio note. See [tab exercises](https://dsebastien.github.io/music-notation/blocks.html#tab-exercises) and [Usage](usage.md#tab-exercises).
+- `exercise: up-down` (or `up`, `down`) on a fretboard with one position (`position: 1`, `shape: E`) draws the run of the scale or arpeggio as a tab under the diagram, to play in time. `rhythm:` is `8ths` (the default), `triplets` or `16ths`, and `tempo: 80` sets the tempo. With `capo: 2`, the tab shows the frets the diagram shows, counted from the capo, and sounds where the capo puts it. `frets-from: nut` shows the real neck's frets. A minor pentatonic `position: 1` with `capo: 2` is a tab on frets 3 to 6, or 5 to 8 from the nut. **Insert a tab exercise of this scale or arpeggio** writes the same run as a tab block in a scale or arpeggio note. See [tab exercises](https://dsebastien.github.io/music-notation/blocks.html#tab-exercises) and [Usage](usage.md#tab-exercises).
 
     ![A minor pentatonic, box 1, on a fretboard, with its run up and down in triplets as a tab under it](images/notation-exercise.png)
 
@@ -259,7 +279,9 @@ Hover a chord, keyboard or fretboard diagram (tap it on a phone or tablet) and a
 
 While a diagram plays, each note lights up when you hear it: the dot, the key or the string's mark. A strummed chord lights its strings from the low one up, and a clicked note lights only what you clicked. Stop, or a new sound, turns every light off. On the first play, the soundfont takes a moment to load: the lights wait for it, so they always match what you hear.
 
-Strumming and picking patterns have their own bar (see [Strumming patterns](#strumming-patterns) and [Picking patterns](#picking-patterns)). Progressions and chord charts have a bar that plays them in time (see [Progressions](#progressions)). The circle of fifths plays a key or a chord when you click it.
+On phones and tablets, chord diagrams and fretboards are a third larger, so each string is easier to tap. They still fit the page.
+
+Strumming and picking patterns have their own bar (see [Strumming patterns](#strumming-patterns) and [Picking patterns](#picking-patterns)). Progressions and chord charts have a bar that plays them in time (see [Progressions](#progressions)). In a learning note, each of these bars ends with **Save BPM** (the gauge icon). It opens Set BPM with the tempo set on the bar, rounded. In 6/8, 9/8 and 12/8, that tempo counts dotted beats, as the note's BPM does. The circle of fifths plays a key or a chord when you click it.
 
 The sound comes from a soundfont of recorded instruments, bundled with the plugin, so it works offline. **Settings → Playback** switches to a lighter synthesizer or turns the bar off.
 
@@ -307,7 +329,7 @@ Music Practice claims its blocks once Obsidian has started, so plugins enabled a
 
 ## Obsidian Publish
 
-Obsidian Publish doesn't run plugins. To draw these blocks on a Publish site, add the loader from the [library's Publish guide](https://dsebastien.github.io/music-notation/publish.html) to your site's `publish.js`. Pin the library at 0.8.0 or later (0.11.0 for picking patterns, tab exercises, and progressions and chord charts that play in time), and keep `strum`, `picking`, `progression` and `circle` in the loader's list of block languages: without them, those blocks stay code on your site.
+Obsidian Publish doesn't run plugins. To draw these blocks on a Publish site, add the loader from the [library's Publish guide](https://dsebastien.github.io/music-notation/publish.html) to your site's `publish.js`. Pin the library at 0.8.0 or later (0.11.0 for picking patterns, tab exercises, and progressions and chord charts that play in time, 0.12.0 for bars in a chart, tab exercises with a capo and long titles that wrap), and keep `strum`, `picking`, `progression` and `circle` in the loader's list of block languages: without them, those blocks stay code on your site.
 
 Your layout settings (left-handed, orientations) stay in Obsidian. To get the same on your site, set them at the top of `publish.js`, before the loader:
 
