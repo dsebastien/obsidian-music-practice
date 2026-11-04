@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { createDefaultFieldNames } from './fields'
 import {
     applyItemUpdate,
+    holdsLog,
     itemUpdate,
     sessionFileName,
     sessionTitle,
@@ -54,7 +55,6 @@ const type: LearningType = {
 const DATE = '2026-10-28'
 const ctx = (over = {}) => ({
     date: DATE,
-    minutes: 10,
     fields,
     rules,
     stampDates: false,
@@ -64,10 +64,9 @@ const ctx = (over = {}) => ({
 const item = (over = {}) => computeItems([input('E', over)], DATE, rules)[0]!
 
 describe('itemUpdate', () => {
-    it('sets last practiced and adds minutes', () => {
+    it('sets last practiced and adds no minutes (they come from the session notes)', () => {
         expect(itemUpdate(item(), type, { path: 'E.md' }, ctx())).toEqual({
-            set: { date_last_practiced: DATE },
-            addMinutes: { field: 'time_spent', minutes: 10 }
+            set: { date_last_practiced: DATE }
         })
     })
 
@@ -125,17 +124,10 @@ describe('itemUpdate', () => {
 })
 
 describe('applyItemUpdate', () => {
-    it('never moves the last practiced date back and adds minutes', () => {
+    it('never moves the last practiced date back and never adds minutes', () => {
         const fm: Record<string, unknown> = { date_last_practiced: '2026-10-30', time_spent: 15 }
-        applyItemUpdate(
-            fm,
-            {
-                set: { date_last_practiced: DATE },
-                addMinutes: { field: 'time_spent', minutes: 10 }
-            },
-            fields
-        )
-        expect(fm).toEqual({ date_last_practiced: '2026-10-30', time_spent: 25 })
+        applyItemUpdate(fm, { set: { date_last_practiced: DATE } }, fields)
+        expect(fm).toEqual({ date_last_practiced: '2026-10-30', time_spent: 15 })
     })
 })
 
@@ -159,21 +151,17 @@ describe('session naming', () => {
 })
 
 describe('robust writes', () => {
-    it('never overwrites minutes that are not a number, nor moves review dates back', () => {
+    it('never moves review dates back (an older review leaves the counters alone)', () => {
         const fm: Record<string, unknown> = {
             time_spent: '1h',
             last_reviewed: '2026-11-01',
             review_count: 4
         }
-        const skipped = applyItemUpdate(
+        applyItemUpdate(
             fm,
-            {
-                set: { last_reviewed: DATE, review_count: 5, review_interval: 6 },
-                addMinutes: { field: 'time_spent', minutes: 10 }
-            },
+            { set: { last_reviewed: DATE, review_count: 5, review_interval: 6 } },
             fields
         )
-        expect(skipped).toEqual(['time_spent'])
         expect(fm).toEqual({ time_spent: '1h', last_reviewed: '2026-11-01', review_count: 4 })
     })
 
@@ -207,5 +195,40 @@ describe('validateLogRequest', () => {
         expect(
             validateLogRequest({ ...ok, items: [{ path: 'E.md', review: 'great' as never }] })
         ).toMatch(/review/)
+        expect(validateLogRequest({ ...ok, activity: '  ' })).toMatch(/activity/)
+        expect(validateLogRequest({ ...ok, activity: 3 as never })).toMatch(/activity/)
+    })
+    it('takes an activity name, or null for none', () => {
+        expect(validateLogRequest({ ...ok, activity: 'Learn Guitar' })).toBeNull()
+        expect(validateLogRequest({ ...ok, activity: null })).toBeNull()
+    })
+})
+
+describe('holdsLog: a run again of the same log', () => {
+    const session = {
+        date: DATE,
+        time_spent: 30,
+        start_time: '18:30',
+        practiced: ['[[A Minor]]', '[[E Minor|Em]]']
+    }
+    const key = { date: DATE, minutes: 30, items: ['e minor', 'A Minor'] }
+    it('matches the same date, minutes and items, in any order and case', () => {
+        expect(holdsLog(session, key, fields)).toBe(true)
+        expect(holdsLog({ ...session, date: `${DATE}T18:30` }, key, fields)).toBe(true)
+        expect(holdsLog({ ...session, time_spent: '30' }, key, fields)).toBe(true)
+    })
+    it('compares the start time only when the log gives one', () => {
+        expect(holdsLog(session, { ...key, startTime: '18:30' }, fields)).toBe(true)
+        expect(holdsLog(session, { ...key, startTime: '19:00' }, fields)).toBe(false)
+        expect(holdsLog({ ...session, start_time: '07:00' }, key, fields)).toBe(true)
+    })
+    it('does not match another date, other minutes or other items', () => {
+        expect(holdsLog(session, { ...key, date: '2026-10-29' }, fields)).toBe(false)
+        expect(holdsLog(session, { ...key, minutes: 31 }, fields)).toBe(false)
+        expect(holdsLog(session, { ...key, items: ['A Minor'] }, fields)).toBe(false)
+        expect(holdsLog(session, { ...key, items: ['A Minor', 'E Minor', 'G'] }, fields)).toBe(
+            false
+        )
+        expect(holdsLog({ ...session, practiced: '[[A Minor]]' }, key, fields)).toBe(false)
     })
 })

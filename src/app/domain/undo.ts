@@ -35,6 +35,8 @@ export interface UndoRecord {
     files: FileChanges[]
     /** The log adopted a Kanban Action Planner timer, whose entry undo leaves in place. */
     adoptedTimer: boolean
+    /** The log was a run again of an earlier one and reused its session note: undo keeps it. */
+    reused?: boolean
 }
 
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
@@ -126,6 +128,7 @@ export function isUndoRecord(value: unknown): value is UndoRecord {
         typeof r.sessionPath === 'string' &&
         typeof r.sessionBody === 'string' &&
         typeof r.adoptedTimer === 'boolean' &&
+        (r.reused === undefined || typeof r.reused === 'boolean') &&
         Array.isArray(r.files) &&
         r.files.every(
             (f) =>
@@ -134,4 +137,29 @@ export function isUndoRecord(value: unknown): value is UndoRecord {
                 f.keys.every((k) => typeof k?.key === 'string')
         )
     )
+}
+
+/**
+ * The keys of a note after a second change on top of the first (a log, then the user's choice on
+ * the activity's time): what was there before the first, what is there after the second. A list
+ * the second only appended to keeps the first's list plus that item.
+ */
+export function mergeChanges(first: KeyChange[], second: KeyChange[]): KeyChange[] {
+    const out = first.map((c) => ({ ...c }))
+    for (const b of second) {
+        const i = out.findIndex((c) => c.key === b.key)
+        const a = out[i]
+        // A log never appends to an activity: a key the first only appended to takes the second.
+        if (!a || 'appended' in a) {
+            if (a) out[i] = { ...b }
+            else out.push({ ...b })
+            continue
+        }
+        const after =
+            'appended' in b
+                ? [...(Array.isArray(a.after) ? (a.after as unknown[]) : []), b.appended]
+                : b.after
+        out[i] = { key: a.key, existed: a.existed, before: a.before, after }
+    }
+    return out
 }

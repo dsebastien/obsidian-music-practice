@@ -53,10 +53,12 @@ describe('standalone note model', () => {
     })
 
     it('creates one session type per subject, with its naming', () => {
-        expect(model.sessionTypes.map((s) => [s.typeTag, s.name])).toEqual([
-            ['type/session/music/guitar', 'Guitar Practice Sessions'],
-            ['type/session/music/piano', 'Piano Practice Sessions']
+        expect(model.sessionTypes.map((s) => [s.typeTag, s.name, s.typeName])).toEqual([
+            ['type/session/music/guitar', 'Guitar Practice Sessions', 'guitar-practice-sessions'],
+            ['type/session/music/piano', 'Piano Practice Sessions', 'piano-practice-sessions']
         ])
+        // Minutes per item are written on standalone sessions too.
+        expect(model.sessionTypes[0]!.fields.has('practiced_minutes')).toBe(true)
         expect(model.sessionTypes[0]!.naming).toEqual({
             folder: 'Practice sessions/{Subject}/{year}',
             prefix: '',

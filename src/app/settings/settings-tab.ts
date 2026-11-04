@@ -104,7 +104,7 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
             this.text(
                 'activityName',
                 'Activity name',
-                'Activity your sessions count towards when no earlier session links one. {subject} is the instrument: "Learn {subject}" finds "Learn Guitar".'
+                'The name Log practice proposes for a new activity, {subject} being the instrument ("Learn {subject}": "Learn Guitar"). Without the Obsidian Starter Kit and session_types, the activity your sessions count towards when no earlier session links one.'
             ),
             {
                 type: 'group',
@@ -560,7 +560,17 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             ),
                             this.text('fields.quality', 'Session quality', ''),
                             this.text('fields.practiced', 'Practiced items', ''),
+                            this.text(
+                                'fields.practicedMinutes',
+                                'Minutes per item',
+                                'On sessions: "<minutes> [[<note>]]" for each practiced item. Learning notes get their minutes from it.'
+                            ),
                             this.text('fields.activities', 'Activities', ''),
+                            this.text(
+                                'fields.sessionTypes',
+                                'Session types',
+                                'On activities: the session note types that count for them (guitar-practice-sessions).'
+                            ),
                             this.text(
                                 'fields.timeEntries',
                                 'Time entries',

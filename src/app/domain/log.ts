@@ -29,15 +29,18 @@ export interface LogRequest {
     note?: string
     /** The session type, when the items alone don't tell (instrument-less items such as ear training). */
     sessionTypeId?: string
+    /**
+     * The activity the session counts for: an activity note's name or path; `null` for none. Left
+     * out: the activity whose `session_types` lists the session type (see the Business Rules).
+     */
+    activity?: string | null
     items: LogItem[]
 }
 
-/** What to write on a learning note. */
+/** What to write on a learning note (its time comes from its session notes, see `item-time`). */
 export interface ItemUpdate {
     /** Values to set (only fields the type defines). */
     set: Record<string, unknown>
-    /** Minutes to add to the duration field, when the type has one. */
-    addMinutes: { field: string; minutes: number } | null
 }
 
 /**
@@ -51,14 +54,13 @@ export function itemUpdate(
     log: LogItem,
     context: {
         date: string
-        minutes: number
         fields: FieldNames
         rules: PracticeRules
         stampDates: boolean
         current: Record<string, unknown>
     }
 ): ItemUpdate {
-    const { date, minutes, fields, rules } = context
+    const { date, fields, rules } = context
     const has = (name: string) => type.fields.has(name)
     const set: Record<string, unknown> = {}
     if (has(fields.lastPracticed)) set[fields.lastPracticed] = date
@@ -79,10 +81,7 @@ export function itemUpdate(
         if (outcome.level !== undefined && log.level === undefined) level = outcome.level
     }
     if (level !== null) Object.assign(set, { ...levelChange(item, type, level, context), ...set })
-    return {
-        set,
-        addMinutes: has(fields.timeSpent) ? { field: fields.timeSpent, minutes } : null
-    }
+    return { set }
 }
 
 /**
@@ -142,21 +141,15 @@ export function numberOf(value: unknown): number | null {
     return null
 }
 
-/** Minutes can be added to a value that is empty or a number; anything else (`"1h"`) is left alone. */
-const canAddMinutes = (value: unknown): boolean =>
-    value === undefined || value === null || value === '' || numberOf(value) !== null
-
 /**
  * Apply an update to a frontmatter object (as `processFrontMatter` hands it). The last-practiced
- * and last-reviewed dates never move back, and minutes are added to whatever the note already
- * counts (never over a value that isn't a number). Returns the fields left alone.
+ * and last-reviewed dates never move back.
  */
 export function applyItemUpdate(
     fm: Record<string, unknown>,
     update: ItemUpdate,
     fields: FieldNames
-): string[] {
-    const skipped: string[] = []
+): void {
     const set = { ...update.set }
     const movesBack = (key: string) =>
         key in set && typeof fm[key] === 'string' && String(fm[key]) > String(set[key])
@@ -168,12 +161,42 @@ export function applyItemUpdate(
         delete set[fields.reviewInterval]
     }
     for (const [key, value] of Object.entries(set)) fm[key] = value
-    if (update.addMinutes) {
-        const { field, minutes } = update.addMinutes
-        if (canAddMinutes(fm[field])) fm[field] = (numberOf(fm[field]) ?? 0) + minutes
-        else skipped.push(field)
-    }
-    return skipped
+}
+
+/** What makes two logs the same session: a run again of a log reuses its session note. */
+export interface LoggedSessionKey {
+    date: string
+    minutes: number
+    /** Item note names. */
+    items: readonly string[]
+    /** HH:MM, compared only when the log gives one. */
+    startTime?: string | null
+}
+
+const nameSet = (names: readonly string[]): string =>
+    [...new Set(names.map((n) => n.toLowerCase()))].sort().join('|')
+
+/**
+ * Whether a session note (of the log's session type) already holds this log: the same date, the
+ * same minutes, the same start time when the log gives one, and the same items (by name, any case
+ * and order). A log that stopped half-way and is run again finds it and adds no second session.
+ */
+export function holdsLog(
+    fm: Record<string, unknown>,
+    key: LoggedSessionKey,
+    fields: Pick<FieldNames, 'date' | 'timeSpent' | 'startTime' | 'practiced'>
+): boolean {
+    const text = (v: unknown) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '')
+    if (text(fm[fields.date]).substring(0, 10) !== key.date) return false
+    if (Number(fm[fields.timeSpent]) !== key.minutes) return false
+    if (key.startTime && text(fm[fields.startTime]) !== key.startTime) return false
+    const raw = fm[fields.practiced]
+    const listed = (Array.isArray(raw) ? (raw as unknown[]) : raw == null ? [] : [raw])
+        .map((x) =>
+            typeof x === 'string' ? (/\[\[([^\]|#]+)/.exec(x)?.[1]?.trim() ?? null) : null
+        )
+        .filter((x): x is string => Boolean(x))
+    return nameSet(listed) === nameSet(key.items)
 }
 
 /** Session title: `<date> <focus>`, or the date alone; the type's affixes come on top. */
@@ -266,5 +289,11 @@ export function validateLogRequest(request: LogRequest): string | null {
     for (const key of ['focus', 'quality', 'note', 'sessionTypeId'] as const)
         if (request[key] !== undefined && typeof request[key] !== 'string')
             return `"${key}" must be text.`
+    if (
+        request.activity !== undefined &&
+        request.activity !== null &&
+        (typeof request.activity !== 'string' || !request.activity.trim())
+    )
+        return '"activity" must be the name of an activity note, or null for none.'
     return null
 }

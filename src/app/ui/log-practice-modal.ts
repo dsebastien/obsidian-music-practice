@@ -3,6 +3,8 @@ import type { App } from 'obsidian'
 import { isoDate } from '../domain/dates'
 import type { FieldNames } from '../domain/fields'
 import type { LogItem, LogRequest } from '../domain/log'
+import type { ActivityChoice } from '../services/activity.service'
+import type { LogOptions } from '../services/practice-log.service'
 import { levelOf } from '../domain/mastery'
 import type { LearningType, NoteModel, SessionType } from '../domain/note-model'
 import { isDueForReview, practiceNext } from '../domain/practice'
@@ -48,10 +50,19 @@ export interface LogPracticeDeps {
     rubric: RubricSettings
     /** Session types the selection can go to (throws when it spans several instruments). */
     sessionTypesFor: (items: LearningItem[]) => SessionType[]
-    timerFor: (items: LearningItem[], sessionTypeId?: string) => RunningTimer | null
-    submit: (request: LogRequest, adoptTimer: boolean) => Promise<string>
+    /** Which activity a session of this type counts for (or a question for the user). */
+    activityFor: (session: SessionType) => ActivityChoice
+    /** A Kanban Action Planner timer running on this activity (a path), or null. */
+    timerFor: (activityPath: string | null) => RunningTimer | null
+    submit: (request: LogRequest, options: LogOptions) => Promise<string>
     onClosed: () => void
 }
+
+/** The user's answer for a session type no activity lists: an activity path, new, or none. */
+type ActivityAnswer = { kind: 'existing'; path: string } | { kind: 'create' } | { kind: 'none' }
+
+/** Session types logged without an activity since the plugin loaded: offered first next time. */
+const loggedWithout = new Set<string>()
 
 const REVIEW_BUTTONS: { result: ReviewResult; label: string }[] = [
     { result: 'good', label: 'Good' },
@@ -68,6 +79,11 @@ export class LogPracticeModal extends Modal {
     private quality = ''
     private sessionTypeId = ''
     private adoptTimer = false
+    /** The answer to "which activity", per session type name (only asked when none lists it). */
+    private readonly answers = new Map<string, ActivityAnswer>()
+    private newActivityName = ''
+    /** Which activity each session type counts for, read once per opening. */
+    private readonly choices = new Map<string, ActivityChoice>()
     private submitting = false
     private query = ''
     private readonly selected = new Map<string, LogItem>()
@@ -267,9 +283,10 @@ export class LogPracticeModal extends Modal {
                 select.createEl('option', { text: v, value: v }).selected = v === this.quality
             select.addEventListener('change', () => (this.quality = select.value))
         }
-        const timer = items.length
-            ? this.deps.timerFor(items, this.sessionTypeId || undefined)
-            : null
+        const choice = session ? this.choiceFor(session) : null
+        if (choice?.kind === 'ask') this.renderActivityQuestion(el, choice)
+        const activityPath = this.activityPath(choice)
+        const timer = items.length ? this.deps.timerFor(activityPath) : null
         if (!timer) {
             this.adoptTimer = false
             return
@@ -287,6 +304,102 @@ export class LogPracticeModal extends Modal {
                 this.minutes = Math.min(minutesBetween(timer.startedAt, Date.now()), 1440)
                 this.minutesInput.value = String(this.minutes)
             }
+        })
+    }
+
+    private choiceFor(session: SessionType): ActivityChoice {
+        let choice = this.choices.get(session.id)
+        if (!choice) {
+            choice = this.deps.activityFor(session)
+            this.choices.set(session.id, choice)
+            if (choice.kind === 'ask' && !this.newActivityName)
+                this.newActivityName = choice.proposedName
+            if (choice.kind === 'ask' && loggedWithout.has(choice.typeName))
+                this.answers.set(choice.typeName, { kind: 'none' })
+        }
+        return choice
+    }
+
+    /** The activity path this log counts for, as far as it is known. */
+    private activityPath(choice: ActivityChoice | null): string | null {
+        if (!choice) return null
+        if (choice.kind !== 'ask') return choice.file?.path ?? null
+        const answer = this.answers.get(choice.typeName)
+        return answer?.kind === 'existing' ? answer.path : null
+    }
+
+    /** The current question, or null when no answer is needed (or it's given). */
+    private pendingQuestion(): ActivityChoice | null {
+        const session = this.sessionChoices().find((s) => s.id === this.sessionTypeId)
+        const choice = session ? this.choices.get(session.id) : undefined
+        if (choice?.kind !== 'ask') return null
+        const answer = this.answers.get(choice.typeName)
+        if (!answer) return choice
+        return answer.kind === 'create' && !this.newActivityName.trim() ? choice : null
+    }
+
+    /**
+     * No activity lists this session type in its session types (or several do): ask which one it
+     * counts for, an existing activity (closest names first), a new one, or none. Nothing is
+     * created or changed before Log practice.
+     */
+    private renderActivityQuestion(
+        el: HTMLElement,
+        choice: Extract<ActivityChoice, { kind: 'ask' }>
+    ): void {
+        const field = el.createEl('label', { cls: 'mp-field', text: 'Counts for the activity' })
+        const select = field.createEl('select', { cls: 'dropdown' })
+        const answer = this.answers.get(choice.typeName)
+        const current =
+            answer?.kind === 'existing'
+                ? `existing:${answer.path}`
+                : answer?.kind === 'create'
+                  ? 'create'
+                  : answer?.kind === 'none'
+                    ? 'none'
+                    : ''
+        const option = (text: string, value: string) => {
+            select.createEl('option', { text, value }).selected = value === current
+        }
+        option('Choose…', '')
+        for (const f of choice.candidates) option(f.basename, `existing:${f.path}`)
+        option('New activity…', 'create')
+        option('No activity', 'none')
+        const help = el.createDiv({ cls: 'mp-rubric' })
+        const why = choice.conflict.length
+            ? `${choice.conflict.map((f) => f.basename).join(' and ')} list ${choice.typeName} in their session types: pick the one it counts for.`
+            : `No activity lists ${choice.typeName} in its session types yet.`
+        const describe = () => {
+            const a = this.answers.get(choice.typeName)
+            const what =
+                a?.kind === 'existing'
+                    ? `Adds ${choice.typeName} to its session types${choice.conflict.length ? ' and removes it from the others' : ''}: later sessions count for it too.`
+                    : a?.kind === 'create'
+                      ? `Creates this activity with ${choice.typeName} in its session types.`
+                      : a?.kind === 'none'
+                        ? 'This session counts for no activity.'
+                        : ''
+            help.setText(what ? `${why} ${what}` : why)
+        }
+        let nameInput: HTMLInputElement | null = null
+        if (answer?.kind === 'create') {
+            const nameField = el.createEl('label', { cls: 'mp-field', text: 'New activity name' })
+            nameInput = nameField.createEl('input', { type: 'text' })
+            nameInput.value = this.newActivityName
+            nameInput.addEventListener('input', () => {
+                this.newActivityName = nameInput!.value
+                this.refreshSubmit()
+            })
+        }
+        describe()
+        select.addEventListener('change', () => {
+            const v = select.value
+            if (v === '') this.answers.delete(choice.typeName)
+            else if (v === 'create') this.answers.set(choice.typeName, { kind: 'create' })
+            else if (v === 'none') this.answers.set(choice.typeName, { kind: 'none' })
+            else this.answers.set(choice.typeName, { kind: 'existing', path: v.slice(9) })
+            this.renderSession()
+            this.refreshSubmit()
         })
     }
 
@@ -381,7 +494,11 @@ export class LogPracticeModal extends Modal {
         if (!this.submitEl) return
         const needsSession =
             this.sessionChoices().length > 1 && !this.selectedSubject() && !this.sessionTypeId
-        this.submitEl.disabled = this.submitting || this.selected.size === 0 || needsSession
+        this.submitEl.disabled =
+            this.submitting ||
+            this.selected.size === 0 ||
+            needsSession ||
+            this.pendingQuestion() !== null
     }
 
     private async submit(): Promise<void> {
@@ -390,10 +507,20 @@ export class LogPracticeModal extends Modal {
             new Notice('Enter the minutes practiced.')
             return
         }
+        if (this.pendingQuestion()) {
+            new Notice('Choose the activity this session counts for.')
+            return
+        }
+        const session = this.sessionChoices().find((s) => s.id === this.sessionTypeId)
+        const choice = session ? this.choices.get(session.id) : undefined
+        const answer = choice?.kind === 'ask' ? this.answers.get(choice.typeName) : undefined
+        const options: LogOptions = { adoptTimer: this.adoptTimer }
+        if (answer?.kind === 'existing') options.mapTo = answer.path
+        if (answer?.kind === 'create') options.createActivity = this.newActivityName.trim()
         this.submitting = true
         this.refreshSubmit()
         try {
-            const session = await this.deps.submit(
+            const logged = await this.deps.submit(
                 {
                     date: this.date,
                     minutes: this.minutes,
@@ -404,11 +531,16 @@ export class LogPracticeModal extends Modal {
                     ...(this.quality ? { quality: this.quality } : {}),
                     ...(this.note.trim() ? { note: this.note.trim() } : {}),
                     ...(this.sessionTypeId ? { sessionTypeId: this.sessionTypeId } : {}),
+                    ...(answer?.kind === 'none' ? { activity: null } : {}),
                     items: [...this.selected.values()]
                 },
-                this.adoptTimer
+                options
             )
-            new Notice(`Logged ${this.minutes} min: ${session}`)
+            if (choice?.kind === 'ask') {
+                if (answer?.kind === 'none') loggedWithout.add(choice.typeName)
+                else loggedWithout.delete(choice.typeName)
+            }
+            new Notice(`Logged ${this.minutes} min: ${logged}`)
             this.preset.onLogged?.()
             this.close()
         } catch (error: unknown) {

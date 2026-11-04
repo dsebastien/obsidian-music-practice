@@ -34,6 +34,11 @@ export interface LearningType {
 export interface SessionType {
     id: string
     name: string
+    /**
+     * The note type's name as activities list it in `session_types` ("guitar-practice-sessions"):
+     * the Obsidian Starter Kit's slug for the type, else its name in lower case with dashes.
+     */
+    typeName: string
     /** `type/session/<domain>/<subject>`. */
     typeTag: string
     domain: string
@@ -60,11 +65,30 @@ export interface NoteModel {
 export interface TypeDescriptor {
     id: string
     name: string
+    /** The Obsidian Starter Kit's own slug for the type, when it has one. */
+    slug?: string | null
     tags: string[]
     properties: { name: string; allowedValues?: unknown }[]
     /** The explicit status, when configured. */
     status: { property: string; values: string[]; stamps?: Record<string, string> } | null
     templatePath?: string | null
+}
+
+/**
+ * A note type's name as the Obsidian Starter Kit and the vault's skills write it: lower case, spaces
+ * as dashes, other characters dropped ("Guitar Practice Sessions" → "guitar-practice-sessions"),
+ * `n-` in front when it doesn't start with a letter, at most 64 characters.
+ */
+export function noteTypeSlug(name: string): string {
+    let slug = name
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-_]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+    if (slug.length > 0 && !/^[a-z]/.test(slug)) slug = `n-${slug}`
+    if (slug.length > 64) slug = slug.substring(0, 64).replace(/-$/, '')
+    return slug || 'unnamed'
 }
 
 const allowedValuesOf = (properties: TypeDescriptor['properties']): Record<string, string[]> =>
@@ -98,6 +122,7 @@ export function buildNoteModel(
                 sessionTypes.push({
                     id: t.id,
                     name: t.name,
+                    typeName: t.slug?.trim() || noteTypeSlug(t.name),
                     typeTag: sessionTag,
                     domain,
                     subject,

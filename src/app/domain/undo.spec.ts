@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'bun:test'
-import { bodyOf, changedKeys, conflicts, isUndoRecord, revert, snapshot } from './undo'
+import {
+    bodyOf,
+    changedKeys,
+    conflicts,
+    isUndoRecord,
+    mergeChanges,
+    revert,
+    snapshot
+} from './undo'
 
 describe('undo', () => {
     const before = { mastery: '20 - Learning', bpm_current: 60, time_spent: 30 }
@@ -101,5 +109,51 @@ describe('undo', () => {
         expect(isUndoRecord(record)).toBe(true)
         expect(isUndoRecord({ ...record, files: [{ path: 1 }] })).toBe(false)
         expect(isUndoRecord(null)).toBe(false)
+        expect(isUndoRecord({ ...record, reused: true })).toBe(true)
+        expect(isUndoRecord({ ...record, reused: 'yes' })).toBe(false)
+    })
+})
+
+describe('undo: a change on top of a log (Keep or Drop on the activity time)', () => {
+    const entry = { startTime: 'a', endTime: 'b', description: 'Manual adjustment' }
+
+    it("keeps the log's before and the second change's after", () => {
+        const before = { time_spent: 120, date_last_session: '2026-11-01' }
+        const logged = { time_spent: 120, date_last_session: '2026-11-03' }
+        const dropped = { ...logged, time_spent: 50 }
+        const merged = mergeChanges(changedKeys(before, logged), changedKeys(logged, dropped))
+        const fm: Record<string, unknown> = { ...dropped }
+        expect(conflicts(fm, merged)).toEqual([])
+        revert(fm, merged)
+        expect(fm).toEqual(before)
+    })
+
+    it('adds the appended entry to a list the log rewrote, and undoes both', () => {
+        const timer = { startTime: 't', endTime: 'u', description: 'Timer' }
+        const before = { time_entries: [timer], date_last_session: '2026-11-01' }
+        const logged = { time_entries: [], date_last_session: '2026-11-03' }
+        const kept = { ...logged, time_entries: [entry] }
+        const merged = mergeChanges(changedKeys(before, logged), changedKeys(logged, kept))
+        const fm: Record<string, unknown> = JSON.parse(JSON.stringify(kept)) as Record<
+            string,
+            unknown
+        >
+        expect(conflicts(fm, merged)).toEqual([])
+        revert(fm, merged)
+        expect(fm).toEqual(before)
+    })
+
+    it('takes a key only the second change touched as it is', () => {
+        const merged = mergeChanges(
+            [{ key: 'date_last_session', existed: false, before: null, after: '2026-11-03' }],
+            changedKeys({ time_entries: [] }, { time_entries: [entry] })
+        )
+        expect(merged).toHaveLength(2)
+        const fm: Record<string, unknown> = {
+            date_last_session: '2026-11-03',
+            time_entries: [entry]
+        }
+        revert(fm, merged)
+        expect(fm).toEqual({ time_entries: [] })
     })
 })

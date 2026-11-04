@@ -84,6 +84,7 @@ export class NoteModelService {
             return {
                 id: t.id,
                 name: t.name,
+                slug: typeof t.slug === 'string' ? t.slug : null,
                 tags: (t.tags ?? []).map((g) => g.replace(/^#/, '')),
                 properties: [
                     ...globals,

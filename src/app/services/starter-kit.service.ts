@@ -18,6 +18,8 @@ export interface SkPropertyDefinition {
 export interface SkNoteType {
     id: string
     name: string
+    /** The type's name in the CLI and the md-base files, when set by hand (else derived from the name). */
+    slug?: string | null
     properties?: SkPropertyDefinition[]
     associatedFolder?: string | null
     templatePath?: string | null

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { createDefaultFieldNames } from './fields'
 import { learningTypeOf, mergeTags, tagsOf, toLearningItemInput } from './item-reader'
-import { buildNoteModel, sessionTypeFor } from './note-model'
+import { buildNoteModel, noteTypeSlug, sessionTypeFor } from './note-model'
 import type { TypeDescriptor } from './note-model'
 import { createDefaultRules } from './rules'
 
@@ -80,6 +80,25 @@ describe('buildNoteModel', () => {
     it("takes the type's top priority from its allowed values (TBD excluded)", () => {
         expect(model.learningTypes[0]!.topPriority).toBe(10)
         expect(model.learningTypes[1]!.topPriority).toBeNull()
+    })
+
+    it('names a session type as the Starter Kit does: its slug, else from its name', () => {
+        expect(model.sessionTypes[0]!.typeName).toBe('guitar-practice-sessions')
+        const slugged = buildNoteModel(
+            [{ ...types[4]!, slug: 'my-guitar-sessions' }],
+            createDefaultRules(),
+            createDefaultFieldNames()
+        )
+        expect(slugged.sessionTypes[0]!.typeName).toBe('my-guitar-sessions')
+    })
+
+    it('slugs note type names like the Starter Kit', () => {
+        expect(noteTypeSlug('Guitar Practice Sessions')).toBe('guitar-practice-sessions')
+        expect(noteTypeSlug('  Board  Game Sessions! ')).toBe('board-game-sessions')
+        expect(noteTypeSlug('3D Prints')).toBe('n-3d-prints')
+        expect(noteTypeSlug('Café')).toBe('caf')
+        expect(noteTypeSlug('!!!')).toBe('unnamed')
+        expect(noteTypeSlug('x'.repeat(70))).toHaveLength(64)
     })
 
     it('pairs a learning type with the session type of its subject', () => {

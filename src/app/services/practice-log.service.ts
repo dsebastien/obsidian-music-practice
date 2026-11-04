@@ -3,11 +3,20 @@ import type { App, TFile } from 'obsidian'
 import { isoDate } from '../domain/dates'
 import type { FieldNames } from '../domain/fields'
 import { mergeTags, tagsOf } from '../domain/item-reader'
-import { applyActivityTime, linkedSessionOf, planActivityTime } from '../domain/activity-time'
-import type { LinkedSession } from '../domain/activity-time'
+import {
+    applyActivityTime,
+    keyOf,
+    linkedSessionOf,
+    planActivityTime,
+    prop,
+    sessionDay
+} from '../domain/activity-time'
+import type { LinkedSession, LowerChoice, LowerDecision } from '../domain/activity-time'
+import { planItemTime, practicedMinutesValues, sessionItemMinutes } from '../domain/item-time'
 import {
     applyItemUpdate,
     freshItem,
+    holdsLog,
     itemUpdate,
     levelChange,
     localIso,
@@ -23,9 +32,10 @@ import type { LearningItem } from '../domain/practice'
 import { bodyOf, changedKeys, conflicts, revert, snapshot } from '../domain/undo'
 import { SETTLE, waitUntilSettled } from '../domain/settle'
 import type { Clock } from '../domain/settle'
-import type { FileChanges, UndoRecord } from '../domain/undo'
+import type { FileChanges, KeyChange, UndoRecord } from '../domain/undo'
 import type { PracticeRules } from '../domain/rules'
 import { fillSection, renderTemplate } from '../domain/template-render'
+import { ActivityService } from './activity.service'
 import type { ItemRepository } from './item-repository'
 import { kapActiveTimer, stopKapTimer } from './kanban-action-planner.service'
 import type { KapTimer } from './kanban-action-planner.service'
@@ -45,6 +55,19 @@ export interface LogContext {
 }
 
 /**
+ * How the dialog settles a session type that no activity lists in `session_types` (the user's
+ * answer, never the plugin's guess): count it for an existing activity (`mapTo`, a path: the type
+ * is added to its `session_types` and dropped from any other activity listing it), or create a new
+ * activity (`createActivity`, a name) that lists it. Logging without an activity is the request's
+ * `activity: null`.
+ */
+export interface LogOptions {
+    adoptTimer?: boolean
+    mapTo?: string
+    createActivity?: string
+}
+
+/**
  * What a log did to its activity's time, which is recomputed from the activity's time entries and
  * the session notes linked to it (never added to). `updated` / `unchanged`: recomputed.
  * `missing`: recomputed, but the adopted Kanban Action Planner timer's entry didn't appear in time,
@@ -56,10 +79,18 @@ export type ActivityResult = 'updated' | 'unchanged' | 'missing' | 'not-linked' 
 
 export interface LogResult {
     sessionPath: string
+    /** The session note already held this log (a run again): it was reused, not created. */
+    reused: boolean
     items: string[]
-    activity: { path: string; result: ActivityResult } | null
+    /**
+     * The activity and what happened to its time. `decision`: its stored minutes are above what
+     * its entries and sessions give; they were left as they are (see `settleActivityTime`).
+     */
+    activity: { path: string; result: ActivityResult; decision: LowerDecision | null } | null
+    /** An activity created for this log, on the user's request. */
+    createdActivity: string | null
     adoptedTimer: boolean
-    /** Things left alone on purpose (minutes that aren't a number…). */
+    /** Things left alone on purpose (a duration above the computed one…). */
     warnings: string[]
     /** What the log changed, to undo it. */
     undo: UndoRecord
@@ -78,11 +109,6 @@ const KAP_ENTRY_TIMEOUT_MS = 10_000
 const LINK_TIMEOUT_MS = 10_000
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms))
 const realClock: Clock = { now: () => Date.now(), sleep: (ms) => sleep(ms).then(() => {}) }
-const titleCase = (s: string) =>
-    s.replace(
-        /(^|[\s_-])(\w)/g,
-        (_m, sep: string, c: string) => `${sep === '_' ? ' ' : sep}${c.toUpperCase()}`
-    )
 
 interface Resolved {
     item: LearningItem
@@ -91,9 +117,20 @@ interface Resolved {
     file: TFile
 }
 
-/** Writes a practice log: the session note, the practiced notes and the activity's time entry. */
+/** The activity a log counts for, settled before anything is written. */
+interface ActivityPlan {
+    file: TFile | null
+    /** Create this activity (path checked) and count the session type for it. */
+    create: string | null
+    /** Count the session type for this existing activity. */
+    map: TFile | null
+}
+
+/** Writes a practice log: the session note, the practiced notes and the activity's time. */
 export class PracticeLogService {
     private busy = false
+    /** Activities and the session types they count. */
+    readonly activities: ActivityService
 
     constructor(
         private readonly app: App,
@@ -104,7 +141,12 @@ export class PracticeLogService {
         private readonly onLogged: (record: UndoRecord) => Promise<void> | void = () => {},
         /** Time, for the waits around a new session note (specs pass their own). */
         private readonly clock: Clock = realClock
-    ) {}
+    ) {
+        this.activities = new ActivityService(app, () => {
+            const { fields, activityName } = this.context()
+            return { fields, activityName }
+        })
+    }
 
     /**
      * The session types a log of these items can go to. Items of one instrument: its session type.
@@ -138,52 +180,13 @@ export class PracticeLogService {
         return candidates.length === 1 ? candidates[0]! : null
     }
 
-    /**
-     * The activity a session of this type counts towards: the one the latest session (by its date)
-     * linked to, else a note named after the activity pattern ("Learn Guitar"), or "Learn Guitar (…)"
-     * when that note is tagged as an activity.
-     */
-    findActivity(session: SessionType): TFile | null {
-        const { fields, activityName } = this.context()
-        const cache = this.app.metadataCache
-        const sessions = this.app.vault
-            .getMarkdownFiles()
-            .map((f) => ({ f, fm: cache.getFileCache(f)?.frontmatter ?? {} }))
-            .filter(({ fm }) => tagsOf(fm).includes(session.typeTag.toLowerCase()))
-            .sort(
-                (a, b) =>
-                    String(b.fm[fields.date] ?? '').localeCompare(
-                        String(a.fm[fields.date] ?? '')
-                    ) || b.f.stat.ctime - a.f.stat.ctime
-            )
-        for (const { f } of sessions) {
-            const link = cache
-                .getFileCache(f)
-                ?.frontmatterLinks?.find((l) => l.key.split('.')[0] === fields.activities)
-            const target = link ? cache.getFirstLinkpathDest(link.link, f.path) : null
-            if (target) return target
-        }
-        const wanted = activityName
-            .replaceAll('{subject}', titleCase(session.subject))
-            .toLowerCase()
-        const files = this.app.vault.getMarkdownFiles()
-        const exact = files.filter((f) => f.basename.toLowerCase() === wanted)
-        if (exact.length === 1) return exact[0]!
-        const affixed = files.filter(
-            (f) =>
-                f.basename.toLowerCase().startsWith(`${wanted} (`) &&
-                tagsOf(cache.getFileCache(f)?.frontmatter ?? {}).some((t) => /activit/.test(t))
-        )
-        return affixed.length === 1 ? affixed[0]! : null
-    }
-
     /** A Kanban Action Planner timer running on this activity, or null. */
     timerOn(activity: TFile | null): KapTimer | null {
         const timer = kapActiveTimer(this.app)
         return timer && activity && timer.path === activity.path ? timer : null
     }
 
-    async log(request: LogRequest, options: { adoptTimer?: boolean } = {}): Promise<LogResult> {
+    async log(request: LogRequest, options: LogOptions = {}): Promise<LogResult> {
         if (this.busy) throw new Error('A practice log is already being written.')
         this.busy = true
         // The previous undo's watch ends here: this log's session note can have the trashed one's
@@ -199,10 +202,50 @@ export class PracticeLogService {
         }
     }
 
-    private async write(
+    /**
+     * The activity of a log, checked before any write: the dialog's answer (`mapTo`,
+     * `createActivity`), the request's (`activity`: a note, or null for none), else the activity
+     * whose `session_types` lists the session type (the previous rules in a vault without
+     * `session_types`). No activity lists it: the log counts for none, with a warning.
+     */
+    private planActivity(
+        session: SessionType,
         request: LogRequest,
-        options: { adoptTimer?: boolean }
-    ): Promise<LogResult> {
+        options: LogOptions,
+        warnings: string[]
+    ): ActivityPlan {
+        const none: ActivityPlan = { file: null, create: null, map: null }
+        if (options.createActivity !== undefined) {
+            const target = this.activities.newActivityPath(options.createActivity)
+            if ('error' in target) throw new Error(target.error)
+            return { ...none, create: options.createActivity.trim() }
+        }
+        if (options.mapTo !== undefined) {
+            const file = this.app.vault.getFileByPath(options.mapTo)
+            if (!file) throw new Error(`No activity note at ${options.mapTo}.`)
+            return { ...none, file, map: file }
+        }
+        if (request.activity === null) return none
+        if (typeof request.activity === 'string') {
+            const name = request.activity.trim()
+            const file =
+                this.app.vault.getFileByPath(name) ??
+                this.app.metadataCache.getFirstLinkpathDest(name.replace(/\.md$/, ''), '')
+            if (!file) throw new Error(`No activity note named "${name}".`)
+            return { ...none, file }
+        }
+        const choice = this.activities.choiceFor(session)
+        if (choice.kind !== 'ask') return { ...none, file: choice.file }
+        const { fields } = this.context()
+        warnings.push(
+            choice.conflict.length
+                ? `${choice.typeName} is listed in "${fields.sessionTypes}" by ${choice.conflict.map((f) => f.basename).join(' and ')}: the session counts for no activity until one of them drops it.`
+                : `No activity lists ${choice.typeName} in "${fields.sessionTypes}": the session counts for no activity. Log practice asks which one to use.`
+        )
+        return none
+    }
+
+    private async write(request: LogRequest, options: LogOptions): Promise<LogResult> {
         // 1. Check and resolve everything before the first write.
         const invalid = validateLogRequest(request)
         if (invalid) throw new Error(invalid)
@@ -225,87 +268,136 @@ export class PracticeLogService {
         const stampDates = !starterKitRunsAutomations(this.app)
         const shares = splitMinutes(request.minutes, resolved.length)
         // Fails now (before writing) when a requested level has no value in its type.
-        for (const [n, r] of resolved.entries())
-            itemUpdate(r.item, r.type, r.log, {
-                date,
-                minutes: shares[n]!,
-                fields,
-                rules,
-                stampDates,
-                current: {}
-            })
-        const target = await this.sessionTarget(session, date, request)
-        const activity = this.findActivity(session)
-        const timer = this.timerOn(activity)
+        for (const r of resolved)
+            itemUpdate(r.item, r.type, r.log, { date, fields, rules, stampDates, current: {} })
+        const warnings: string[] = []
+        const plan = this.planActivity(session, request, options, warnings)
+        const timer = this.timerOn(plan.file)
         if (timer && !options.adoptTimer)
             throw new Error(
-                `A Kanban Action Planner timer is running on ${activity!.basename}: use it for this log, or stop it first, so the time isn't counted twice.`
+                `A Kanban Action Planner timer is running on ${plan.file!.basename}: use it for this log, or stop it first, so the time isn't counted twice.`
             )
-
-        // 2. The session note.
         const adopted = timer !== null
-        if (adopted && !stopKapTimer(this.app))
-            throw new Error('Could not stop the Kanban Action Planner timer.')
         const endMs = adopted ? Date.now() : this.endOf(date, request)
         const startMs = adopted ? timer.startedAt : endMs - request.minutes * 60_000
-        const file = await this.createSession(target, request, notesHeading)
-        await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
-            const put = (name: string, value: unknown) => {
-                if (session.fields.has(name) && value !== undefined && value !== '')
-                    fm[name] = value
-            }
-            fm['tags'] = mergeTags(fm['tags'], session.tags)
-            put(fields.date, date)
-            put(
-                fields.startTime,
-                request.startTime ??
-                    (adopted || date === isoDate()
-                        ? localIso(startMs).substring(11, 16)
-                        : undefined)
-            )
-            put(fields.timeSpent, request.minutes)
-            put(fields.quality, request.quality)
-            put(
-                fields.practiced,
-                resolved.map(({ item }) => `[[${item.name}]]`)
-            )
-            if (activity) put(fields.activities, [`[[${activity.basename}]]`])
+        // A run again of the same log (same type, date, items, minutes, and start time when given)
+        // reuses its session note: nothing is counted twice.
+        const givenStart =
+            request.startTime ?? (adopted ? localIso(startMs).substring(11, 16) : null)
+        const existing = this.findLoggedSession(session, {
+            date,
+            minutes: request.minutes,
+            items: resolved.map((r) => r.item.name),
+            startTime: givenStart
         })
+        const target = existing ? null : await this.sessionTarget(session, date, request)
 
-        // 3. The practiced notes, each computed from its own current frontmatter.
-        const warnings: string[] = []
+        // 2. The activity the user asked for: created or mapped to this session type.
+        let activity = plan.file
+        if (plan.create !== null)
+            activity = await this.activities.create(plan.create, session.typeName)
+        else if (plan.map) await this.activities.mapSessionType(session.typeName, plan.map)
+
+        // 3. The session note, before the items.
+        if (adopted && !stopKapTimer(this.app))
+            throw new Error('Could not stop the Kanban Action Planner timer.')
+        let file: TFile
+        if (existing) file = existing
+        else {
+            file = await this.createSession(target!, request, notesHeading)
+            await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+                const put = (name: string, value: unknown) => {
+                    if (session.fields.has(name) && value !== undefined && value !== '')
+                        fm[name] = value
+                }
+                fm['tags'] = mergeTags(fm['tags'], session.tags)
+                put(fields.date, date)
+                put(
+                    fields.startTime,
+                    request.startTime ??
+                        (adopted || date === isoDate()
+                            ? localIso(startMs).substring(11, 16)
+                            : undefined)
+                )
+                put(fields.timeSpent, request.minutes)
+                put(fields.quality, request.quality)
+                put(
+                    fields.practiced,
+                    resolved.map(({ item }) => `[[${item.name}]]`)
+                )
+                put(
+                    fields.practicedMinutes,
+                    practicedMinutesValues(
+                        resolved.map(({ item }) => item.name),
+                        shares
+                    )
+                )
+                if (activity) put(fields.activities, [`[[${activity.basename}]]`])
+            })
+        }
+
+        // 4. The practiced notes, each computed from its own current frontmatter; their time is
+        // recomputed from their session notes (never added to) once Obsidian sees the new links.
+        const timed = resolved.filter(({ type }) => type.fields.has(fields.timeSpent))
+        const linked = await this.waitForLinks(
+            file,
+            timed.map((r) => r.file)
+        )
         const changes: FileChanges[] = []
-        for (const [n, { item, type, log, file: note }] of resolved.entries()) {
+        for (const { item, type, log, file: note } of resolved) {
+            const contributions =
+                type.fields.has(fields.timeSpent) && linked.has(note.path)
+                    ? this.itemContributions(note)
+                    : null
             await this.app.fileManager.processFrontMatter(note, (fm: Record<string, unknown>) => {
                 const before = snapshot(fm)
                 const current = freshItem(item, type, fm, fields)
-                const update = itemUpdate(current, type, log, {
+                // A review counts once: a run again of the same log doesn't review it twice.
+                const reviewed =
+                    existing !== null && sessionDay(prop(fm, fields.lastReviewed)) === date
+                const once: LogItem = { ...log }
+                if (reviewed) delete once.review
+                const update = itemUpdate(current, type, once, {
                     date,
-                    minutes: shares[n]!,
                     fields,
                     rules,
                     stampDates,
                     current: fm
                 })
-                for (const field of applyItemUpdate(fm, update, fields))
-                    warnings.push(`${item.name}: "${field}" isn't a number, minutes not added.`)
+                applyItemUpdate(fm, update, fields)
+                if (contributions) {
+                    const time = planItemTime(prop(fm, fields.timeSpent), contributions)
+                    if (time.write !== null) fm[keyOf(fm, fields.timeSpent)] = time.write
+                    if (time.decision)
+                        warnings.push(
+                            `${item.name}: "${fields.timeSpent}" is ${time.decision.stored} min and its session notes give ${time.decision.computed}: left as it is.`
+                        )
+                    if (time.notANumber)
+                        warnings.push(
+                            `${item.name}: "${fields.timeSpent}" isn't a number, so its time wasn't recomputed.`
+                        )
+                } else if (type.fields.has(fields.timeSpent))
+                    warnings.push(
+                        `${item.name}: Obsidian hadn't indexed the session's link yet, so its time wasn't recomputed (its next log does it).`
+                    )
                 changes.push({ path: note.path, keys: changedKeys(before, snapshot(fm)) })
             })
         }
 
-        // 4. The activity's time: recomputed from its entries and linked sessions, never added to.
+        // 5. The activity's time: recomputed from its entries and linked sessions, never added to.
         let activityResult: LogResult['activity'] = null
         if (activity) {
             const linkable = session.fields.has(fields.activities)
-            const result = linkable
+            const outcome = linkable
                 ? await this.recomputeActivity(
                       activity,
                       file,
                       adopted ? timer.startedAt : null,
                       changes
                   )
-                : 'not-linked'
-            activityResult = { path: activity.path, result }
+                : { result: 'not-linked' as const, decision: null }
+            activityResult = { path: activity.path, ...outcome }
+            const result = outcome.result
             if (!linkable)
                 warnings.push(
                     `${activity.basename}: the session note has no "${fields.activities}" field, so its time can't count for the activity.`
@@ -321,8 +413,10 @@ export class PracticeLogService {
         }
         return {
             sessionPath: file.path,
+            reused: existing !== null,
             items: resolved.map(({ item }) => item.path),
             activity: activityResult,
+            createdActivity: plan.create !== null && activity ? activity.path : null,
             adoptedTimer: adopted,
             warnings,
             undo: {
@@ -331,9 +425,91 @@ export class PracticeLogService {
                 sessionCtime: file.stat.ctime,
                 sessionBody: bodyOf(await this.app.vault.read(file)),
                 files: changes.filter((c) => c.keys.length > 0),
-                adoptedTimer: adopted
+                adoptedTimer: adopted,
+                ...(existing ? { reused: true } : {})
             }
         }
+    }
+
+    /** A session note of this type that already holds this log (see `holdsLog`), or null. */
+    private findLoggedSession(
+        session: SessionType,
+        key: Parameters<typeof holdsLog>[1]
+    ): TFile | null {
+        const { fields } = this.context()
+        const cache = this.app.metadataCache
+        const tag = session.typeTag.toLowerCase()
+        for (const f of this.app.vault.getMarkdownFiles()) {
+            const fm = cache.getFileCache(f)?.frontmatter
+            if (fm && tagsOf(fm).includes(tag) && holdsLog(fm, key, fields)) return f
+        }
+        return null
+    }
+
+    /**
+     * The minutes each session note linking to this learning note gives it (its minutes-per-item
+     * entry, else an even share when only listed as practiced), from Obsidian's link index.
+     */
+    private itemContributions(note: TFile): number[] {
+        const { fields } = this.context()
+        const cache = this.app.metadataCache
+        const out: number[] = []
+        for (const [source, targets] of Object.entries(cache.resolvedLinks)) {
+            if (source === note.path || !targets[note.path]) continue
+            const f = this.app.vault.getFileByPath(source)
+            if (!f) continue
+            const minutes = sessionItemMinutes(
+                cache.getFileCache(f)?.frontmatter,
+                fields,
+                (link) => cache.getFirstLinkpathDest(link, source)?.path ?? null
+            ).get(note.path)
+            if (minutes !== undefined) out.push(minutes)
+        }
+        return out
+    }
+
+    /** Wait (10 s at most in all) until Obsidian's link index sees the session link to each note. */
+    private async waitForLinks(session: TFile, notes: readonly TFile[]): Promise<Set<string>> {
+        const deadline = Date.now() + LINK_TIMEOUT_MS
+        const seen = () =>
+            new Set(
+                notes
+                    .map((n) => n.path)
+                    .filter((p) => this.app.metadataCache.resolvedLinks[session.path]?.[p])
+            )
+        let found = seen()
+        while (found.size < notes.length && Date.now() < deadline) {
+            await sleep(250)
+            found = seen()
+        }
+        return found
+    }
+
+    /**
+     * Settle an activity whose stored minutes are above the computed ones (a log left them as they
+     * were): `keep` the difference as a "Manual adjustment" time entry dated on the activity's
+     * `created` day, or `drop` it. Returns the keys it changed (for the last log's undo).
+     */
+    async settleActivityTime(
+        path: string,
+        choice: Exclude<LowerChoice, null>
+    ): Promise<KeyChange[]> {
+        const activity = this.app.vault.getFileByPath(path)
+        if (!activity) throw new Error(`The activity is gone: ${path}`)
+        const { fields } = this.context()
+        const linked = this.linkedSessions(activity, fields)
+        const cache = this.app.metadataCache
+        const resolve = (link: string) =>
+            cache.getFirstLinkpathDest(link, activity.path)?.path ?? null
+        let keys: KeyChange[] = []
+        await this.app.fileManager.processFrontMatter(activity, (fm: Record<string, unknown>) => {
+            const before = snapshot(fm)
+            const plan = planActivityTime(fm, fields, linked, resolve, null, choice)
+            if (!plan) throw new Error(`${activity.basename}: its time entries aren't a list.`)
+            applyActivityTime(fm, plan, fields)
+            keys = changedKeys(before, snapshot(fm))
+        })
+        return keys
     }
 
     /**
@@ -352,13 +528,22 @@ export class PracticeLogService {
             }, this.clock)
             // Checked against the notes as they are on disk now, not the metadata cache.
             const session = this.app.vault.getFileByPath(record.sessionPath)
-            if (!session || (record.sessionCtime && session.stat.ctime !== record.sessionCtime))
+            // A run again of an earlier log reused that log's session note: it stays.
+            const reused = record.reused === true
+            if (
+                !reused &&
+                (!session || (record.sessionCtime && session.stat.ctime !== record.sessionCtime))
+            )
                 return {
                     ok: false,
                     reason: `The session note of that log was moved or deleted (${record.sessionPath}): nothing was undone.`
                 }
             const changed: string[] = []
-            if (bodyOf(await this.app.vault.read(session)) !== record.sessionBody)
+            if (
+                !reused &&
+                session &&
+                bodyOf(await this.app.vault.read(session)) !== record.sessionBody
+            )
                 changed.push(session.basename)
             const files: { keys: UndoRecord['files'][number]['keys']; file: TFile }[] = []
             for (const f of record.files) {
@@ -383,8 +568,10 @@ export class PracticeLogService {
                         (fm: Record<string, unknown>) => revert(fm, keys)
                     )
                 }
-                await this.app.fileManager.trashFile(session)
-                this.watchForRecreation(record)
+                if (!reused && session) {
+                    await this.app.fileManager.trashFile(session)
+                    this.watchForRecreation(record)
+                }
             } catch (error: unknown) {
                 // What was put back stays put back; undoing again finishes the job.
                 return {
@@ -450,9 +637,10 @@ export class PracticeLogService {
         session: TFile,
         adoptedStartMs: number | null,
         changes: FileChanges[]
-    ): Promise<ActivityResult> {
+    ): Promise<{ result: ActivityResult; decision: LowerDecision | null }> {
         const { fields } = this.context()
-        if (!(await this.waitForLink(session, activity))) return 'not-linked'
+        if (!(await this.waitForLink(session, activity)))
+            return { result: 'not-linked', decision: null }
         const found =
             adoptedStartMs === null || (await this.waitForKapEntry(activity, adoptedStartMs))
         const linked = this.linkedSessions(activity, fields)
@@ -460,6 +648,7 @@ export class PracticeLogService {
         const resolve = (link: string) =>
             cache.getFirstLinkpathDest(link, activity.path)?.path ?? null
         let result: ActivityResult = 'skipped'
+        let decision: LowerDecision | null = null
         await this.app.fileManager.processFrontMatter(activity, (fm: Record<string, unknown>) => {
             const before = snapshot(fm)
             const plan = planActivityTime(
@@ -474,10 +663,11 @@ export class PracticeLogService {
                 return
             }
             applyActivityTime(fm, plan, fields)
+            decision = plan.decision
             result = !found ? 'missing' : plan.changed ? 'updated' : 'unchanged'
             changes.push({ path: activity.path, keys: changedKeys(before, snapshot(fm)) })
         })
-        return result
+        return { result, decision }
     }
 
     /** The session notes that link to an activity, by path (from Obsidian's link index). */

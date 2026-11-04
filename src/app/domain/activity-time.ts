@@ -7,7 +7,9 @@
  * entry minutes (`max(1, round)` per entry with an end after its start) + linked minutes; last
  * session = the later of the last entry day (local day of its end) and the last linked date. An
  * entry whose description is exactly one wikilink to a linked session that counts minutes is
- * skipped: that session counts once. Pure: no Obsidian imports.
+ * skipped: that session counts once. A stored duration above the computed one is never lowered on
+ * its own: it is reported, and the user keeps the difference as a "Manual adjustment" entry or drops
+ * it. Pure: no Obsidian imports.
  */
 import type { FieldNames } from './fields'
 
@@ -34,7 +36,7 @@ export function prop(fm: Record<string, unknown> | undefined | null, name: strin
 }
 
 /** The frontmatter key to write a field under: the existing key in any case, else the name. */
-function keyOf(fm: Record<string, unknown>, name: string): string {
+export function keyOf(fm: Record<string, unknown>, name: string): string {
     const lower = name.toLowerCase()
     return (
         Object.keys(fm).find((k) => k === name) ??
@@ -100,6 +102,40 @@ export interface ActivityTimePlan {
     lastSession: string | null
     /** Whether applying the plan changes the note. */
     changed: boolean
+    /**
+     * The stored duration is above the computed one (typed by hand, or a session removed or
+     * shortened): it is left as it is until the user decides (`lower`: keep or drop).
+     */
+    decision: LowerDecision | null
+    /** Minutes kept as a "Manual adjustment" time entry (`lower: 'keep'`), else 0. */
+    adjusted: number
+}
+
+/** A stored duration above the computed one, left alone. */
+export interface LowerDecision {
+    stored: number
+    computed: number
+    difference: number
+}
+
+/**
+ * What to do with a stored duration above the computed one: `keep` the difference as a time entry
+ * described "Manual adjustment", or `drop` it. Without a choice it stays as it is (reported).
+ */
+export type LowerChoice = 'keep' | 'drop' | null
+
+/** The description of the entry that keeps a stored duration's surplus. */
+export const MANUAL_ADJUSTMENT = 'Manual adjustment'
+
+/**
+ * Local midnight of a note's `created` day (its first 10 characters when they are a date), else
+ * of `now`'s day: the "Manual adjustment" entry is dated there, so no week's budget jumps.
+ */
+export function createdDayStart(created: unknown, now: number): number {
+    const day = typeof created === 'string' ? sessionDay(created) : null
+    const d = day ? new Date(`${day}T00:00:00`) : new Date(now)
+    if (!Number.isFinite(d.getTime())) return new Date(new Date(now).setHours(0, 0, 0, 0)).getTime()
+    return new Date(d.setHours(0, 0, 0, 0)).getTime()
 }
 
 /**
@@ -114,7 +150,9 @@ export function planActivityTime(
     fields: Pick<FieldNames, 'timeEntries' | 'timeSpent' | 'lastSession'>,
     linked: ReadonlyMap<string, LinkedSession>,
     resolve: (linkpath: string) => string | null,
-    adoptedStartMs: number | null = null
+    adoptedStartMs: number | null = null,
+    lower: LowerChoice = null,
+    now: number = Date.now()
 ): ActivityTimePlan | null {
     const raw = prop(fm, fields.timeEntries)
     if (raw !== undefined && raw !== null && !Array.isArray(raw)) return null
@@ -159,16 +197,46 @@ export function planActivityTime(
         if (s.minutes > 0) linkedMinutes += s.minutes
         if (s.date && s.date > linkedLast) linkedLast = s.date
     }
-    const minutes = counted > 0 || linkedMinutes > 0 ? entryMinutes + linkedMinutes : null
+    let minutes = counted > 0 || linkedMinutes > 0 ? entryMinutes + linkedMinutes : null
     const lastSession = [entryLast, linkedLast].sort().pop() || null
     const removed = adoptIdx >= 0 ? 1 : 0
     const storedMinutes = prop(fm, fields.timeSpent)
     const storedLast = prop(fm, fields.lastSession)
+    // Never lowered on its own: a stored total above the computed one waits for the user.
+    const stored = storedMinutes === null || storedMinutes === '' ? NaN : Number(storedMinutes)
+    let decision: LowerDecision | null = null
+    let adjusted = 0
+    if (minutes !== null && Number.isFinite(stored) && Math.round(stored) > minutes) {
+        const difference = Math.round(stored) - minutes
+        if (lower === 'keep') {
+            const start = createdDayStart(prop(fm, 'created'), now)
+            entries.push({
+                startTime: new Date(start).toISOString(),
+                endTime: new Date(start + difference * 60_000).toISOString(),
+                description: MANUAL_ADJUSTMENT
+            })
+            adjusted = difference
+            minutes += difference
+        } else if (lower !== 'drop') {
+            decision = { stored: Math.round(stored), computed: minutes, difference }
+            minutes = null
+        }
+    }
     const changed =
         removed > 0 ||
+        adjusted > 0 ||
         (minutes !== null && storedMinutes !== minutes) ||
         (lastSession !== null && sessionDay(storedLast) !== lastSession)
-    return { entries, removed, adoptedFound: adoptIdx >= 0, minutes, lastSession, changed }
+    return {
+        entries,
+        removed,
+        adoptedFound: adoptIdx >= 0,
+        minutes,
+        lastSession,
+        changed,
+        decision,
+        adjusted
+    }
 }
 
 /** Write a plan on the activity's frontmatter (only what it changes). */
@@ -178,7 +246,7 @@ export function applyActivityTime(
     fields: Pick<FieldNames, 'timeEntries' | 'timeSpent' | 'lastSession'>
 ): void {
     if (!plan.changed) return
-    if (plan.removed > 0) fm[keyOf(fm, fields.timeEntries)] = plan.entries
+    if (plan.removed > 0 || plan.adjusted > 0) fm[keyOf(fm, fields.timeEntries)] = plan.entries
     if (plan.minutes !== null && prop(fm, fields.timeSpent) !== plan.minutes)
         fm[keyOf(fm, fields.timeSpent)] = plan.minutes
     if (plan.lastSession !== null && sessionDay(prop(fm, fields.lastSession)) !== plan.lastSession)

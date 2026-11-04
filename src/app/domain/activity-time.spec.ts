@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import {
+    MANUAL_ADJUSTMENT,
     applyActivityTime,
+    createdDayStart,
     isSessionNote,
     linkedSessionOf,
     planActivityTime,
@@ -64,7 +66,7 @@ describe('activity time: recompute', () => {
 
     it('stores entries plus linked sessions, never adds to the stored value', () => {
         const fm: Record<string, unknown> = {
-            time_spent: 999,
+            time_spent: 20,
             time_entries: [entry('2026-11-01T10:00:00', '2026-11-01T10:20:00')]
         }
         const plan = planActivityTime(fm, fields, linked, resolve)!
@@ -86,7 +88,7 @@ describe('activity time: recompute', () => {
             '2026-11-03T18:30:00',
             '[[2026-11-03 (Guitar Practice Session)]]'
         )
-        const fm: Record<string, unknown> = { time_spent: 60, time_entries: [old] }
+        const fm: Record<string, unknown> = { time_spent: 30, time_entries: [old] }
         const plan = planActivityTime(fm, fields, linked, resolve)!
         expect(plan.minutes).toBe(30)
         expect(plan.entries).toEqual([old])
@@ -99,7 +101,7 @@ describe('activity time: recompute', () => {
         const start = new Date('2026-11-03T18:00:00').getTime()
         const timer = entry('2026-11-03T18:00:20', '2026-11-03T18:31:00')
         const other = entry('2026-10-30T09:00:00', '2026-10-30T09:10:00')
-        const fm: Record<string, unknown> = { time_spent: 41, time_entries: [other, timer] }
+        const fm: Record<string, unknown> = { time_spent: 40, time_entries: [other, timer] }
         const plan = planActivityTime(fm, fields, linked, resolve, start)!
         expect(plan.adoptedFound).toBe(true)
         expect(plan.removed).toBe(1)
@@ -140,5 +142,78 @@ describe('activity time: recompute', () => {
         const fm: Record<string, unknown> = { Time_Spent: 10 }
         applyActivityTime(fm, planActivityTime(fm, fields, linked, resolve)!, fields)
         expect(fm).toEqual({ Time_Spent: 30, date_last_session: '2026-11-03' })
+    })
+})
+
+describe('activity time: never lowered on its own', () => {
+    const linked = new Map<string, LinkedSession>([[SESSION, { minutes: 30, date: '2026-11-03' }]])
+    const timer = entry('2026-11-01T10:00:00', '2026-11-01T10:20:00')
+
+    it('leaves a stored total above the computed one as it is, and reports it', () => {
+        const fm: Record<string, unknown> = { time_spent: 120, time_entries: [timer] }
+        const plan = planActivityTime(fm, fields, linked, resolve)!
+        expect(plan.decision).toEqual({ stored: 120, computed: 50, difference: 70 })
+        expect(plan.minutes).toBeNull()
+        // The last session date is still written.
+        expect(plan.changed).toBe(true)
+        applyActivityTime(fm, plan, fields)
+        expect(fm).toEqual({
+            time_spent: 120,
+            time_entries: [timer],
+            date_last_session: '2026-11-03'
+        })
+    })
+
+    it('reads a stored total written as text, rounded', () => {
+        const plan = planActivityTime({ time_spent: '50.4' }, fields, linked, resolve)!
+        expect(plan.decision).toEqual({ stored: 50, computed: 30, difference: 20 })
+        expect(planActivityTime({ time_spent: '1h' }, fields, linked, resolve)!.decision).toBeNull()
+        expect(planActivityTime({ time_spent: '' }, fields, linked, resolve)!.minutes).toBe(30)
+    })
+
+    it('raises a lower stored total, and reports nothing when nothing counts', () => {
+        expect(planActivityTime({ time_spent: 10 }, fields, linked, resolve)!.minutes).toBe(30)
+        const none = planActivityTime({ time_spent: 99 }, fields, new Map(), resolve)!
+        expect([none.minutes, none.decision]).toEqual([null, null])
+    })
+
+    it('drops the difference when the user says so', () => {
+        const fm: Record<string, unknown> = { time_spent: 120, time_entries: [timer] }
+        const plan = planActivityTime(fm, fields, linked, resolve, null, 'drop')!
+        expect([plan.minutes, plan.decision, plan.adjusted]).toEqual([50, null, 0])
+        applyActivityTime(fm, plan, fields)
+        expect(fm['time_spent']).toBe(50)
+        expect(fm['time_entries']).toEqual([timer])
+    })
+
+    it('keeps the difference as a "Manual adjustment" entry on the created day', () => {
+        const fm: Record<string, unknown> = {
+            created: '2026-09-15T14:22:00',
+            time_spent: 120,
+            time_entries: [timer]
+        }
+        const plan = planActivityTime(fm, fields, linked, resolve, null, 'keep')!
+        expect([plan.minutes, plan.decision, plan.adjusted]).toEqual([120, null, 70])
+        applyActivityTime(fm, plan, fields)
+        const start = new Date('2026-09-15T00:00:00').getTime()
+        expect(fm['time_entries']).toEqual([
+            timer,
+            {
+                startTime: new Date(start).toISOString(),
+                endTime: new Date(start + 70 * 60_000).toISOString(),
+                description: MANUAL_ADJUSTMENT
+            }
+        ])
+        expect(fm['time_spent']).toBe(120)
+        // Settled: running it again changes nothing and asks nothing.
+        const again = planActivityTime(fm, fields, linked, resolve)!
+        expect([again.changed, again.decision, again.minutes]).toEqual([false, null, 120])
+    })
+
+    it("dates the adjustment at local midnight of the created day, else of today's", () => {
+        const now = new Date('2026-11-04T09:30:00').getTime()
+        expect(createdDayStart('2026-09-15', now)).toBe(new Date('2026-09-15T00:00:00').getTime())
+        expect(createdDayStart(undefined, now)).toBe(new Date('2026-11-04T00:00:00').getTime())
+        expect(createdDayStart('soon', now)).toBe(new Date('2026-11-04T00:00:00').getTime())
     })
 })

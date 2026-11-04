@@ -1,5 +1,6 @@
 import { SESSION_TAG_ROOT } from '../constants'
 import type { FieldNames } from './fields'
+import { noteTypeSlug } from './note-model'
 import type { LearningType, NoteModel, SessionType } from './note-model'
 import type { PracticeRules } from './rules'
 
@@ -159,14 +160,17 @@ export function buildLocalModel(
         fields.timeSpent,
         fields.quality,
         fields.practiced,
+        fields.practicedMinutes,
         fields.activities,
         'tags'
     ])
     const sessionTypes: SessionType[] = [...subjects.values()].map(({ domain, subject }) => {
         const typeTag = `${SESSION_TAG_ROOT}${domain}/${subject}`
+        const name = `${titleCase(subject)} Practice Sessions`
         return {
             id: `local:${typeTag}`,
-            name: `${titleCase(subject)} Practice Sessions`,
+            name,
+            typeName: noteTypeSlug(name),
             typeTag,
             domain,
             subject,

@@ -56,7 +56,9 @@ import { printTab } from '@dsebastien/music-notation/tab'
 import type { TabResult } from '@dsebastien/music-notation/tab'
 import type { NoteContext } from './services/notation.service'
 import type { UndoResult } from './services/practice-log.service'
+import { mergeChanges } from './domain/undo'
 import type { UndoRecord } from './domain/undo'
+import type { LowerDecision } from './domain/activity-time'
 import { Metronome } from './services/metronome.service'
 import { BackingTrack } from './services/backing.service'
 import { BackingModal } from './ui/backing-modal'
@@ -2033,6 +2035,51 @@ export class MusicPracticePlugin extends Plugin {
         return true
     }
 
+    /**
+     * An activity stores more minutes than its time entries and session notes give (typed by hand,
+     * or a session removed or shortened): the log left them as they are. Ask once: keep the
+     * difference as a "Manual adjustment" time entry, or drop it. The choice joins the log's undo.
+     */
+    private askActivitySurplus(path: string, decision: LowerDecision, record: UndoRecord): void {
+        const name = path.substring(path.lastIndexOf('/') + 1).replace(/\.md$/, '')
+        const settle = async (choice: 'keep' | 'drop') => {
+            notice.hide()
+            try {
+                const keys = await this.practiceLog.settleActivityTime(path, choice)
+                if (this.settings.lastLog?.at === record.at && keys.length)
+                    await this.updateSettings((draft) => {
+                        const last = draft.lastLog
+                        if (!last) return
+                        const own = last.files.find((f) => f.path === path)
+                        if (own) own.keys = mergeChanges(own.keys, keys)
+                        else last.files.push({ path, keys })
+                    })
+                new Notice(
+                    choice === 'keep'
+                        ? `${name}: ${decision.difference} min kept as a "Manual adjustment" time entry.`
+                        : `${name}: ${decision.difference} min dropped, its time is now ${decision.computed} min.`
+                )
+            } catch (error: unknown) {
+                new Notice(error instanceof Error ? error.message : String(error))
+            }
+        }
+        const fragment = createFragment((f) => {
+            f.createSpan({
+                text: `${name} stores ${decision.stored} min, but its time entries and sessions give ${decision.computed}. Keep the ${decision.difference} min as a "Manual adjustment" time entry, or drop them? `
+            })
+            f.createEl('button', { text: 'Keep', cls: 'mp-notice-undo' }).addEventListener(
+                'click',
+                () => void settle('keep')
+            )
+            f.createEl('button', { text: 'Drop', cls: 'mp-notice-undo' }).addEventListener(
+                'click',
+                () => void settle('drop')
+            )
+        })
+        // Stays until answered: nothing changes without the user's choice.
+        const notice = new Notice(fragment, 0)
+    }
+
     /** A notice with an Undo button for the log just written. */
     private noticeWithUndo(message: string, record: UndoRecord): void {
         const fragment = createFragment((f) => {
@@ -2120,21 +2167,30 @@ export class MusicPracticePlugin extends Plugin {
                 fields: this.effective().fields,
                 rubric: this.settings.rubric,
                 sessionTypesFor: (items) => this.practiceLog.sessionTypesFor(items),
-                timerFor: (items, sessionTypeId) => {
-                    const session = this.practiceLog.sessionTypeFor(items, sessionTypeId)
-                    const activity = session ? this.practiceLog.findActivity(session) : null
+                activityFor: (session) => this.practiceLog.activities.choiceFor(session),
+                timerFor: (activityPath) => {
+                    const activity = activityPath
+                        ? this.app.vault.getFileByPath(activityPath)
+                        : null
                     const timer = this.practiceLog.timerOn(activity)
                     return timer && activity
                         ? { startedAt: timer.startedAt, activityName: activity.basename }
                         : null
                 },
-                submit: async (request, adoptTimer) => {
-                    const result = await this.practiceLog.log(request, { adoptTimer })
+                submit: async (request, options) => {
+                    const result = await this.practiceLog.log(request, options)
                     for (const warning of result.warnings) new Notice(warning)
+                    if (result.createdActivity)
+                        new Notice(`Activity created: ${result.createdActivity}`)
                     this.noticeWithUndo(
-                        `Practice logged: ${result.items.length} item(s).`,
+                        result.reused
+                            ? 'Already logged: the session note of that log was reused, nothing counted twice.'
+                            : `Practice logged: ${result.items.length} item(s).`,
                         result.undo
                     )
+                    const decision = result.activity?.decision
+                    if (result.activity && decision)
+                        this.askActivitySurplus(result.activity.path, decision, result.undo)
                     if (result.activity?.result === 'missing')
                         new Notice(
                             'The Kanban Action Planner timer was stopped but its time entry did not appear in time. If it appears on the activity, delete it: the session note holds that time.'

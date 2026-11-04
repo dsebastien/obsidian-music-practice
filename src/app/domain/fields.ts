@@ -63,7 +63,11 @@ export interface FieldNames {
     startTime: string
     quality: string
     practiced: string
+    /** Session notes: the minutes each practiced note got, `"<minutes> [[<note>]]"` per note. */
+    practicedMinutes: string
     activities: string
+    /** Activities: the session note types (names such as `guitar-practice-sessions`) that count for them. */
+    sessionTypes: string
 }
 
 export function createDefaultFieldNames(): FieldNames {
@@ -106,6 +110,8 @@ export function createDefaultFieldNames(): FieldNames {
         startTime: 'start_time',
         quality: 'session_quality',
         practiced: 'practiced',
-        activities: 'related_activities'
+        practicedMinutes: 'practiced_minutes',
+        activities: 'related_activities',
+        sessionTypes: 'session_types'
     }
 }
