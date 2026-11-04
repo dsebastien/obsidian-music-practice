@@ -15,13 +15,14 @@ Results are plain JSON. Writes resolve once the notes are written. `api.version`
 
 ## Reading
 
-| Method                              | Returns                                                                                    |
-| ----------------------------------- | ------------------------------------------------------------------------------------------ |
-| `items(filter?)`                    | Every learning item with its state.                                                        |
-| `practiceNext(filter?, limit = 20)` | Active and due items, highest score first.                                                 |
-| `readyItems(filter?)`               | Items ready to learn.                                                                      |
-| `practicePlan(minutes, filter?)`    | A session plan: blocks (`warm-up`, `focus`, `review`, `fun`) with their minutes and items. |
-| `timer()`                           | The running practice timer's start (epoch ms), or `null`.                                  |
+| Method                              | Returns                                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------------------- |
+| `items(filter?)`                    | Every learning item with its state.                                                         |
+| `practiceNext(filter?, limit = 20)` | Active and due items, highest score first.                                                  |
+| `readyItems(filter?)`               | Items ready to learn.                                                                       |
+| `practicePlan(minutes, filter?)`    | A session plan: blocks (`warm-up`, `focus`, `review`, `fun`) with their minutes and items.  |
+| `timer()`                           | The running practice timer's start (epoch ms), or `null`.                                   |
+| `timerMinutes()`                    | The minutes practiced on the running timer so far (pauses excluded), or `0` when none runs. |
 
 `filter` is `{ subject?: string, kind?: string }`, for example `{ subject: 'guitar', kind: 'chord' }`.
 
@@ -53,12 +54,13 @@ An item looks like this:
 
 ## Writing
 
-| Method                                  | Does                                                                                          |
-| --------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `logPractice(request, { adoptTimer? })` | Logs a session, exactly like the Log practice command.                                        |
-| `setMastery(path, level)`               | Changes an item's mastery: a number (`40`) or the type's value (`"40 - Can play at tempo"`).  |
-| `setBpm(path, { current?, target? })`   | Sets the current and/or target BPM.                                                           |
-| `startTimer()`, `clearTimer()`          | Starts the practice timer (rejects when it is already running), or clears it without logging. |
+| Method                                  | Does                                                                                                                                                  |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `logPractice(request, { adoptTimer? })` | Logs a session, exactly like the Log practice command.                                                                                                |
+| `setMastery(path, level)`               | Changes an item's mastery: a number (`40`) or the type's value (`"40 - Can play at tempo"`).                                                          |
+| `setBpm(path, { current?, target? })`   | Sets the current and/or target BPM.                                                                                                                   |
+| `startTimer()`, `clearTimer()`          | Starts the practice timer (rejects when it is already running), or clears it without logging.                                                         |
+| `undoLastLog()`                         | Undoes the last practice log, like the Undo last practice log command. Resolves `{ ok: true, sessionPath, keptKapEntry }` or `{ ok: false, reason }`. |
 
 A log request:
 

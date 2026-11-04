@@ -9,8 +9,6 @@ Write a chord, a scale, a chord chart, a strumming or fingerpicking pattern or a
 
 ## Chord diagrams
 
-![A guitar chord diagram](images/notation-guitar-chord.png)
-
 ````markdown
 ```chord
 A x02220 x01230
@@ -27,69 +25,72 @@ fingers: x-1-3-4-2-1
 ```
 ````
 
-- A finger on the same fret across several strings draws a barre. The chord's root notes are drawn in a second color.
+- A finger on the same fret across several strings draws a barre. Frets without fingers draw a full barre too (F `133211`). The chord's root notes are drawn in a second color.
 - With a symbol only (` ```chord ` then `Am`), the diagram uses the most common voicing from the built-in database (about 1,800 voicings); `voicing: 2` picks the next one.
 - `name: A` works like `symbol: A`, so chord notes written that way keep working.
 - `tuning: DADGAD`, `Drop D` or any notes for other tunings and instruments.
 
-Piano chords, from a symbol or exact pitches, with fingering:
-
-![A piano chord](images/notation-piano-chord.png)
+Piano chords, from a symbol or exact pitches, with fingering, in one hand or both:
 
 ````markdown
 ```chord
-C/G
+Cmaj7
 instrument: piano
-fingering: 5-1-2-4
+voicing: shell
+hands: left+right
+fingering: auto
 ```
 ````
 
+![Cmaj7 as a shell voicing on a keyboard: the root in the left hand, the third and the seventh in the right hand, with LH and RH brackets and the fingers on the keys](images/notation-piano-voicing.png)
+
 ## Keyboards and fretboards
 
-The notes of a scale, a chord or a list, with note names, degrees or intervals.
-
-![A keyboard with D dorian](images/notation-keyboard.png)
+The notes of a scale, a chord or a list, with note names (the default), degrees (`labels: degrees`) or intervals (`labels: intervals`).
 
 ````markdown
 ```keyboard
 D dorian
-labels: degrees
 ```
 ````
 
-![The A minor pentatonic box on a fretboard](images/notation-fretboard.png)
+![D dorian on a keyboard from D to D, with the roots in a second color and the characteristic note B in a third](images/notation-keyboard.png)
 
 ````markdown
 ```fretboard
 scale: A minor pentatonic
-frets: 5-8
-labels: intervals
+position: 1
 ```
 ````
+
+![A minor pentatonic, box 1, on a fretboard from fret 5 to fret 8, with the A roots in a second color](images/notation-fretboard.png)
 
 ## Chord charts
 
 Songs in [ChordPro](https://www.chordpro.org/): chords in brackets inside the lyrics, sections, comments. `{transpose: 2}` moves every chord and the key.
 
-![A chord chart](images/notation-chord-chart.png)
-
 ````markdown
 ```chords
-{title: Morning Song}
+{title: Campfire Song}
 {key: G}
-{capo: 2}
+{tempo: 96}
+{time: 6/8}
+{diagrams}
 
-[G]Coffee on the [D/F#]table, [Em]sunlight on the [C]floor
-
-{start_of_chorus}
-[C]Play it [G]slow, [D]play it [Em]right
-{end_of_chorus}
+[G]Sparks rise over the [Em]lake tonight
+[C]Stars come out [D]one by one
+[G]Hold the tune and [Em]hold it light
+[C]Sing until the [D]night is [G]done
 ```
 ````
+
+![The chord chart of Campfire Song: its key, tempo and time, a row of G, Em, C and D diagrams, the lyrics with their chords, and the play bar on top](images/notation-chord-chart.png)
 
 Want the chord shapes next to the song? `{diagrams}` draws every chord the song uses as a row above it, in the order they first appear (`{diagrams: bottom}` puts it under). `{define}` gives a chord your own shape, `{chord: Am}` draws one chord where you write it, and `{instrument: piano}` draws piano chords instead. With `{capo: 2}`, guitar diagrams show the shapes you play, with the capo drawn. See the [guide](https://dsebastien.github.io/music-notation/blocks.html#chord-diagrams-in-a-chart).
 
 A chart has a play bar above the song, the same as a [progression](#progressions): each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. A chord defined with `{define}` plays that shape, and the capo moves the sound. A chord the chart can't read (N.C.) is skipped. The chord that plays lights up in the lyrics.
+
+![The same chart while it plays: the C of the second line is lit](images/notation-chart-playing.png)
 
 ## Strumming patterns
 
@@ -97,13 +98,17 @@ A ` ```strum ` block draws a strumming pattern on a beat grid: the counts under 
 
 ````markdown
 ```strum
-[G]D - D U [C]- U D U
-title: Old faithful
+D - D U - U D U
+chord: G
+swing: yes
 ```
 ````
 
+![The strumming pattern D - D U - U D U over G on a beat grid, with the counts 1 & 2 & 3 & 4 & and the word Swing above it](images/notation-strum.png)
+
 - `D>` is an accent, `X` a muted strum (a percussive chuck), `(U)` a ghost strum, and `[G]` a chord change. A line of chords above the pattern works too.
 - `time: 3/4` (or `6/8`, `12/8`), `subdivision: 16ths` or `triplets`, `chord: Am` for the whole pattern, `tempo: 100` for playback.
+- `swing: yes` plays a shuffle feel, and `swing: 60%` a lighter swing. The pattern is still written in 8ths.
 - The bar under the pattern plays it over its chords, with loop, a count-in, tempo and volume, and lights the slot that plays.
 
 Every symbol and option is in the [guide](https://dsebastien.github.io/music-notation/blocks.html#strumming-patterns).
@@ -114,10 +119,12 @@ A ` ```picking ` block draws a fingerpicking pattern as a small tab: each note's
 
 ````markdown
 ```picking
-pattern: travis
-chord: C
+pattern: alternate bass
+chords: C G Am F
 ```
 ````
+
+![The alternate bass pattern over C, G, Am and F as a small tab, one chord a bar, with the fingers (p, i, m, p') and the counts under each slot](images/notation-picking.png)
 
 - Write one slot at a time: `p` is the thumb on the bass, `p'` the thumb on the alternate bass (the chord's fifth), and `i`, `m`, `a` the fingers on strings 3, 2 and 1. A string number (`5`, `3`) works too, `p+a` picks two notes together, `-` is a rest and `|` a bar line.
 - `pattern: travis`, `pattern: alternate bass` and `pattern: 1-2-3-4` fill a bar for you.
@@ -132,11 +139,12 @@ A ` ```progression ` block writes a progression once and shows its chords in any
 
 ````markdown
 ```progression
-I V vi IV
-key: G
-functions: yes
+ii V I vi
+key: C
 ```
 ````
+
+![The progression ii V I vi in C major: each numeral over its chord name and guitar diagram (Dm, G, C, Am), and the play bar on top](images/notation-progression-light.png)
 
 - `key: G`, `key: Em` or `key: F# minor`. Chord names without a key get the likeliest one, shown with the others it could be.
 - `transpose: -2` moves the key, and `functions: yes` writes each chord's function under it (tonic, subdominant, dominant…).
@@ -157,6 +165,8 @@ key: G
 ```
 ````
 
+![The circle of fifths in G major: the key's chords tinted with their numerals, G as I, C as IV and D as V standing out, and a row of the seven chords under the wheel](images/notation-circle.png)
+
 - `key: E minor` or `key: D dorian` for a minor key or a mode, and `chords: sevenths` for seventh chords.
 - A click on a key or a chord plays it, and the play button plays the key's scale.
 
@@ -176,7 +186,7 @@ D xx0232 xx0132
 ```
 ````
 
-![Three chords in a row](images/notation-row.png)
+![G, C and D chord diagrams in a row, with their fingers and the roots in a second color](images/notation-row.png)
 
 Settings shared by every diagram go first, before the first `---` (`orientation`, `hand`, `labels`, and `tuning` or `range`); `columns: 3` draws a grid. A mistake in one diagram doesn't hide the others. Works in `chord`, `keyboard` and `fretboard` blocks; chord charts keep `---` as text. See the library's [guide](https://dsebastien.github.io/music-notation/blocks.html#several-diagrams).
 
@@ -184,7 +194,7 @@ Settings shared by every diagram go first, before the first `---` (`orientation`
 
 Chord diagrams stand up by default (the nut on top); fretboards and keyboards lie down. `orientation: horizontal` or `orientation: vertical` in a block turns it; `hand: left` mirrors guitar chords and fretboards for left-handed players.
 
-![Left-handed chords, sideways, and a left-handed fretboard standing up](images/notation-left-handed.png)
+![Left-handed chord diagrams lying sideways, and a left-handed fretboard standing up](images/notation-left-handed.png)
 
 The defaults for every note are settings: **Left-handed**, and the orientation of chord diagrams, fretboards and keyboards (see [Configuration](configuration.md#notation-blocks)). A block's own `orientation` or `hand` wins over them.
 
@@ -201,23 +211,51 @@ The blocks accept chords in words and recognize chords from their frets, and dra
 - Fretboards draw one position (`position: 2`, `shape: E`, `shape: 3nps`) or all of them in a row (`positions: all`); `modes: C major` draws every mode of a key.
 - ` ```chord ` with `triads: 1-3` draws a chord's triads on a string set (or `key: G major` a key's), with R, 3, 5 in the dots. `from: C x32010` with `to: Am` draws the easiest ways from one chord to the next, with the fingers that stay or slide marked. `progression: G D Em C` draws the smoothest voicings of a progression.
 - `capo: 2` on a ` ```chord ` or ` ```fretboard ` block draws a capo. Frets count from it, so an A shape is still `x02220`, and playback plays the notes that sound; `sounds: yes` adds the chord you hear ("Capo 2, sounds B"). See [capo](https://dsebastien.github.io/music-notation/blocks.html#capo).
+
+    ![A G chord diagram with a capo on the 2nd fret and the caption "Capo 2"](images/notation-capo.png)
+
 - `arpeggio: Am7` on a fretboard draws a chord's notes with their intervals; `positions: all` adds its CAGED shapes up the neck. See [arpeggios](https://dsebastien.github.io/music-notation/blocks.html#arpeggios).
+
+    ![The Am7 arpeggio in its five CAGED shapes (E, D, C, A and G), each on its own fretboard, with R, b3, 5 and b7 in the dots](images/notation-arpeggio.png)
+
 - `exercise: up-down` (or `up`, `down`) on a fretboard with one position (`position: 1`, `shape: E`) draws the run of the scale or arpeggio as a tab under the diagram, to play in time. `rhythm:` is `8ths` (the default), `triplets` or `16ths`, and `tempo: 80` sets the tempo. **Insert a tab exercise of this scale or arpeggio** writes the same run as a tab block in a scale or arpeggio note. See [tab exercises](https://dsebastien.github.io/music-notation/blocks.html#tab-exercises) and [Usage](usage.md#tab-exercises).
+
+    ![A minor pentatonic, box 1, on a fretboard, with its run up and down in triplets as a tab under it](images/notation-exercise.png)
+
 - Piano chords take `inversion: first`, `voicing: shell` (or `open`, `rootless A`, `rootless B`), `hands: left+right` and `fingering: auto`. See [piano voicings](https://dsebastien.github.io/music-notation/blocks.html#piano-voicings).
-- `scales-for: G D Em C` on a fretboard or keyboard draws the scale that fits a song's chords. `scale:` with `chord:` keeps the scale drawn and marks the chord's notes: the notes to aim for when you solo over that chord. See [which scale fits](https://dsebastien.github.io/music-notation/blocks.html#which-scale-fits).
-- ` ```chord ` with `voicings: all` (or `voicings: 6`) draws every playable voicing of the chord, the easiest first, each with its name ("Open", "E shape", "Hendrix chord", "Strings 3-6"); `area: 5-9`, `root-string: 5`, `strings: 1-3`, `inversion: any` narrow them down (see the [guide](https://dsebastien.github.io/music-notation/blocks.html#all-the-ways-to-play-a-chord)). The **Voicings of this chord** command does the same for a chord note, and adds the one you pick as its own note.
+- `scales-for: G D Em C` on a fretboard or keyboard draws the scale that fits a song's chords. See [which scale fits](https://dsebastien.github.io/music-notation/blocks.html#which-scale-fits).
+
+    ![C major on the whole neck, titled "C major for Dm7 G7 Cmaj7", with the C roots in a second color](images/notation-scales-for.png)
+
+    `scale:` with `chord:` keeps the scale drawn and marks the chord's notes: the notes to aim for when you solo over that chord.
+
+    ![G mixolydian on the whole neck: the notes of G7 filled (the G roots in a second color, F in a third) and the other notes of the scale hollow](images/notation-chord-over-scale.png)
+
+- ` ```chord ` with `voicings: 6` (or `voicings: all`, at most 32) draws one diagram per shape: the easiest ones, in a row up the neck, each with its name ("Open", "E shape", "Hendrix chord", "Strings 3-6"). `area: 5-9`, `root-string: 5`, `strings: 1-3`, `inversion: any` narrow them down (see the [guide](https://dsebastien.github.io/music-notation/blocks.html#all-the-ways-to-play-a-chord)). The **Voicings of this chord** command shows every voicing of a chord note, and adds the one you pick as its own note.
+
+    ![Six diagrams of A from voicings: 6, one per shape, named Open, G shape, Open strings, Open bass, E shape and Open bass](images/voicings.png)
 
 ## Notes draw their own diagram
 
-![A scale note drawing its fretboard from its properties](images/notation-from-properties.png)
+An empty ` ```chord ` block in a chord note, or an empty ` ```fretboard ` / ` ```keyboard ` block in a scale note, draws what the note's properties say: the chord symbol, frets, fingers and position (guitar), pitches and fingering (piano), or the scale's root, type and shape (a box, CAGED shape or 3NPS) and fingering. The templates already have that empty block, and new notes from **Add a learning note** keep it empty, so a note never repeats its frets or scale in the body. Editing a property redraws the diagram. A block with content draws its content. The property names are settings (**Settings → Music Practice → Property names**).
 
-An empty ` ```chord ` block in a chord note, or an empty ` ```fretboard ` / ` ```keyboard ` block in a scale note, draws what the note's properties say: the chord symbol, frets, fingers and position (guitar), pitches and fingering (piano), or the scale's root, type and shape (a box, CAGED shape or 3NPS) and fingering. The templates already have that empty block, and new notes from **Add a learning note** keep it empty, so a note never repeats its frets or scale in the body. Editing a property redraws the diagram. A block with content draws its content. The property names are settings (Settings → Music Practice → Rules → Property names).
+Arpeggio notes draw the same way. An empty ` ```fretboard ` block (` ```keyboard ` on piano) draws the arpeggio of the note's chord, in its CAGED shape when it has one. A guitar chord note's empty ` ```fretboard ` block draws its chord's arpeggio too.
+
+![An arpeggio note's properties (chord_symbol Am7, chord_root A, chord_quality Minor 7, shape E) and the fretboard its empty block draws: the Am7 arpeggio in the E shape](images/notation-from-properties.png)
+
+A strumming pattern note's empty ` ```strum ` block draws its pattern, with its time signature, its feel and its chord, and plays it at the note's current BPM.
+
+![A strumming pattern note's properties (strum_pattern, time_signature, strum_feel swing, chord_symbol G, bpm_current 84) and the swung pattern its empty block draws](images/notation-from-properties-strum.png)
+
+A fingerpicking pattern note's empty ` ```picking ` block draws its pattern, with its time signature and its chord, and plays it at the note's current BPM.
+
+![A fingerpicking pattern note's properties (picking_pattern travis, time_signature 4/4, chord_symbol C, bpm_current 70) and the Travis pattern over C its empty block draws](images/notation-from-properties-picking.png)
 
 **Identify this chord** names a chord note from its frets or pitches when it has no chord symbol yet. See [Usage](usage.md#add-a-learning-note).
 
 ## Hear the diagrams
 
-Hover a chord, keyboard or fretboard diagram (tap it on a phone or tablet) and a bar at its bottom plays it. Chords strum from the low string up and ring. Scales go up and down, from their lowest root to their highest. The bar also has loop, speed (when several notes play), volume and sound (guitar or piano). A click on a dot or a key plays that note.
+Hover a chord, keyboard or fretboard diagram (tap it on a phone or tablet) and a bar at its bottom plays it. Guitar chords strum from the low string up and ring, and piano chords sound together. Scales play every note drawn: from their lowest tonic up to the highest note, down to the lowest, and back to the tonic. The bar also has loop, speed (when several notes play), volume and sound (guitar or piano). A click on a dot or a key plays that note.
 
 While a diagram plays, each note lights up when you hear it: the dot, the key or the string's mark. A strummed chord lights its strings from the low one up, and a clicked note lights only what you clicked. Stop, or a new sound, turns every light off. On the first play, the soundfont takes a moment to load: the lights wait for it, so they always match what you hear.
 
@@ -233,14 +271,14 @@ The sound comes from a soundfont of recorded instruments, bundled with the plugi
 
 ````markdown
 ```tab
-\title "Riff"
-\tempo 100
+staves: both
+\tempo 90
 .
-:8 0.6 3.6 5.6 0.6 3.6 6.6 5.6 r | 0.6 3.6 5.6 3.6 0.6 r r r
+:8 3.6 0.4 0.3 0.2 3.6 0.4 0.3 0.2 | 2.5 0.4 1.3 1.2 2.5 0.4 1.3 1.2
 ```
 ````
 
-![A tab with its player](images/tab.png)
+![A two-bar guitar part shown as Both, notation over tablature, with the player bar under it and Both lit next to Tab and Score](images/tab.png)
 
 - `staves: tab | score | both` goes on the first line. By default, `tab` blocks show tablature and `score` blocks show notation.
 - The player bar has **Tab**, **Score** and **Both**. The view you see is lit. Select another one to see the music that way: the note doesn't change. To keep it, select **Keep this view**: it writes the `staves:` line at the top of the block (Ctrl+Z, or Cmd+Z, undoes it in editing view). Drums and piano have no tablature, so their blocks have no view buttons.
@@ -249,6 +287,11 @@ The sound comes from a soundfont of recorded instruments, bundled with the plugi
 - Tabs work in popout windows too, and when you drag a note to another window.
 - A block with a mistake shows an error message. Open **Block text** under it to see what you wrote; the line with the mistake is marked.
 - **Insert a tab block** starts one at the cursor, on its own lines. **Insert a tab exercise of this scale or arpeggio** writes the run of a guitar scale or arpeggio note as a tab block (see [Usage](usage.md#tab-exercises)). The [imports](usage.md#imports) turn files and pasted tabs into blocks.
+
+### Plain-text tabs
+
+![A plain-text tab drawn as tablature, with Tab lit in the player bar, then Text, "Rhythm guessed from the tab" and Edit as alphaTex](images/notation-text-tab.png)
+
 - A ` ```tab ` or ` ```score ` block that holds a plain-text tab (`e|---0---|` lines) shows as tablature, and you can play it. Your note doesn't change: the tab is read again each time the block shows. It shows tablature unless you write a `staves:` line, and keeps its `staves:` and `tracks:` lines. Text tabs have no exact rhythm, so the rhythm comes from the spacing, and the player bar says **Rhythm guessed from the tab**.
 - **Text** in the player bar shows the block as you wrote it. **Show as tab** under the text goes back.
 - To correct the rhythm or the techniques, select **Edit as alphaTex** (in the player bar, or under the text), or put the cursor in the block and run **Edit this text tab as alphaTex**. The block becomes alphaTex, and your original text tab is kept in a comment at its end. Settings lines at the top (`staves:`, `tracks:`, `file:`) stay as they are, and a block in a list or callout stays in it. To go back, select **Undo** in the notice, or press Ctrl+Z (Cmd+Z) in editing view. On canvas cards, the block shows as tablature, but there is no **Edit as alphaTex** and no **Keep this view**.

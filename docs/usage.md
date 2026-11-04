@@ -18,7 +18,7 @@ Each learning type pairs with a practice session type of the same instrument (`t
 
 ## Commands
 
-![Practice next](images/practice-next.png)
+![Practice next: a ranked list of learning notes, each with its mastery level, "Current focus", when it was last practiced and its BPM progress](images/practice-next.png)
 
 | Command                                                                             | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -42,8 +42,8 @@ Each learning type pairs with a practice session type of the same instrument (`t
 | **Triads of a chord or key** / **Triads of this chord**                             | A chord's triads on a string set, or a key's, with R, 3, 5 in the dots and the metronome at hand. See [Triads](#triads).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | **Easiest way between these chords**                                                | On a chord pair note (or **Easiest way** in a drill): the next chord's voicings that move the hand least, with tips. See [Chord transitions](#chord-transitions).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | **Smooth this progression**                                                         | The voicings that make the chords of the note's chord charts easiest to play in a row.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| **Find the key and scales of this piece**                                           | Reads the note's chord charts and the chord notes it links. Shows its key (or mode), the scales that fit with the notes outside them, and the best scale on a fretboard or keyboard. **Set the key to …** fills the piece's key property.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| **Suggest chord change drills from this piece**                                     | Lists the chord changes of the note's charts, hardest first (how much your hand moves, from your own chord notes when you have them), then the most played. **Drill** starts a chord change drill on a change.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| **Find the key and scales of this piece**                                           | Reads the note's chord charts and the chord notes it links. Shows its key (or mode), the scales that fit with the notes outside them, and the best scale on a fretboard or keyboard. **Set the key to …** fills the piece's key property. See [Key and scales of a piece](#key-and-scales-of-a-piece).                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **Suggest chord change drills from this piece**                                     | Lists the chord changes of the note's charts, hardest first (how much your hand moves, from your own chord notes when you have them), then the most played. **Drill** starts a chord change drill on a change. See [Chord change drills](#chord-change-drills).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | **Play this chord or scale**                                                        | Plays the current chord or scale note.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | **Insert a tab block**                                                              | Starts a tab block at the cursor. See [Tabs and scores](notation.md#tabs-and-scores).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **Insert a tab exercise of this scale or arpeggio**                                 | On a guitar scale or arpeggio note: the run of one position as a tab block that plays in time. See [Tab exercises](#tab-exercises).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -66,7 +66,9 @@ Start practice from a phone shortcut, a Stream Deck button or an NFC tag on your
 
 With several vaults, put `vault=<name>` first: `obsidian://music-practice?vault=My%20notes&do=start-timer`.
 
-Only starting the timer happens without a window. Every other action opens the window you'd use anyway, so nothing is written without you seeing it. A wrong action or parameter shows a notice that says what to write.
+Only starting the timer happens without a window: Obsidian shows a notice and the timer runs. Every other action opens the window you'd use anyway, so nothing is written without you seeing it. A wrong action or parameter shows a notice that says what to write.
+
+![The notice "Practice timer started." after a shortcut opened obsidian://music-practice?do=start-timer](images/uri-start-timer.png)
 
 - **iOS Shortcuts**: an Open URL action with `obsidian://music-practice?do=start-timer`.
 - **Android**: an Open URL action or an intent with the same URI (Tasker, an NFC tag app).
@@ -74,19 +76,22 @@ Only starting the timer happens without a window. Every other action opens the w
 
 ## Practice panel
 
-![The practice panel](images/practice-panel.png)
+![The practice panel: a paused timer flagged as forgotten with Resume and Discard, a session list of three items with their mastery and BPM buttons, Log this session, and the metronome](images/practice-panel.png)
 
 Open it with **Open practice panel** or the ribbon's music icon. It keeps what you practice now in one place:
 
 - **Timer**: start, pause and resume; paused time isn't counted. **Discard** throws the timer away without logging it (it asks first). A timer that started more than 4 hours ago says so: "Started 5 days 3 h ago: forgotten? Discard or log it."
-- **Session**: the items you're working on. **Plan** fills it from a practice plan (or use **Use in panel** in Plan a practice session), **Add** finds any item. Tick items off as you go; −/+ sets the BPM you reached; ♩ gives the item to the metronome; × removes it.
+- **Session**: the items you're working on. **Plan** fills it from a practice plan (or use **Use in panel** in Plan a practice session), **Add** finds any item, **Drill** opens a chord change drill and **Clear** empties the list. Tick items off as you go; −/+ sets the BPM you reached; ♩ gives the item to the metronome; × removes it.
 - **Log this session**: Log practice with the ticked items (all of them when none is ticked), their BPMs and the timer's minutes. Logged items leave the list; the rest stay for next time. The list survives restarts.
-- **Drill**: a chord change drill.
 - **Metronome**: below.
+
+On desktop, the status bar shows the timer too. A click stops it and opens Log practice. A right-click opens a menu with **Stop and log the session** and **Discard the timer**. A forgotten timer shows its age in the warning color: "⏸ 5 days 3 h: forgotten?"
+
+![The status bar timer "5 days 3 h: forgotten?" with its right-click menu: Stop and log the session, Discard the timer](images/status-bar-menu.png)
 
 ## Metronome
 
-![The metronome](images/metronome.png)
+![The metronome on a 6/8 piece: tempo 76 with its nudge buttons, "6/8 (2 beats), from the note", 2 beats per bar of triplets, a one-bar count-in, Flash on, and the speed trainer adding 2 BPM every 4 bars up to 100](images/metronome.png)
 
 Tempo (type it, −5 −1 +1 +5, or **Tap**), beats per bar with the first accented, clicks per beat (quarter notes, eighths, triplets, sixteenths), volume. **Count-in** (none to 4 bars, 1 by default) clicks a bar of beats before the first bar. The dots go hollow until the music starts, and the speed trainer counts its bars from there. **Flash** lights a bar on each beat, beat one in another color, so you can see the beat in a noisy room. The **speed trainer** starts from the tempo and adds a few BPM every few bars (both in the settings) up to the note's target BPM; **+** steps up at once, after a clean repetition. **Save BPM to the note** opens Set BPM with the tempo reached (reaching the target offers "Can play at tempo").
 
@@ -94,7 +99,7 @@ When the metronome practices a note that has a time signature (`time_signature: 
 
 ## Chord change drills
 
-![A chord change drill](images/chord-change-drill.png)
+![A chord change drill offering three pairs of open chords, never drilled yet, and a Pick two chords button](images/chord-change-drill.png)
 
 Clean, quick changes between two chords make songs playable. A drill: switch between two chords for a minute and count the changes.
 
@@ -104,6 +109,16 @@ Clean, quick changes between two chords make songs playable. A drill: switch bet
 4. **Log this drill** logs the minute with the result as the session's note.
 
 The drill's length is a setting (60 seconds by default).
+
+To drill the changes of a song, run **Suggest chord change drills from this piece** on its note. It lists the chord changes of the note's chord charts, hardest first (how much your hand moves, from your own chord notes when you have them), then the most played. **Drill** starts a chord change drill on that change. A change whose chords have no chord note says which one is missing.
+
+![The chord changes of a song, hardest first, each with how often it's played, its effort and a Drill button](images/chart-changes.png)
+
+## Key and scales of a piece
+
+**Find the key and scales of this piece** reads the note's chord charts and the chord notes it links in `chords`. It shows the key (or the mode, such as D dorian), and names the next likeliest keys when it isn't clear. It lists the scales that fit, with the notes outside them, and draws the best one on a fretboard (a keyboard for a piano note). **Set the key to …** fills the piece's key property, when its note type has one.
+
+![The key and scales of a song: its chords, "Key: G major", five scales that fit, G major on the whole neck, and Set the key to G major](images/piece-key.png)
 
 ## Progressions in time
 
@@ -123,7 +138,9 @@ In the window:
 - **Click** (on by default) and **Count-in** (one bar, on when the metronome's count-in is).
 - **Speed trainer** (off by default): it adds the metronome's step every few bars (the **Speed trainer step** and **Speed trainer bars** settings), up to the note's target BPM. It counts from the first bar you hear.
 
-The loop counts the progression's own time, else the note's time signature (`time_signature`), else 4/4. 6/8, 9/8 and 12/8 count dotted beats. The window says what it plays: "8 bars of 4/4, one chord a bar."
+The loop counts the progression's own time, else the note's time signature (`time_signature`), else 4/4. 6/8, 9/8 and 12/8 count dotted beats. The window says what it plays: "4 bars of 6/8, one chord a bar, counted in dotted beats. Changes apply from the next pass."
+
+![Practice this progression in time on a song: Progression 1, the Arpeggio strum, tempo 72, Click and Count-in on, the speed trainer off, the chords G Em C D, Save BPM and Play](images/progression-in-time.png)
 
 **Play** starts the loop. The chord that plays is lit, and the line under the chords shows the bar, the pass and the BPM. A new tempo or click applies from the next pass, and a tempo you type restarts the speed trainer from there. A new progression or strum starts the loop again with it. **Save BPM** (in a learning note) opens Set BPM with the loop's tempo.
 
@@ -138,6 +155,8 @@ Learn a scale or an arpeggio position in time, then speed it up. On a guitar sca
 - **Rhythm**: **8th notes** (the default), **Triplets** or **16th notes**.
 - **Tempo (BPM)**: from 20 to 240. It starts at the note's current BPM, else 60.
 
+![A tab exercise of A minor pentatonic: Box 1, Up and down, 8th notes at 72 BPM, with the box on a fretboard and the start of its tab](images/insert-tab-exercise.png)
+
 The preview draws the position and its tab. **Insert** puts the run at the cursor as a ` ```tab ` block, the way **Insert a tab block** does: never in the properties or inside another block (it goes after them). The tempo is written in the block once, so a new current BPM doesn't change it.
 
 The tab plays with the count-in, the metronome and the speed of its player bar. In a learning note, every tab and score bar also has **Save BPM** (the gauge icon). It opens Set BPM with the tempo the music plays at: the tab's tempo times the speed set on the bar, rounded. At 125%, a 72 BPM tab saves 90. It reads the speed from the bar, even before the first Play.
@@ -146,12 +165,12 @@ The command is offered on guitar notes whose scale or chord the library reads, w
 
 ## All the ways to play a chord
 
-![Every voicing of A](images/voicings.png)
+![Voicings of G: the 24 easiest of 37, each named (Open, E shape, A shape, Strings 3-6…), with the note's own voicing in a dashed border](images/voicings-of-this-chord.png)
 
-A chord note shows one voicing. **Voicings of this chord** shows every playable one, worked out from the chord's notes, the easiest first: open chords, then E- and A-shape barres and the other CAGED shapes, then the rest. Each is titled with its shape ("Open", "E shape", "Drop 2", "Hendrix chord", or the strings it sounds, such as "Strings 3-6"). This note's voicing has a dashed border.
+A chord note shows one voicing. **Voicings of this chord** shows every playable one, worked out from the chord's notes, the easiest first: open chords, then E- and A-shape barres and the other CAGED shapes, then the rest. It draws the 24 easiest at most and says how many there are. Each is titled with its shape ("Open", "E shape", "Drop 2", "Hendrix chord", or the strings it sounds, such as "Strings 3-6"). This note's voicing has a dashed border.
 
 - **Neck**: the whole neck, the first position, or frets 1–5, 5–9, 9–12, 12–15.
-- **Root on**: the 6th, 5th or 4th string (with inversions, the string of the lowest note).
+- **Root on**: any string (the default), or the 6th, 5th or 4th string (with inversions, the string of the lowest note).
 - **Inversions**: another chord note in the bass too (the third, the fifth, the seventh). **Stretch**: shapes over five frets.
 
 Pick one, then:
@@ -161,13 +180,13 @@ Pick one, then:
 
 **Voicings of a chord** does the same for any chord you type. In **Add a learning note**, **More voicings…** picks one for the new note (its shape comes along).
 
-![More voicings in Add a learning note](images/add-note-voicings.png)
+![More voicings in Add a learning note: Bm as an A-shape barre, with the picked voicing x24432 next to the four most common ones](images/add-note-voicings.png)
 
 The shapes are matched to your chord note type's shape values (Open, E-shape barre, A-shape barre, CAGED C…); a shape the type doesn't list stays empty.
 
 ## Triads
 
-![Triads of G on the three highest strings](images/triads.png)
+![Triads of G on strings 1-3: first inversion, second inversion and root position up the neck, with R, 3 and 5 in the dots](images/triads.png)
 
 Triads on three strings next to each other, in their three inversions, are how guitarists learn the neck. **Triads of a chord or key** shows a chord's triads on a string set (1-3, 2-4, 3-5, 4-6), up the neck, in all inversions or in one. It also shows a key's seven triads in one inversion. The dots say which chord tone each note is (R, 3, 5), and each diagram plays. **Metronome** opens the metronome to drill them.
 
@@ -175,7 +194,7 @@ Triads on three strings next to each other, in their three inversions, are how g
 
 ## Chord transitions
 
-![The easiest way from A to D](images/easiest-way.png)
+![The easiest way from A to D: the A you hold, then four D voicings with the fingers that stay or slide ringed, and a tip under each](images/easiest-way.png)
 
 Clean changes come from the right voicing and the fingers that can stay down. **Easiest way between these chords** (on a chord pair note, or **Easiest way** in a chord change drill) shows the chord you hold, then the next chord's voicings that move the hand least:
 
@@ -185,11 +204,15 @@ Clean changes come from the right voicing and the fingers that can stay down. **
 
 **Smooth this progression** reads the chords of the note's chord charts (` ```chords `) in order, transposed when a chart has `{transpose}`. It shows the voicings that make the whole progression easiest, with the moves marked. It says which ones you already have as notes, and adds the missing ones.
 
+![Smooth this progression on G Em C D G Em C D G: one voicing per chord, the chord note you have for it, and a tip such as "Keep your index finger on the A string's 2nd fret"](images/smooth-progression.png)
+
 ## Imports
 
 - **Import a score or chord file**: a Guitar Pro (3–8), MusicXML or Capella file becomes a tab block, with notation and tablature for guitar files. The block holds either a **link to the file** (the file is copied to your attachments folder and added to the note's `sources`, so nothing is lost) or **inline alphaTex** you can edit. A ChordPro file becomes a chord chart. A chord file with chords over the lyrics (section labels such as `[Verse 1]` included) is converted to one. Older files saved in Windows encodings keep their accents. UTF-16 files are read too, in any script (Cyrillic, Greek, Chinese, Japanese…), with or without a byte order mark (a few hidden bytes at the start of the file). If a file isn't text in any of these encodings, the import stops and a notice says its text can't be read.
-- **Import a text tab**: paste a tab from the web (lines of dashes and frets). It becomes a tab block you can play. Drum tabs (`HH|x-x-x-x-|`, as a drum track), strings numbered `1|` to `6|` and a single named line work too. Text tabs have no rhythm, so every note is an eighth note.
+- **Import a text tab**: paste a tab from the web (lines of dashes and frets). It becomes a tab block you can play. Drum tabs (`HH|x-x-x-x-|`, as a drum track), strings numbered `1|` to `6|` and a single named line work too. Text tabs have no exact rhythm, so the rhythm comes from the spacing, and a line with no bar lines is split into bars.
 - **Import a chord sheet**: paste a sheet with chords over the lyrics. It becomes a chord chart you can transpose.
+
+![Import a text tab: a two-bar tab pasted in, and the tab block it becomes under it](images/import-text-tab.png)
 
 The block goes at the cursor of the note you're editing. If the cursor is in the properties, or in a code, math or HTML block, the new block goes after it. With the cursor in an empty block of the same kind, the import fills that block: an empty tab or score block takes a score or a tab, and an empty chords block takes a chord chart. When you aren't editing a note, the block goes into a new arrangement note. There it fills the first empty block of the same kind (the template's Tab or Chart block), or goes at the end of the note when there is none. If an import fails, that new note and any copied file are removed.
 
@@ -199,7 +222,9 @@ The notice after a log has an **Undo** button, and **Undo last practice log** do
 
 ## Log practice
 
-![Log practice](images/log-practice.png)
+![Log practice opened from the timer: 12 minutes, the date, a focus field, the items to tick with their mastery, a note, and the Cancel, Discard timer and Log practice buttons](images/log-practice.png)
+
+When you stop the timer, Log practice opens with its minutes, its start time and the day it started. Its **Discard timer** button throws the timer away instead, after a question.
 
 1. Enter the minutes, the date and an optional focus ("Barre chords"). When a Kanban Action Planner timer is running on the activity of this session, the log takes it over (tick the box: its minutes fill the Minutes field), so the time is counted once. The timer's own time entry is removed from the activity: the session note holds that time.
 2. Tick what you practiced. Items you planned or that are due come first; type to filter. Items of another instrument are dimmed: log them in their own session.
@@ -221,21 +246,27 @@ Dates the Obsidian Starter Kit stamps on mastery changes (started, mastered) are
 
 ## Add a learning note
 
-![Add a learning note](images/add-note.png)
-
 Pick the type (Guitar Chords, Piano Scales…), type a name (for chords: a symbol, a name in words, or guitar frets), and optionally the shape and the starting level. The note is created from the type's template (its prompts are skipped: the dialog already asked), in the type's folder, with the type's name suffix.
 
-![Add a guitar chord with its voicing](images/add-note-chord.png)
+![Add a learning note for the guitar chord F#m7: four voicings side by side with the first picked, More voicings…, Triads…, and the note's name "F Sharp Minor 7 (alias F#m7)"](images/add-note-chord.png)
 
 For guitar chords, the four most common **voicings** are drawn side by side: click one to pick it, or choose any voicing (or "No diagram") from the dropdown. Typed frets are named by the library and stored in compact form (`x02220`), without fingers. The previews follow your orientation and left-handed settings.
 
-![Add a guitar scale](images/add-note-scale.png)
+![Add a learning note for a guitar scale: A, Minor pentatonic, Box 1, with a preview of the box on a fretboard](images/add-note-scale.png)
 
 For scales, pick the **root** and the **scale or mode** (the type's own values, or the common ones), and for guitar the **shape** (a box, a CAGED shape or 3NPS). The preview shows the scale as the note will.
 
 New chord and scale notes get their properties (`chord_symbol`, `frets`, `fingers`; `scale_root`, `scale_type`, `shape`) and an empty ` ```chord `, ` ```fretboard ` or ` ```keyboard ` block, the template's when it has one. That block draws from the properties: nothing is written twice, and editing a property updates the diagram. Nothing is added when that kind of block is turned off. See [Notation](notation.md#notes-draw-their-own-diagram).
 
-Arpeggio notes get the chord symbol and the shape, and an empty ` ```fretboard ` block (` ```keyboard ` on piano) that draws the arpeggio in that CAGED shape. A guitar chord note's empty fretboard block draws its chord's arpeggio too. Strumming pattern notes get `strum_pattern`, `time_signature` and `strum_feel`, and an empty ` ```strum ` block that plays the pattern at the note's current BPM, swung when the feel says so.
+![Add a learning note for a guitar arpeggio: Am7 in the E shape, with a preview of the arpeggio and its intervals](images/add-note-arpeggio.png)
+
+Arpeggio notes get the chord symbol and the shape, and an empty ` ```fretboard ` block (` ```keyboard ` on piano) that draws the arpeggio in that CAGED shape. A guitar chord note's empty fretboard block draws its chord's arpeggio too.
+
+![Add a learning note for a strumming pattern: Island strum, D - D U - U D U in 4/4 with a swing feel, and a preview of the pattern](images/add-note-strum.png)
+
+Strumming pattern notes get `strum_pattern`, `time_signature` and `strum_feel`, and an empty ` ```strum ` block that plays the pattern at the note's current BPM, swung when the feel says so.
+
+![Add a learning note for a fingerpicking pattern: Travis picking, the travis pattern in 4/4 over G, and a preview of its tab with the fingers and counts](images/add-note-picking.png)
 
 For fingerpicking patterns, type the pattern (pick **Travis**, **Alternate bass** or **1-2-3-4**, or write the fingers: `p i m a p' i m a`), the time signature and the chord. A type is a fingerpicking pattern type when it has the picking pattern property and not the strumming one. The note gets `picking_pattern`, `time_signature` and `chord_symbol` (the chord as the library spells it: `A Minor` becomes `Am`), and an empty ` ```picking ` block that plays the pattern over its chord at the note's current BPM. The preview shows that block. Nothing is added when picking blocks are turned off.
 
