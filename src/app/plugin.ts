@@ -5,6 +5,7 @@ import type { PluginSettings } from './types/plugin-settings.intf'
 import { MusicPracticeSettingTab } from './settings/settings-tab'
 import { crossCheck } from './settings/setting-paths'
 import { log } from '../utils/log'
+import { registerProtocolHandler } from './protocol-handler'
 import { registerWhatsNewView } from './whats-new'
 import { produce } from 'immer'
 import type { Draft } from 'immer'
@@ -141,6 +142,8 @@ export class MusicPracticePlugin extends Plugin {
     private practiceLog!: PracticeLogService
     private noteCreator!: NoteCreatorService
     private notation!: NotationBlocks
+    /** Set by onunload: an onload still running stops at its next step (#90). */
+    private unloaded = false
     private alphaTab!: AlphaTabRuntime
     private imports!: ImportService
     private textTabs!: TextTabConverter
@@ -299,6 +302,14 @@ export class MusicPracticePlugin extends Plugin {
         // Must run before anything can call saveData (fresh-install detection)
         registerWhatsNewView(this)
         await this.loadSettings()
+        // Obsidian can unload a plugin whose onload is still waiting here (an overlapping reload,
+        // #90). What the rest of onload would register then is never removed: the protocol
+        // handler stays taken, every later load fails, and this orphaned instance keeps drawing
+        // the code blocks with its code. Stop instead.
+        if (this.unloaded) {
+            log('Unloaded while loading its settings: not loading the rest', 'debug')
+            return
+        }
 
         this.noteModel = new NoteModelService(this.app, () => this.effective())
         this.items = new ItemRepository(
@@ -378,9 +389,14 @@ export class MusicPracticePlugin extends Plugin {
 
         this.registerCommands()
         // obsidian://music-practice?do=… for shortcuts outside Obsidian (#47).
-        this.registerObsidianProtocolHandler(URI_HANDLER, (params) => {
-            this.app.workspace.onLayoutReady(() => void this.runUri(params))
-        })
+        registerProtocolHandler(
+            this,
+            URI_HANDLER,
+            (params) => {
+                this.app.workspace.onLayoutReady(() => void this.runUri(params))
+            },
+            (message) => log(message, 'warn')
+        )
 
         // Notation code blocks (chord, chords, keyboard, fretboard), drawn by the notation library.
         // Registered once the layout is ready: plugins enabled at startup register theirs first, so
@@ -489,6 +505,7 @@ export class MusicPracticePlugin extends Plugin {
     }
 
     override onunload() {
+        this.unloaded = true
         this.metronome?.destroy()
         this.backing?.destroy()
         // Drawings stay on screen after a plugin unloads: stop and free them first.

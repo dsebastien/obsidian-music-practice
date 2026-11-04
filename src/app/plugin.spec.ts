@@ -38,3 +38,49 @@ describe('default settings', () => {
         expect(DEFAULT_SETTINGS.defaultPlanMinutes).toBe(30)
     })
 })
+
+describe('loading and unloading (#90)', () => {
+    /** A plugin whose Obsidian calls are recorded; loadSettings runs `during` while it waits. */
+    const recorded = (during: (plugin: MusicPracticePlugin) => void) => {
+        const calls: string[] = []
+        const record =
+            (name: string) =>
+            (..._args: unknown[]): void => {
+                calls.push(name)
+            }
+        const plugin = Object.assign(
+            Object.create(MusicPracticePlugin.prototype) as MusicPracticePlugin,
+            {
+                manifest: { id: 'music-practice', name: 'Music Practice', version: '0.0.0' },
+                app: { workspace: { onLayoutReady: record('onLayoutReady') } },
+                loadData: (): Promise<unknown> => Promise.resolve(null),
+                registerView: record('registerView'),
+                register: record('register'),
+                registerEvent: record('registerEvent'),
+                registerObsidianProtocolHandler: record('registerObsidianProtocolHandler'),
+                registerMarkdownCodeBlockProcessor: record('registerMarkdownCodeBlockProcessor'),
+                addCommand: record('addCommand'),
+                addRibbonIcon: record('addRibbonIcon'),
+                addStatusBarItem: record('addStatusBarItem'),
+                addSettingTab: record('addSettingTab')
+            }
+        )
+        plugin.loadSettings = (): Promise<void> => {
+            during(plugin)
+            return Promise.resolve()
+        }
+        return { plugin, calls }
+    }
+
+    test('an instance unloaded while it waits for its settings stops loading', async () => {
+        // Obsidian unloads a plugin whose onload is still running (an overlapping reload). What
+        // the rest of onload registered then is never removed: the protocol handler stays taken,
+        // every later load fails, and an orphaned instance keeps drawing the code blocks.
+        const { plugin, calls } = recorded((p) => p.onunload())
+        await plugin.onload()
+        expect(calls).not.toContain('registerObsidianProtocolHandler')
+        expect(calls).not.toContain('registerEvent')
+        expect(calls).not.toContain('addCommand')
+        expect(Reflect.get(plugin, 'notation')).toBeUndefined()
+    })
+})
