@@ -2,6 +2,7 @@ import { Modal, Notice } from 'obsidian'
 import type { App } from 'obsidian'
 import { PROGRESSION_STRUMS, type ProgressionStrum } from '@dsebastien/music-notation'
 import {
+    backingBars,
     backingBpm,
     backingMeter,
     MAX_BACKING_BPM,
@@ -190,7 +191,8 @@ export class BackingModal extends Modal {
         el.empty()
         const source = this.current()
         this.chips = source.chords.map((chord, i) => {
-            const name = typeof chord === 'string' ? chord : (chord.chord ?? '?')
+            // A bar of silence (a chart's bar of N.C., #89) shows as N.C.
+            const name = typeof chord === 'string' ? chord : (chord.chord ?? 'N.C.')
             return el.createSpan({
                 cls: 'mp-backing-chord',
                 text: name,
@@ -201,7 +203,7 @@ export class BackingModal extends Modal {
         const counted = meter.beatUnit >= 8 && meter.beatsPerBar % 3 === 0 && meter.beatsPerBar >= 6
         if (this.meterEl)
             this.meterEl.setText(
-                `${source.chords.length} bars of ${meter.label}, one chord a bar${counted ? ', counted in dotted beats' : ''}. Changes apply from the next pass.`
+                `${backingBars(source.chords, meter.beatsPerBar)} bars of ${meter.label}, ${source.chords.some((c) => typeof c !== 'string' && c.beats !== undefined) ? "as the chart's bar lines say" : 'one chord a bar'}${counted ? ', counted in dotted beats' : ''}. Changes apply from the next pass.`
             )
     }
 
@@ -255,7 +257,7 @@ export class BackingModal extends Modal {
     private refresh(): void {
         const state = this.deps.track.state
         if (this.playButton) this.playButton.setText(state.running ? 'Stop' : 'Play')
-        this.chips.forEach((chip, i) => chip.toggleClass('is-playing', state.bar === i))
+        this.chips.forEach((chip, i) => chip.toggleClass('is-playing', state.chord === i))
         if (state.running && state.bpm !== this.bpm) {
             // The trainer moved the tempo: show it.
             this.bpm = state.bpm

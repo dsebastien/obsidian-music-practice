@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import {
+    backingBars,
     backingBpm,
     backingMeter,
     chartBacking,
@@ -51,6 +52,50 @@ describe('chartBacking', () => {
     it("applies the chart's {transpose}", () => {
         const text = '```chords\n{key: C}\n{transpose: 3}\n[C]Hello [G]world [Am]and [F]more\n```'
         expect(chartBacking(text)?.chords).toEqual(['Eb', 'Bb', 'Cm', 'Ab'])
+    })
+
+    it("follows the chart's bar lines, dots, slashes and held bars (#89)", () => {
+        const text = '```chords\n{tempo: 120}\n| [C]. . . [G]. | [Am] / / [F] | % |\n```'
+        expect(chartBacking(text)?.chords).toEqual([
+            { chord: 'C', beats: 3 },
+            { chord: 'G', beats: 1 },
+            { chord: 'Am', beats: 3 },
+            { chord: 'F', beats: 5 }
+        ])
+    })
+
+    it('keeps a bar of N.C. as a bar of silence (#89)', () => {
+        const text = '```chords\n| [G] | [N.C.] | [Em] |\n```'
+        expect(chartBacking(text)?.chords).toEqual([
+            { chord: 'G', beats: 4 },
+            { chord: null, pitches: [], beats: 4 },
+            { chord: 'Em', beats: 4 }
+        ])
+    })
+
+    it("counts the beats in the note's time signature when the chart has no {time} (#89)", () => {
+        const source = chartBacking('```chords\n| [G] [D] |\n```', { noteTime: '6/8' })
+        expect(source?.chords).toEqual([
+            { chord: 'G', beats: 3 },
+            { chord: 'D', beats: 3 }
+        ])
+        // The chart's own time stays unset: the loop takes the note's.
+        expect(source?.time).toBeNull()
+    })
+
+    it('takes the notes the drawn chart sounds ({define} shapes, the capo) when given (#89)', () => {
+        const text =
+            '```chords\n{define: Gzz base-fret 1 frets 3 2 0 0 0 3}\n{capo: 2}\n[Gzz]One [C]two\n```'
+        // Without the drawing, a {define} name the library can't read as a chord is left out.
+        expect(chartBacking(text)?.chords).toEqual(['C'])
+        const marks = [
+            { getAttribute: (n: string) => (n === 'data-mn-voicing' ? '45 49 52 57 61 69' : null) },
+            { getAttribute: (n: string) => (n === 'data-mn-voicing' ? '50 54 57 62 66' : null) }
+        ]
+        expect(chartBacking(text, { drawn: () => marks })?.chords).toEqual([
+            { chord: 'Gzz', pitches: [45, 49, 52, 57, 61, 69] },
+            { chord: 'C', pitches: [50, 54, 57, 62, 66] }
+        ])
     })
 
     it('is null without a chord', () => {
@@ -133,5 +178,24 @@ describe('backingBpm', () => {
         expect(backingBpm(300, null)).toBe(240)
         expect(backingBpm(10, null)).toBe(20)
         expect(backingBpm(72.6, null)).toBe(73)
+    })
+})
+
+describe('backingBars', () => {
+    it('counts bars from the chords, one a bar or their beats (#89)', () => {
+        expect(backingBars(['G', 'D', 'Em', 'C'], 4)).toBe(4)
+        expect(
+            backingBars(
+                [
+                    { chord: 'C', beats: 3 },
+                    { chord: 'G', beats: 1 },
+                    { chord: 'Am', beats: 3 },
+                    { chord: 'F', beats: 5 }
+                ],
+                4
+            )
+        ).toBe(3)
+        // Part of a bar counts as a bar.
+        expect(backingBars([{ chord: 'G', beats: 2 }], 4)).toBe(1)
     })
 })
