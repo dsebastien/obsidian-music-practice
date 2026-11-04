@@ -62,6 +62,7 @@ import type { LowerDecision } from './domain/activity-time'
 import { Metronome } from './services/metronome.service'
 import { BackingTrack } from './services/backing.service'
 import { BackingModal } from './ui/backing-modal'
+import { saveBpmOnBars } from './ui/save-bpm-bar'
 import type { LinkedPattern } from './ui/backing-modal'
 import {
     chartBacking,
@@ -402,7 +403,8 @@ export class MusicPracticePlugin extends Plugin {
                 convert: (request) => void this.textTabs.convertBlock(request),
                 keepView: (request, staves) => void this.textTabs.keepView(request, staves)
             },
-            (path, language) => this.practiceBlock(path, language)
+            (path, language) => this.practiceBlock(path, language),
+            (path) => this.saveBpmBars(path)
         )
         // Empty blocks in chord and scale notes draw from the note's properties: redraw them when
         // the properties change.
@@ -559,23 +561,41 @@ export class MusicPracticePlugin extends Plugin {
             }
         })
         setIcon(button, 'gauge')
-        button.addEventListener('click', () => {
-            const current = this.items.items().find((i) => i.path === sourcePath) ?? item
-            const played = playedBpm(api.score?.tempo, tabSpeed(result))
-            new BpmModal(
-                this.app,
-                current,
-                this.settings.rules.levels.tempo,
-                async (bpm) => {
-                    await this.practiceLog.setBpmAndLevel(
-                        current,
-                        bpm,
-                        bpm.atTempo ? this.settings.rules.levels.tempo : undefined
-                    )
-                },
-                played ?? undefined
-            ).open()
-        })
+        button.addEventListener('click', () =>
+            this.openSaveBpm(sourcePath, playedBpm(api.score?.tempo, tabSpeed(result)))
+        )
+    }
+
+    /**
+     * Save BPM in the play bars of a learning note's strum, picking, progression and chart blocks
+     * (#88), through the library's `play.timedBar` hook: the tempo set on the bar goes to the note's
+     * current BPM, through Set BPM. None for other notes.
+     */
+    private saveBpmBars(sourcePath: string): PlayOptions['timedBar'] | null {
+        if (!this.items.items().some((i) => i.path === sourcePath)) return null
+        return saveBpmOnBars(
+            (bpm) => this.openSaveBpm(sourcePath, bpm),
+            (el, name) => setIcon(el, name)
+        )
+    }
+
+    /** Set BPM for a learning note, offering `played` as its current BPM (#70, #88). */
+    private openSaveBpm(sourcePath: string, played: number | null): void {
+        const current = this.items.items().find((i) => i.path === sourcePath)
+        if (!current) return
+        new BpmModal(
+            this.app,
+            current,
+            this.settings.rules.levels.tempo,
+            async (bpm) => {
+                await this.practiceLog.setBpmAndLevel(
+                    current,
+                    bpm,
+                    bpm.atTempo ? this.settings.rules.levels.tempo : undefined
+                )
+            },
+            played ?? undefined
+        ).open()
     }
 
     /** Saves a score as Guitar Pro 7 or MIDI next to its note (the attachments folder). */
