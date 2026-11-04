@@ -804,4 +804,56 @@ describe('NotationBlocks playback in time (#69)', () => {
             { language: 'chords', play }
         ])
     })
+
+    it("passes the note's timed-bar hook in the play options, only when it gives one (#88)", () => {
+        const processors = new Map<string, Processor>()
+        const plugin: NotationHost = {
+            registerMarkdownCodeBlockProcessor: (language: string, processor: Processor) => {
+                processors.set(language, processor)
+                return () => {}
+            },
+            app: { workspace: { getLeavesOfType: () => [] } }
+        }
+        const drawn: { path: string; play: Record<string, unknown> | undefined }[] = []
+        let path = ''
+        const render = (
+            _language: NotationLanguage,
+            _source: string,
+            host: HTMLElement,
+            options: RenderOptions = {}
+        ): RenderResult => {
+            drawn.push({ path, play: options.play as Record<string, unknown> | undefined })
+            return { ok: true, el: host, error: null, destroy: () => {} }
+        }
+        const hook = () => {}
+        let playing = true
+        const blocks = new NotationBlocks(
+            plugin,
+            allOn,
+            () => ({}),
+            () => false,
+            render,
+            () => null,
+            () => (playing ? { bpm: 72 } : false),
+            null,
+            () => null,
+            (sourcePath) => (sourcePath === 'Pattern.md' ? hook : null)
+        )
+        blocks.sync()
+        const draw = (sourcePath: string) => {
+            path = sourcePath
+            const ctx: Pick<Context, 'addChild' | 'sourcePath'> = {
+                sourcePath,
+                addChild: (child) => child.onload()
+            }
+            void processors.get('strum')!('D DU UDU', hostEl().el, ctx as Context)
+        }
+        draw('Pattern.md')
+        draw('Other.md')
+        playing = false
+        draw('Pattern.md')
+        expect(drawn[0]!.play).toEqual({ bpm: 72, timedBar: hook })
+        expect(drawn[1]!.play).toEqual({ bpm: 72 })
+        expect(drawn[2]!.play).toBeUndefined()
+    })
 })
