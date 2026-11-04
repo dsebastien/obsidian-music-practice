@@ -1,3 +1,4 @@
+import './pinned-bun'
 import { existsSync, mkdirSync, readdirSync, watch } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'

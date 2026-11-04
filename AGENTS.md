@@ -749,6 +749,7 @@ The community-plugin reviewer runs a fixed set of lint rules against every submi
 - Attach only `main.js`, `manifest.json`, and `styles.css` (if present) — never a zip. The CI release workflow in this template already does this; don't add zip-upload steps back.
 - Build in CI; don't post-edit `main.js`.
 - `bun-version-file: package.json` (already wired) keeps Bun pinned across CI and release. Update `packageManager` in `package.json` to bump.
+- **The production build always runs on the pinned Bun.** Bun's bundler output changes between releases (1.4.0 and 1.4.2 write a different CommonJS interop helper), and the community catalog rebuilds with its own, older Bun and compares `main.js` byte for byte: every release failed "Build output does not match the released main.js artifact". `scripts/pinned-bun.ts`, imported first by `scripts/build.ts`, re-runs `build.ts --prod` through `bun x bun@<packageManager pin>` when another Bun starts it. Keep `packageManager` an exact `bun@x.y.z` (a spec checks it) and keep that import first.
 - `actions/attest-build-provenance@v3` (already wired) attaches provenance to release artifacts.
 
 ## Mobile
