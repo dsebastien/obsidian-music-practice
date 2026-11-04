@@ -6,6 +6,7 @@ import { MusicPracticeSettingTab } from './settings/settings-tab'
 import { crossCheck } from './settings/setting-paths'
 import { log } from '../utils/log'
 import { registerProtocolHandler } from './protocol-handler'
+import { claimInstance, releaseInstance } from './single-instance'
 import { registerWhatsNewView } from './whats-new'
 import { produce } from 'immer'
 import type { Draft } from 'immer'
@@ -299,6 +300,10 @@ export class MusicPracticePlugin extends Plugin {
      */
     override async onload() {
         log('Initializing', 'debug')
+        // Before anything is registered: an earlier instance Obsidian still runs holds the view
+        // type, the protocol handler and the code block processors (#90).
+        if (claimInstance(this, this.app))
+            log('Replaced an earlier instance that was still loaded', 'warn')
         // Must run before anything can call saveData (fresh-install detection)
         registerWhatsNewView(this)
         await this.loadSettings()
@@ -506,6 +511,7 @@ export class MusicPracticePlugin extends Plugin {
 
     override onunload() {
         this.unloaded = true
+        releaseInstance(this, this.app)
         this.metronome?.destroy()
         this.backing?.destroy()
         // Drawings stay on screen after a plugin unloads: stop and free them first.
