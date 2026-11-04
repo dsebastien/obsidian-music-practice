@@ -34,6 +34,7 @@ import {
 import { triadDetail } from '../domain/triads'
 import type { StringSet } from '../domain/triads'
 import type { TriadPick } from './triads-modal'
+import { alignGrid } from './voicing-cell'
 
 /** voicingIndex of a voicing picked from every way to play the chord (#54). */
 const PICKED = -2
@@ -725,6 +726,7 @@ export class AddNoteModal extends Modal {
                     })
                 })
             }
+            alignGrid(row)
             return true
         }
         const refreshDiagram = () => {

@@ -10,7 +10,7 @@ import {
 import type { GeneratedVoicing, RenderOptions, RenderResult } from '@dsebastien/music-notation'
 import { formatFingers, formatFrets } from '../domain/notation-note'
 import { sameFrets } from '../domain/voicings'
-import { selectCell, voicingCell } from './voicing-cell'
+import { alignGrid, selectCell, voicingCell } from './voicing-cell'
 
 /** A chord note as a transition sees it. */
 export interface HeldChord {
@@ -131,6 +131,7 @@ export class TransitionModal extends Modal {
             const tips = cell.createEl('ul', { cls: 'mp-tips' })
             for (const tip of step.tips) tips.createEl('li', { text: tip })
         })
+        alignGrid(grid)
         const actions = el.createDiv({ cls: 'mp-actions' })
         this.renderActions(actions)
     }
@@ -229,6 +230,7 @@ export class ProgressionModal extends Modal {
             const tips = cell.createEl('ul', { cls: 'mp-tips' })
             for (const tip of step.tips ?? []) tips.createEl('li', { text: tip })
         }
+        alignGrid(grid)
         const actions = el.createDiv({ cls: 'mp-actions' })
         actions.createEl('button', { text: 'Close' }).addEventListener('click', () => this.close())
         if (this.options.add && missing.length) {

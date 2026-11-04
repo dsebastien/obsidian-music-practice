@@ -3,7 +3,7 @@ import type { App } from 'obsidian'
 import { generateVoicings, readChord, renderBlock } from '@dsebastien/music-notation'
 import type { GeneratedVoicing, RenderOptions, RenderResult } from '@dsebastien/music-notation'
 import { formatFingers, formatFrets } from '../domain/notation-note'
-import { selectCell, voicingCell } from './voicing-cell'
+import { alignGrid, selectCell, voicingCell } from './voicing-cell'
 import {
     DEFAULT_VOICING_FILTER,
     VOICING_AREAS,
@@ -175,6 +175,7 @@ export class VoicingsModal extends Modal {
                     this.close()
                 })
         })
+        alignGrid(list)
         this.renderActions()
     }
 
