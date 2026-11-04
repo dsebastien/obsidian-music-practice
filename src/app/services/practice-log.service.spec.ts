@@ -467,7 +467,12 @@ function logVault(
         activityName: 'Learn {subject}'
     })
     // Old notes: undo doesn't wait for them to settle.
-    const clock = { now: () => Date.now() + 3_600_000, sleep: () => Promise.resolve() }
+    let offset = 3_600_000
+    const clock = { now: () => Date.now() + offset, sleep: () => Promise.resolve() }
+    /** Moves the service's clock forward. */
+    const advance = (ms: number) => {
+        offset += ms
+    }
     const saved: UndoRecord[] = []
     const service = new PracticeLogService(
         v.app,
@@ -480,7 +485,7 @@ function logVault(
         clock
     )
     const sessions = () => [...v.notes.keys()].filter((p) => p.startsWith('Sessions/'))
-    return { ...v, service, sessions, saved }
+    return { ...v, service, sessions, saved, advance }
 }
 
 /** The message a promise is rejected with ('' when it resolves). */
@@ -619,11 +624,36 @@ describe('practice log: a run again of the same log', () => {
 
     it('without a start time: a new note when the earlier one is older than 15 minutes', async () => {
         const v = logVault(notes())
-        const first = await v.service.log(request())
-        v.notes.get(first.sessionPath)!.ctime = Date.now() - 20 * 60_000
+        await v.service.log(request())
+        v.advance(20 * 60_000)
         const second = await v.service.log(request())
         expect(second.reused).toBe(false)
         expect(v.sessions()).toHaveLength(2)
+    })
+
+    it('without a start time: never a note this plugin did not create (file times are not trusted)', async () => {
+        const v = logVault({
+            ...notes(),
+            'Sessions/2026-10-28 (Guitar Practice Session).md': {
+                tags: ['type/session/music/guitar'],
+                date: DAY,
+                time_spent: 25,
+                practiced: ['[[A Minor]]', '[[E Minor]]']
+            }
+        })
+        expect((await v.service.log(request())).reused).toBe(false)
+        expect(v.sessions()).toHaveLength(2)
+    })
+
+    it('refuses a run again with other values, writing nothing', async () => {
+        const v = logVault(notes())
+        await v.service.log(request())
+        const state = JSON.stringify([...v.notes.entries()].map(([p, n]) => [p, n.fm]))
+        const message = await failure(
+            v.service.log(request({ items: [{ path: AM, level: 40 }, { path: EM }] }))
+        )
+        expect(message).toMatch(/Already logged in .* other values for A Minor/)
+        expect(JSON.stringify([...v.notes.entries()].map(([p, n]) => [p, n.fm]))).toBe(state)
     })
 
     it('without a given start time: the start time the plugin computed is ignored', async () => {

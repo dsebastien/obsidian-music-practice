@@ -23,6 +23,7 @@ import {
     freshItem,
     holdsLog,
     itemUpdate,
+    RERUN_WINDOW_MS,
     levelChange,
     localIso,
     sessionFileName,
@@ -114,6 +115,7 @@ export type UndoResult =
 
 const KAP_ENTRY_TIMEOUT_MS = 10_000
 const LINK_TIMEOUT_MS = 10_000
+const CACHE_TIMEOUT_MS = 5_000
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms))
 const realClock: Clock = { now: () => Date.now(), sleep: (ms) => sleep(ms).then(() => {}) }
 
@@ -141,6 +143,8 @@ interface ActivityPlan {
 /** Writes a practice log: the session note, the practiced notes and the activity's time. */
 export class PracticeLogService {
     private busy = false
+    /** Session notes this plugin created, by path, with when (a run again without a start time). */
+    private readonly createdSessions = new Map<string, number>()
     /** Activities and the session types they count. */
     readonly activities: ActivityService
 
@@ -308,6 +312,17 @@ export class PracticeLogService {
             startTime: givenStart
         })
         const target = existing ? null : await this.sessionTarget(session, date, request)
+        // A run again changes no item: a request with other values (level, review, BPM) than what
+        // the notes hold is another log of the same session, refused.
+        if (existing) {
+            const differs = resolved
+                .filter((r) => this.itemWouldChange(r, date, stampDates))
+                .map((r) => r.item.name)
+            if (differs.length)
+                throw new Error(
+                    `Already logged in ${existing.basename}, with other values for ${differs.join(', ')}: nothing was written. Change them with Change mastery or Set BPM, or delete that session note to log again.`
+                )
+        }
 
         // 2. The session note, before the items (and before any change to an activity).
         if (adopted && !stopKapTimer(this.app))
@@ -316,6 +331,7 @@ export class PracticeLogService {
         if (existing) file = existing
         else {
             file = await this.createSession(target!, request, notesHeading)
+            this.createdSessions.set(file.path, this.clock.now())
             await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
                 const put = (name: string, value: unknown) => {
                     if (session.fields.has(name) && value !== undefined && value !== '')
@@ -393,7 +409,8 @@ export class PracticeLogService {
                     stampDates,
                     current: fm
                 })
-                applyItemUpdate(fm, update, fields)
+                // A run again only recomputes the time (its values match, checked above).
+                if (!existing) applyItemUpdate(fm, update, fields)
                 if (contributions) {
                     const time = planItemTime(prop(fm, fields.timeSpent), contributions)
                     if (time.write !== null) fm[keyOf(fm, fields.timeSpent)] = time.write
@@ -460,6 +477,8 @@ export class PracticeLogService {
                     `${activity.basename}: its time entries aren't a list, so its time wasn't recomputed.`
                 )
         }
+        // A run again right after must find this note: wait until the cache holds it.
+        if (!existing) await this.waitForCache(file, session.typeTag)
         return {
             sessionPath: file.path,
             reused: existing !== null,
@@ -481,6 +500,36 @@ export class PracticeLogService {
         }
     }
 
+    /** Whether logging this item (a review already recorded that day aside) changes its note. */
+    private itemWouldChange(r: Resolved, date: string, stampDates: boolean): boolean {
+        const { fields, rules } = this.context()
+        const cached: Record<string, unknown> =
+            this.app.metadataCache.getFileCache(r.file)?.frontmatter ?? {}
+        const fm = snapshot(cached)
+        const before = snapshot(fm)
+        const once: LogItem = { ...r.log }
+        if (sessionDay(prop(fm, fields.lastReviewed)) === date) delete once.review
+        const update = itemUpdate(freshItem(r.item, r.type, fm, fields), r.type, once, {
+            date,
+            fields,
+            rules,
+            stampDates,
+            current: fm
+        })
+        applyItemUpdate(fm, update, fields)
+        return changedKeys(before, fm).length > 0
+    }
+
+    /** Wait (5 s at most) until Obsidian's cache holds the session note's frontmatter. */
+    private async waitForCache(file: TFile, tag: string): Promise<void> {
+        const deadline = Date.now() + CACHE_TIMEOUT_MS
+        const ready = () =>
+            tagsOf(this.app.metadataCache.getFileCache(file)?.frontmatter ?? {}).includes(
+                tag.toLowerCase()
+            )
+        while (!ready() && Date.now() < deadline) await sleep(100)
+    }
+
     /**
      * A session note of this type that already holds this log (see `holdsLog`), or null. Only the
      * notes in the session type's folder (without its date tokens) are read.
@@ -495,11 +544,15 @@ export class PracticeLogService {
         const base = session.naming
             ? folderBase(session.naming.folder)
             : folderBase(listNoteTypes(this.app).find((t) => t.id === session.id)?.associatedFolder)
-        const now = Date.now()
+        const now = this.clock.now()
+        const recent = (path: string) => {
+            const at = this.createdSessions.get(path)
+            return at !== undefined && now - at < RERUN_WINDOW_MS
+        }
         for (const f of this.app.vault.getMarkdownFiles()) {
             if (base && !f.path.startsWith(`${base}/`)) continue
             const fm = cache.getFileCache(f)?.frontmatter
-            if (fm && tagsOf(fm).includes(tag) && holdsLog(fm, key, fields, now - f.stat.ctime))
+            if (fm && tagsOf(fm).includes(tag) && holdsLog(fm, key, fields, recent(f.path)))
                 return f
         }
         return null

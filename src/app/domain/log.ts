@@ -176,29 +176,30 @@ export interface LoggedSessionKey {
 const nameSet = (names: readonly string[]): string =>
     [...new Set(names.map((n) => n.toLowerCase()))].sort().join('|')
 
-/** Without a start time, only a session note created this recently can hold a run again. */
+/** Without a start time, only a session note this plugin created this recently can hold a run again. */
 export const RERUN_WINDOW_MS = 15 * 60_000
 
 /**
  * Whether a session note (of the log's session type) already holds this log: the same date, the
  * same minutes, the same items (by name, any case and order), and the same start time when the log
  * gives one (a timer's or one the user typed). Without one (the plugin may have computed and written
- * one), only a note created less than 15 minutes ago (`ageMs`), whatever its start time: two real
- * sessions of the same items and minutes that day stay two notes. A log that
+ * one), only a note this plugin created less than 15 minutes ago (`recent`; file times can't tell:
+ * Obsidian Sync and Android reset them), whatever its start time: two real sessions of the same
+ * items and minutes that day stay two notes. A log that
  * stopped half-way and is run again finds it and adds no second session.
  */
 export function holdsLog(
     fm: Record<string, unknown>,
     key: LoggedSessionKey,
     fields: Pick<FieldNames, 'date' | 'timeSpent' | 'startTime' | 'practiced'>,
-    ageMs: number
+    recent: boolean
 ): boolean {
     const text = (v: unknown) => (typeof v === 'string' || typeof v === 'number' ? String(v) : '')
     if (text(fm[fields.date]).substring(0, 10) !== key.date) return false
     if (Number(fm[fields.timeSpent]) !== key.minutes) return false
     if (key.startTime) {
         if (text(fm[fields.startTime]) !== key.startTime) return false
-    } else if (!(ageMs < RERUN_WINDOW_MS)) return false
+    } else if (!recent) return false
     const raw = fm[fields.practiced]
     const listed = (Array.isArray(raw) ? (raw as unknown[]) : raw == null ? [] : [raw])
         .map((x) =>

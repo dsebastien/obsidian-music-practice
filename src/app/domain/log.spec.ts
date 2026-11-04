@@ -212,32 +212,31 @@ describe('holdsLog: a run again of the same log', () => {
         practiced: ['[[A Minor]]', '[[E Minor|Em]]']
     }
     const key = { date: DATE, minutes: 30, items: ['e minor', 'A Minor'], startTime: '18:30' }
-    const OLD = 24 * 3_600_000
     it('matches the same date, minutes, start and items, in any order and case', () => {
-        expect(holdsLog(session, key, fields, OLD)).toBe(true)
-        expect(holdsLog({ ...session, date: `${DATE}T18:30` }, key, fields, OLD)).toBe(true)
-        expect(holdsLog({ ...session, time_spent: '30' }, key, fields, OLD)).toBe(true)
-        expect(holdsLog(session, { ...key, startTime: '19:00' }, fields, OLD)).toBe(false)
+        expect(holdsLog(session, key, fields, false)).toBe(true)
+        expect(holdsLog({ ...session, date: `${DATE}T18:30` }, key, fields, false)).toBe(true)
+        expect(holdsLog({ ...session, time_spent: '30' }, key, fields, false)).toBe(true)
+        expect(holdsLog(session, { ...key, startTime: '19:00' }, fields, false)).toBe(false)
     })
-    it('without a given start time: only a note created less than 15 minutes ago', () => {
+    it('without a given start time: only a note this plugin created in the last 15 minutes', () => {
         const bare = { ...session, start_time: '' }
         const noStart = { ...key, startTime: null }
-        expect(holdsLog(bare, noStart, fields, 60_000)).toBe(true)
-        expect(holdsLog({ ...session, start_time: undefined }, noStart, fields, 60_000)).toBe(true)
+        expect(holdsLog(bare, noStart, fields, true)).toBe(true)
+        expect(holdsLog({ ...session, start_time: undefined }, noStart, fields, true)).toBe(true)
         // Two real sessions that day: the earlier note is older than 15 minutes.
-        expect(holdsLog(bare, noStart, fields, 15 * 60_000)).toBe(false)
-        expect(holdsLog(bare, noStart, fields, OLD)).toBe(false)
+        expect(holdsLog(bare, noStart, fields, false)).toBe(false)
+        expect(holdsLog(bare, noStart, fields, false)).toBe(false)
         // The start time the plugin computed and wrote doesn't count.
-        expect(holdsLog(session, noStart, fields, 60_000)).toBe(true)
-        expect(holdsLog(session, noStart, fields, 20 * 60_000)).toBe(false)
+        expect(holdsLog(session, noStart, fields, true)).toBe(true)
+        expect(holdsLog(session, noStart, fields, false)).toBe(false)
     })
     it('does not match another date, other minutes or other items', () => {
-        expect(holdsLog(session, { ...key, date: '2026-10-29' }, fields, OLD)).toBe(false)
-        expect(holdsLog(session, { ...key, minutes: 31 }, fields, OLD)).toBe(false)
-        expect(holdsLog(session, { ...key, items: ['A Minor'] }, fields, OLD)).toBe(false)
-        expect(holdsLog(session, { ...key, items: ['A Minor', 'E Minor', 'G'] }, fields, OLD)).toBe(
-            false
-        )
-        expect(holdsLog({ ...session, practiced: '[[A Minor]]' }, key, fields, OLD)).toBe(false)
+        expect(holdsLog(session, { ...key, date: '2026-10-29' }, fields, false)).toBe(false)
+        expect(holdsLog(session, { ...key, minutes: 31 }, fields, false)).toBe(false)
+        expect(holdsLog(session, { ...key, items: ['A Minor'] }, fields, false)).toBe(false)
+        expect(
+            holdsLog(session, { ...key, items: ['A Minor', 'E Minor', 'G'] }, fields, false)
+        ).toBe(false)
+        expect(holdsLog({ ...session, practiced: '[[A Minor]]' }, key, fields, false)).toBe(false)
     })
 })

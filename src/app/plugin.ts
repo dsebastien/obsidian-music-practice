@@ -2208,8 +2208,14 @@ export class MusicPracticePlugin extends Plugin {
                             result.undo
                         )
                     const decision = result.activity?.decision
+                    // After a run again, the choice joins the original log's undo record.
+                    const last = this.settings.lastLog
+                    const record =
+                        result.reused && last?.sessionPath === result.sessionPath
+                            ? last
+                            : result.undo
                     if (result.activity && decision)
-                        this.askActivitySurplus(result.activity.path, decision, result.undo)
+                        this.askActivitySurplus(result.activity.path, decision, record)
                     if (result.activity?.result === 'missing')
                         new Notice(
                             'The Kanban Action Planner timer was stopped but its time entry did not appear in time. If it appears on the activity, delete it: the session note holds that time.'
