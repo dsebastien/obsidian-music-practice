@@ -182,8 +182,9 @@ export const RERUN_WINDOW_MS = 15 * 60_000
 /**
  * Whether a session note (of the log's session type) already holds this log: the same date, the
  * same minutes, the same items (by name, any case and order), and the same start time when the log
- * gives one. Without a start time, only a note without one, created less than 15 minutes ago
- * (`ageMs`): two real sessions of the same items and minutes that day stay two notes. A log that
+ * gives one (a timer's or one the user typed). Without one (the plugin may have computed and written
+ * one), only a note created less than 15 minutes ago (`ageMs`), whatever its start time: two real
+ * sessions of the same items and minutes that day stay two notes. A log that
  * stopped half-way and is run again finds it and adds no second session.
  */
 export function holdsLog(
@@ -197,7 +198,7 @@ export function holdsLog(
     if (Number(fm[fields.timeSpent]) !== key.minutes) return false
     if (key.startTime) {
         if (text(fm[fields.startTime]) !== key.startTime) return false
-    } else if (text(fm[fields.startTime]).trim() !== '' || !(ageMs < RERUN_WINDOW_MS)) return false
+    } else if (!(ageMs < RERUN_WINDOW_MS)) return false
     const raw = fm[fields.practiced]
     const listed = (Array.isArray(raw) ? (raw as unknown[]) : raw == null ? [] : [raw])
         .map((x) =>

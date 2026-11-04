@@ -219,7 +219,7 @@ describe('holdsLog: a run again of the same log', () => {
         expect(holdsLog({ ...session, time_spent: '30' }, key, fields, OLD)).toBe(true)
         expect(holdsLog(session, { ...key, startTime: '19:00' }, fields, OLD)).toBe(false)
     })
-    it('without a start time: only a note without one, created less than 15 minutes ago', () => {
+    it('without a given start time: only a note created less than 15 minutes ago', () => {
         const bare = { ...session, start_time: '' }
         const noStart = { ...key, startTime: null }
         expect(holdsLog(bare, noStart, fields, 60_000)).toBe(true)
@@ -227,8 +227,9 @@ describe('holdsLog: a run again of the same log', () => {
         // Two real sessions that day: the earlier note is older than 15 minutes.
         expect(holdsLog(bare, noStart, fields, 15 * 60_000)).toBe(false)
         expect(holdsLog(bare, noStart, fields, OLD)).toBe(false)
-        // A note with a start time is another session.
-        expect(holdsLog(session, noStart, fields, 60_000)).toBe(false)
+        // The start time the plugin computed and wrote doesn't count.
+        expect(holdsLog(session, noStart, fields, 60_000)).toBe(true)
+        expect(holdsLog(session, noStart, fields, 20 * 60_000)).toBe(false)
     })
     it('does not match another date, other minutes or other items', () => {
         expect(holdsLog(session, { ...key, date: '2026-10-29' }, fields, OLD)).toBe(false)

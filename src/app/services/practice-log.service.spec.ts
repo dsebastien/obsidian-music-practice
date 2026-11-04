@@ -626,11 +626,13 @@ describe('practice log: a run again of the same log', () => {
         expect(v.sessions()).toHaveLength(2)
     })
 
-    it('without a start time: a note that has one is another session', async () => {
+    it('without a given start time: the start time the plugin computed is ignored', async () => {
         const v = logVault(notes())
         const first = await v.service.log(request())
         v.notes.get(first.sessionPath)!.fm['start_time'] = '18:00'
-        expect((await v.service.log(request())).reused).toBe(false)
+        expect((await v.service.log(request())).reused).toBe(true)
+        // A start time the user gives must match.
+        expect((await v.service.log(request({ startTime: '19:00' }))).reused).toBe(false)
     })
 
     it('a reused note that counts for another activity is left as it is, without waiting', async () => {
