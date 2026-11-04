@@ -4,7 +4,7 @@ This guide explains how to build, run, and test the plugin locally.
 
 ## Prerequisites
 
-- [Bun](https://bun.sh/). The production build (`bun run build`) always runs on the version that `packageManager` in `package.json` pins: another Bun downloads it and runs the build again, so the output matches the release byte for byte.
+- [Bun](https://bun.sh/). The production build (`bun run build`) always runs on the version that `packageManager` in `package.json` pins, with `NODE_ENV=production`: in another setup the build runs again in that one, so the output matches the release byte for byte.
 - [Git](https://git-scm.com/)
 - An Obsidian vault for testing
 
