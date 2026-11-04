@@ -24,7 +24,7 @@ export class PasteImportModal extends Modal {
             cls: 'mp-muted',
             text:
                 this.kind === 'tab'
-                    ? 'Paste a tab (lines of dashes and frets, one per string). It becomes a tab block you can play; text tabs have no rhythm, so every note is an eighth.'
+                    ? 'Paste a tab (lines of dashes and frets, one per string). It becomes a tab block you can play. Text tabs have no exact rhythm, so the rhythm comes from the spacing.'
                     : 'Paste a chord sheet (chords on their own line above the lyrics). It becomes a chord chart you can transpose.'
         })
         const input = el.createEl('textarea', { cls: 'mp-import-text', attr: { rows: '12' } })
