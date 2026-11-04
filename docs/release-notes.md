@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.15.2 (2026-11-04)
+
+### Bug Fixes
+
+- **build:** build with NODE_ENV=production in every setup, keep building without network
+
 ## 0.15.1 (2026-11-04)
 
 - **Reliable reload, for good**: when Obsidian reloaded the plugin twice in quick succession (an update and a restart of the plugin close together), it could run two copies at once and the newer one drew no music blocks until Obsidian restarted. The plugin now replaces an older copy that is still running before it starts (#90).

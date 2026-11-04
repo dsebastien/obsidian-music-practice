@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.15.2](https://github.com/dsebastien/obsidian-music-practice/compare/0.15.1...0.15.2) (2026-11-04)
+
+### Bug Fixes
+
+* **build:** build with NODE_ENV=production in every setup, keep building without network ([2341af2](https://github.com/dsebastien/obsidian-music-practice/commit/2341af20851f17ace51b16850568e958464162cf))
+
 ## [0.15.1](https://github.com/dsebastien/obsidian-music-practice/compare/0.15.0...0.15.1) (2026-11-04)
 
 - **Reliable reload, for good**: when Obsidian reloaded the plugin twice in quick succession (an update and a restart of the plugin close together), it could run two copies at once and the newer one drew no music blocks until Obsidian restarted. The plugin now replaces an older copy that is still running before it starts (#90).
@@ -280,6 +286,7 @@ The first release of Music Practice: learn an instrument in your notes.
 - A public API lets scripts and AI assistants log and plan practice with the same rules.
 
 Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
+
 
 
 
