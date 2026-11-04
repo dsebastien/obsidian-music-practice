@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.12.0](https://github.com/dsebastien/obsidian-music-practice/compare/0.11.1...0.12.0) (2026-11-04)
+
+Practice in time: a backing loop for a song's progression, tab exercises of your scales and arpeggios, and fingerpicking patterns as learning notes. From music-notation 0.11.0.
+
+- **Practice this progression in time**: the note's chords play one a bar as a backing loop, to practice the changes or to solo over them. The loop reads each progression block, the note's chord charts (one bar per chord) and the chord notes it links in `chords`. Pick the strum: a strum on each beat, one strum a bar, an arpeggio, the block's own pattern, or a strumming pattern note it links. The tempo starts at the note's current BPM. The click, a count-in and the speed trainer (up to the target BPM) work as in the metronome. The chord that plays is lit, and **Save BPM** opens Set BPM with the loop's tempo. Starting the metronome stops the loop, and starting the loop stops the metronome. The loop's window closes when you turn the plugin off (#69).
+- **Progressions and chord charts play in time**: progression blocks and ChordPro charts have a play bar, through your playback settings (soundfont or light synthesizer). It plays one chord a bar, with loop, a count-in, a click, tempo, volume and the strum, and lights the chord that plays. A chart plays at its `{tempo}` and `{time}`, and a progression block takes `time:`, `tempo:` and `strum:` (#69).
+- **Insert a tab exercise of this scale or arpeggio**: on a guitar scale or arpeggio note, pick a position (the note's shape is selected first), the direction (up and down, up, down), the rhythm (8th notes, triplets, 16th notes) and the tempo (the note's current BPM). The preview draws the position and its tab. **Insert** puts the run at the cursor as a tab block that plays in time, with the count-in, the metronome and the speed control. The command needs tab blocks turned on (#70).
+- **Tab exercises on fretboards**: `exercise: up-down` (or `up`, `down`) on a fretboard with one position draws the run as a tab under the diagram. `rhythm:` and `tempo:` set the rhythm and the tempo (#70).
+- **Save BPM in tab player bars**: in a learning note, every tab and score bar has **Save BPM**. It opens Set BPM with the tempo the music plays at: the tab's tempo times the speed set on the bar, so a 72 BPM tab at 125% saves 90. It reads the speed from the bar, even before the first Play (#70).
+- **Fingerpicking pattern notes**: in **Add a learning note**, type the pattern (Travis, Alternate bass, 1-2-3-4, or the fingers: `p i m a`), the time signature and the chord, with a preview. The note's empty picking block plays the pattern over its chord at your current BPM. You need a note type for it first: a learning type with `picking_pattern`, and `time_signature` and `chord_symbol` if you want them (#71).
+- **Picking blocks**: a ` ```picking ` block draws a fingerpicking pattern as a small tab and plays it in time over a chord, or one chord a bar (`chords: C Am F G`). Write PIMA letters, string numbers, pinches (`p+a`) and rests, or name a pattern: `travis`, `alternate bass`, `1-2-3-4`. Its bar has loop, a count-in, a click (off by default), tempo and volume. The new **Picking patterns** switch in **Settings → Music Practice → Notation blocks** turns them on or off (on by default), and **Picking pattern** in the property names sets the property (#71).
+- **A name for every voicing**: every diagram of a `voicings:` list now has a name, and so does every voicing in **Voicings of this chord**. Bb x1033x and A x0222x are "Open": an open chord no longer needs its top string. Other new names are "Drop 2", "Drop 3", "Hendrix chord", "Open bass", "Open strings" and the strings they sound ("Strings 3-6"). Before, 121 of 643 diagrams in `voicings: 6` lists (12 roots, 9 common chord kinds) had the chord's name alone. The order of the list doesn't change.
+- **The Hendrix grip in 7#9 lists**: `voicings:` for C7#9 now shows the Hendrix grip x3234x. Before, the list drew x32340: the same grip with its top string sounding.
+- **Publish**: add `'picking'` to the block languages in your `publish.js`, and pin the library at 0.11.0. A fingerpicking pattern note's empty picking block draws from its properties there too.
+
 ## [0.11.1](https://github.com/dsebastien/obsidian-music-practice/compare/0.11.0...0.11.1) (2026-11-03)
 
 A practice timer you forgot can now be discarded and shows as forgotten, and long text tab lines are fast again. From music-notation 0.10.1.
@@ -223,6 +238,7 @@ The first release of Music Practice: learn an instrument in your notes.
 - A public API lets scripts and AI assistants log and plan practice with the same rules.
 
 Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
+
 
 
 
