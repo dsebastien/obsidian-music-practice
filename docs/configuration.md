@@ -18,7 +18,7 @@ Every rule the plugin applies is a setting, with defaults that work on install. 
 
 ## Notation blocks
 
-One switch per kind of [notation block](notation.md), all on by default: **Chord diagrams** (` ```chord `), **Chord charts** (` ```chords `), **Keyboards**, **Fretboards**, **Tabs** (` ```tab `), **Scores** (` ```score `), **Strumming patterns** (` ```strum `), **Progressions** (` ```progression `) and **Circle of fifths** (` ```circle `). A block turned off shows as code. Reload the plugin to let another plugin draw it. The status line says when another plugin already draws one of them.
+One switch per kind of [notation block](notation.md), all on by default: **Chord diagrams** (` ```chord `), **Chord charts** (` ```chords `), **Keyboards**, **Fretboards**, **Tabs** (` ```tab `), **Scores** (` ```score `), **Strumming patterns** (` ```strum `), **Picking patterns** (` ```picking `), **Progressions** (` ```progression `) and **Circle of fifths** (` ```circle `). A block turned off shows as code. Reload the plugin to let another plugin draw it. The status line says when another plugin already draws one of them.
 
 | Setting                   | Default    | What it does                                                                                        |
 | ------------------------- | ---------- | --------------------------------------------------------------------------------------------------- |
@@ -31,13 +31,13 @@ A block's own `orientation:` or `hand:` wins over these. Diagrams on screen redr
 
 ## Playback
 
-| Setting           | Default   | What it does                                                                                                                                                                                     |
-| ----------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Play the diagrams | On        | A playback bar at the bottom of chord, keyboard and fretboard diagrams, on hover (a tap on touch screens), and under strumming patterns. A click on the circle of fifths plays a key or a chord. |
-| Sound             | Soundfont | Soundfont: recorded instruments, the same as tabs and scores. Light synthesizer: a small computed sound, as on Obsidian Publish.                                                                 |
-| Volume            | 80        | From 0 to 100.                                                                                                                                                                                   |
-| Scale tempo       | 90        | Notes per minute when a scale plays, from 20 to 240.                                                                                                                                             |
-| Strum             | 40        | Milliseconds between two strings when a chord is strummed, from 0 to 200.                                                                                                                        |
+| Setting           | Default   | What it does                                                                                                                                                                                                                                                                  |
+| ----------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Play the diagrams | On        | A playback bar at the bottom of chord, keyboard and fretboard diagrams, on hover (a tap on touch screens), and under strumming and picking patterns. Progressions and chord charts get a bar that plays them in time. A click on the circle of fifths plays a key or a chord. |
+| Sound             | Soundfont | Soundfont: recorded instruments, the same as tabs and scores. Light synthesizer: a small computed sound, as on Obsidian Publish.                                                                                                                                              |
+| Volume            | 80        | From 0 to 100.                                                                                                                                                                                                                                                                |
+| Scale tempo       | 90        | Notes per minute when a scale plays, from 20 to 240.                                                                                                                                                                                                                          |
+| Strum             | 12        | Milliseconds between two strings when a chord is strummed, from 0 to 200.                                                                                                                                                                                                     |
 
 Each diagram's bar can change the speed, volume and sound for that diagram.
 
@@ -71,15 +71,16 @@ What each level means, for chords, for arrangements and pieces, and for scales, 
 
 The frontmatter properties the plugin reads and writes (last practiced, BPMs, priority, prerequisites, review fields, a guitar chord's frets, fingers and position, a piano chord's pitches and fingering, a scale's root, type and fingering, what an exercise trains and a chord change drill's best and last counts, minutes, session fields, time entries…).
 
-Pieces and strumming patterns have their own:
+Pieces, strumming and picking patterns have their own:
 
 - **Key** (`key`), for pieces: "G major", "E minor".
 - **Chords used** (`chords`), for pieces: the chord notes they use (links).
-- **Time signature** (`time_signature`), for pieces and strumming patterns: "3/4", "6/8"… The metronome counts it when it practices the note.
+- **Time signature** (`time_signature`), for pieces, strumming and picking patterns: "3/4", "6/8"… The metronome counts it when it practices the note.
 - **Strumming pattern** (`strum_pattern`), for strumming patterns: "D DU UDU".
 - **Feel** (`strum_feel`), for strumming patterns: "straight", "swing" or a swing ratio ("60%").
+- **Picking pattern** (`picking_pattern`), for fingerpicking patterns: a name ("travis", "alternate bass", "1-2-3-4") or the fingers of each slot ("p i m a").
 
-When the Kanban Action Planner is installed, its time-tracking and review property names are used, so both plugins write the same properties. Empty notation blocks in chord, scale, arpeggio and strumming pattern notes draw from these names ([Notation](notation.md#notes-draw-their-own-diagram)).
+When the Kanban Action Planner is installed, its time-tracking and review property names are used, so both plugins write the same properties. Empty notation blocks in chord, scale, arpeggio, strumming pattern and fingerpicking pattern notes draw from these names ([Notation](notation.md#notes-draw-their-own-diagram)).
 
 ## With or without the Obsidian Starter Kit
 
