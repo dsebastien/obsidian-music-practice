@@ -236,7 +236,7 @@ When you stop the timer, Log practice opens with its minutes, its start time and
 
 When no activity counts this kind of session yet, Log practice asks **Counts for the activity** before you can log:
 
-- an existing activity (the closest names come first): the session type is added to its `session_types`, so later sessions count for it too;
+- an existing activity (the closest names come first): the session type is added to its `session_types`, so later sessions count for it too. When other activities list the type, it is removed from theirs (one activity per type), and the dialog names them;
 - **New activity…**: a new activity with the name you type ("Learn Guitar" is proposed). It is created when you select **Log practice**, with the session type in its `session_types`;
 - **No activity**: the session counts for no activity.
 
@@ -246,7 +246,7 @@ What gets written:
 - **Each item**: last practiced date, BPM, review date, count and interval, new mastery. The first review interval starts when an item reaches "Can play slowly". Its minutes are recomputed from its session notes: its value in `practiced_minutes`, or an even share of the session's minutes for older sessions that only list it.
 - **The activity** gets no time entry: the session note links to it and carries the minutes. The activity's minutes and last session date are recomputed from its time entries and its linked session notes.
 
-Minutes are recomputed, never added to, so logging twice never counts twice. If you log the same session again (same items, date, minutes, and start time when there is one), the session note that holds it is used again and a review is not counted twice.
+Minutes are recomputed, never added to, so logging twice never counts twice. If you log the same session again (same items, date, minutes and start time), the session note that holds it is used again and a review is not counted twice. Without a start time, only a session note without one, created in the last 15 minutes, is used again: two real sessions of the same items that day stay two notes. **Undo last practice log** then still undoes the first log.
 
 Minutes are never lowered on their own. When an item stores more minutes than its sessions give, its minutes stay and a notice says so. When the activity stores more minutes than its time entries and sessions give, a notice asks what to do: **Keep** adds the difference as a "Manual adjustment" time entry on the day the activity was created, **Drop** lowers the activity's minutes.
 
