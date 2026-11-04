@@ -29,6 +29,7 @@ fingers: x-1-3-4-2-1
 - With a symbol only (` ```chord ` then `Am`), the diagram uses the most common voicing from the built-in database (about 1,800 voicings); `voicing: 2` picks the next one.
 - `name: A` works like `symbol: A`, so chord notes written that way keep working.
 - `tuning: DADGAD`, `Drop D` or any notes for other tunings and instruments.
+- `caption: fingering` writes how to play the chord under its diagram, for players who don't read diagrams yet: "Strum from the 5th string (A). Index on the D string, 2nd fret." It names barres, the thumb, muted and open strings and the capo, and works for piano chords too ("Left hand: little finger on E3. Right hand: thumb on C4…"). Put it in a first part before `---` to caption every chord of a row.
 
 Piano chords, from a symbol or exact pitches, with fingering, in one hand or both:
 
@@ -64,6 +65,8 @@ position: 1
 ````
 
 ![A minor pentatonic, box 1, on a fretboard from fret 5 to fret 8, with the A roots in a second color](images/notation-fretboard.png)
+
+On a keyboard, `fingering: auto` puts the standard fingering of a major or minor scale on the keys (`auto left` for the left hand), and `fingering: auto both` draws two keyboards: the right hand, then the left hand an octave lower.
 
 ## Chord charts
 
@@ -169,6 +172,7 @@ key: C
 - `key: G`, `key: Em` or `key: F# minor`. Chord names without a key get the likeliest one, shown with the others it could be.
 - `transpose: -2` moves the key, and `functions: yes` writes each chord's function under it (tonic, subdominant, dominant…).
 - `---` starts a section in a new key.
+- Leave out the chords and write `harmonize: triads`, `sevenths`, `sus` or `power` to draw the chords of a scale, each with its numeral: `key: A harmonic minor` with `harmonize: sevenths` gives AmMaj7 Bm7b5 Cmaj7#5 Dm7 E7 Fmaj7 G#dim7. Any 7-note scale works here, modes included (`key: D dorian`).
 - Guitar diagrams use the voicings that make the whole progression easiest to play. `instrument: piano` draws keyboards; add `voice-leading: yes`, or a piano voicing such as `voicing: shell` for a ii-V-I.
 - A play bar above the chords plays the progression in time, one chord a bar, with loop, a count-in, a click (on by default), tempo, volume, the strum and the sound. The chord that plays lights up. `time: 3/4` sets the meter, `tempo: 80` the tempo, and `strum:` how each chord plays: `beats` (a strum on each beat, the default), `bar`, `arpeggio` or a strumming pattern (`D - D U - U D U`).
 - **Practice this progression in time** plays the note's progressions and chord charts as a backing loop, with the speed trainer, and **Save BPM** offers the tempo you reach as the note's current BPM. See [Usage](usage.md#progressions-in-time).
