@@ -406,7 +406,13 @@ export class NotationBlocks {
          * The source of an empty block that Music Practice makes from the note's properties (an
          * arpeggio, #56; a strumming pattern, #58); null leaves the block to the library's properties.
          */
-        private readonly own: (sourcePath: string, language: string) => string | null = () => null
+        private readonly own: (sourcePath: string, language: string) => string | null = () => null,
+        /**
+         * The library's `play.timedBar` hook for a note's blocks (#88: Save BPM in the play bars of
+         * a learning note); null for notes that get none.
+         */
+        private readonly timedBar: (sourcePath: string) => PlayOptions['timedBar'] | null = () =>
+            null
     ) {}
 
     /** Register every language turned on, not registered yet and not taken. */
@@ -436,7 +442,7 @@ export class NotationBlocks {
                             ...this.layout(),
                             ...(empty && own === null ? this.note(path) : null),
                             voicings: lookupGuitarVoicing,
-                            ...playOf(this.play()),
+                            ...playOf(this.play(), this.timedBar(path)),
                             ...this.exerciseTabs(path)
                         })
                     }
@@ -597,5 +603,8 @@ export class NotationBlocks {
     }
 }
 
-/** The `play` render option, when playback is on. */
-const playOf = (play: PlayOptions | false): { play?: PlayOptions } => (play ? { play } : {})
+/** The `play` render option, when playback is on, with the note's timed-bar hook when it has one. */
+const playOf = (
+    play: PlayOptions | false,
+    timedBar: PlayOptions['timedBar'] | null = null
+): { play?: PlayOptions } => (play ? { play: timedBar ? { ...play, timedBar } : play } : {})
