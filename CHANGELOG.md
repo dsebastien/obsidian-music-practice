@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.14.0](https://github.com/dsebastien/obsidian-music-practice/compare/0.13.0...0.14.0) (2026-11-04)
+
+Chord charts play bar by bar, the play bars of a learning note's patterns, progressions and charts get Save BPM, and voicing grids keep their necks in line. From music-notation 0.12.0.
+
+- **Practice this progression in time follows a chart's bars**: a chart line with bar lines plays each chord for its beats (dots, slashes, `%` bars), and a bar of N.C. is a bar of silence. A line without bar lines still plays one chord a bar. A chart without `{time}` counts its beats in the note's time signature. Each chord is lit while it sounds, a silent bar shows as N.C., and the status counts the bars: "3 bars of 4/4, as the chart's bar lines say" (#89).
+- **`{define}` shapes and the capo in the loop**: a chord with a `{define}` shape plays that shape, and under `{capo}` the chords sound where the capo puts them. Before, the loop played each chord from its name, as if there were no capo (#89).
+- **Chord charts play bar by bar**: write bar lines `|` in a chart line to say how long its chords last in the chart's play bar. `| [G5]. . [D5]. [A5]. |` is two beats of G5, then one of D5 and one of A5. A bar with no chord (or only `%`) holds the chord before it, and a bar of N.C. is a bar of silence. The chart looks the same. A chart that already has bar lines, such as a 12-bar blues grid, now plays with those lengths. Before, each chord played for one bar.
+- **Save BPM in strumming, picking, progression and chart bars**: in a learning note, these play bars end with **Save BPM** (the gauge icon). It opens Set BPM with the tempo set on the bar, rounded. In 6/8, 9/8 and 12/8, that tempo counts dotted beats, as the note's BPM does. Before, you typed the tempo in Set BPM (#88).
+- **Voicing grids keep their necks in line**: in **Voicings of this chord**, **Triads of a chord or key**, the voicings of **Add a learning note** and its **More voicings…**, **Easiest way between these chords** and **Smooth this progression**, a long voicing name (such as "E shape (strings 1-4)") wraps onto two lines, and every diagram of the grid keeps its neck in line with the others. Before, that diagram was drawn smaller (#87).
+- **Long titles wrap in blocks too**: a long title on a chord diagram or a fretboard, such as "F#m7b5, Drop 3 (strings 2-4, 6)", wraps onto two or three lines instead of making the diagram wider. The other diagrams of the block keep the same room above them, so their necks stay in line. A diagram you titled at length is now narrower and a little taller.
+- **Tab exercises with a capo**: in a fretboard block, `exercise:` now works with `capo:`. The tab shows the frets the diagram shows, counted from the capo, and sounds where the capo puts it. `frets-from: nut` shows the real neck's frets. Before, the block said to leave the capo out.
+- **Larger diagrams on touch screens**: on phones and tablets, chord diagrams and fretboards are a third larger, so each string is easier to tap. They still fit the page.
+- **Import a text tab**: the dialog says the rhythm comes from the spacing, which is what the import does. Before, it said every note was an eighth. This shipped in 0.13.0, but its notes didn't say so.
+- **Publish**: pin the library at 0.12.0 for bars in a chart, tab exercises with a capo and long titles that wrap.
+
 ## [0.13.0](https://github.com/dsebastien/obsidian-music-practice/compare/0.12.0...0.13.0) (2026-11-04)
 
 Log practice now follows the same session rules as the Obsidian Starter Kit: a session counts for the activity that lists its type, items get their minutes from their sessions, and logging the same session twice never counts it twice.
@@ -252,6 +267,7 @@ The first release of Music Practice: learn an instrument in your notes.
 - A public API lets scripts and AI assistants log and plan practice with the same rules.
 
 Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
+
 
 
 
