@@ -1,6 +1,7 @@
 /**
- * Playing the diagrams (#31): which sound engine, and the defaults the diagrams' playback bar
- * starts from (each bar changes them for its own block only).
+ * Playing the diagrams (#31): which sound engine, the volume (music-notation 0.14: no bar has a
+ * volume control, this setting is the volume), and the defaults the play bars start from (each
+ * bar changes them for its own block only).
  */
 import type { PlayOptions } from '@dsebastien/music-notation'
 
@@ -42,15 +43,24 @@ export const createDefaultPlayback = (): PlaybackSettings => ({
 export const strumOption = (settings: PlaybackSettings): { strum?: number } =>
     settings.strum === DEFAULT_STRUM ? {} : { strum: settings.strum }
 
-/** The library's `play` option for these settings; false when playback is off. */
+/** The settings' volume, 0 to 1, as the library wants it. */
+export const volumeOf = (settings: PlaybackSettings): number =>
+    Math.min(1, Math.max(0, settings.volume / 100))
+
+/**
+ * The library's `play` option for these settings; false when playback is off. With `current`
+ * (the settings as they are now), the volume is read at each play, so a change in Settings →
+ * Playback applies to diagrams already drawn.
+ */
 export function playOptions(
     settings: PlaybackSettings,
-    soundfont: PlayOptions['player']
+    soundfont: PlayOptions['player'],
+    current?: () => PlaybackSettings
 ): PlayOptions | false {
     if (!settings.enabled) return false
     return {
         ...(settings.engine === 'soundfont' && soundfont ? { player: soundfont } : {}),
-        volume: Math.min(1, Math.max(0, settings.volume / 100)),
+        volume: current ? () => volumeOf(current()) : volumeOf(settings),
         bpm: settings.bpm,
         ...strumOption(settings)
     }

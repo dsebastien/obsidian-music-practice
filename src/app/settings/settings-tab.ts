@@ -204,7 +204,7 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                 items: [
                     {
                         name: 'Play the diagrams',
-                        desc: 'A playback bar at the bottom of chord, keyboard and fretboard diagrams, shown when the mouse is over them (a tap on touch screens). A click on a dot or a key plays that note.',
+                        desc: 'A click on a chord, keyboard or fretboard diagram plays it, and a click on a dot or a key plays that note. One bar under each block plays its diagrams one by one or all in turn, with loop, speed and the sound.',
                         control: { type: 'toggle', key: 'playback.enabled' }
                     },
                     {
@@ -216,11 +216,15 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             options: { soundfont: 'Soundfont', light: 'Light synthesizer' }
                         }
                     },
-                    this.num('playback.volume', 'Volume', 'From 0 to 100.'),
+                    this.num(
+                        'playback.volume',
+                        'Volume',
+                        'From 0 to 100. The volume of every play bar: diagrams, strumming and picking patterns, progressions and chord charts. The bars have no volume control.'
+                    ),
                     this.num(
                         'playback.bpm',
                         'Scale tempo',
-                        'Notes per minute when a scale plays, from 20 to 240. The bar can change it for one diagram.'
+                        'Notes per minute when a scale plays, from 20 to 240. The bar can change it for one block.'
                     ),
                     this.num(
                         'playback.strum',

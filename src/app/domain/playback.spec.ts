@@ -28,6 +28,18 @@ describe('playOptions', () => {
         expect(none && 'player' in none).toBe(false)
     })
 
+    it('reads the volume of the settings at each play when given them live (no volume on the bars)', () => {
+        let settings = { ...createDefaultPlayback(), volume: 30 }
+        const options = playOptions(settings, player, () => settings)
+        const volume = options ? options.volume : undefined
+        expect(typeof volume).toBe('function')
+        expect((volume as () => number)()).toBeCloseTo(0.3)
+        settings = { ...settings, volume: 70 }
+        expect((volume as () => number)()).toBeCloseTo(0.7)
+        settings = { ...settings, volume: 250 }
+        expect((volume as () => number)()).toBe(1)
+    })
+
     it('is off when playback is turned off', () => {
         expect(playOptions({ ...createDefaultPlayback(), enabled: false }, player)).toBe(false)
     })

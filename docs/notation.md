@@ -91,7 +91,7 @@ Songs in [ChordPro](https://www.chordpro.org/): chords in brackets inside the ly
 
 Want the chord shapes next to the song? `{diagrams}` draws every chord the song uses as a row above it, in the order they first appear (`{diagrams: bottom}` puts it under). `{define}` gives a chord your own shape, `{chord: Am}` draws one chord where you write it, and `{instrument: piano}` draws piano chords instead. With `{capo: 2}`, guitar diagrams show the shapes you play, with the capo drawn. See the [guide](https://dsebastien.github.io/music-notation/blocks.html#chord-diagrams-in-a-chart).
 
-A chart has a play bar above the song, the same as a [progression](#progressions): each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. Bar lines change that (see [Bars in a chart](#bars-in-a-chart)). A chord defined with `{define}` plays that shape, and the capo moves the sound. A chord the chart can't read (N.C.) is skipped, except a bar of N.C. between bar lines: that bar is silent. The chord that plays lights up in the lyrics.
+A chart has a play bar under the song, the same as a [progression](#progressions): each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. Bar lines change that (see [Bars in a chart](#bars-in-a-chart)). A chord defined with `{define}` plays that shape, and the capo moves the sound. A chord the chart can't read (N.C.) is skipped, except a bar of N.C. between bar lines: that bar is silent. The chord that plays lights up in the lyrics.
 
 ![The same chart while it plays: the C of the second line is lit](images/notation-chart-playing.png)
 
@@ -174,7 +174,7 @@ key: C
 - `---` starts a section in a new key.
 - Leave out the chords and write `harmonize: triads`, `sevenths`, `sus` or `power` to draw the chords of a scale, each with its numeral: `key: A harmonic minor` with `harmonize: sevenths` gives AmMaj7 Bm7b5 Cmaj7#5 Dm7 E7 Fmaj7 G#dim7. Any 7-note scale works here, modes included (`key: D dorian`).
 - Guitar diagrams use the voicings that make the whole progression easiest to play. `instrument: piano` draws keyboards; add `voice-leading: yes`, or a piano voicing such as `voicing: shell` for a ii-V-I.
-- A play bar above the chords plays the progression in time, one chord a bar, with loop, a count-in, a click (on by default), tempo, volume, the strum and the sound. The chord that plays lights up. `time: 3/4` sets the meter, `tempo: 80` the tempo, and `strum:` how each chord plays: `beats` (a strum on each beat, the default), `bar`, `arpeggio` or a strumming pattern (`D - D U - U D U`).
+- A play bar under the chords plays the progression in time, one chord a bar, with loop, a count-in, a click (on by default), tempo, the strum and the sound. The chord that plays lights up. A click on a chord diagram plays that chord. `time: 3/4` sets the meter, `tempo: 80` the tempo, and `strum:` how each chord plays: `beats` (a strum on each beat, the default), `bar`, `arpeggio` or a strumming pattern (`D - D U - U D U`).
 - **Practice this progression in time** plays the note's progressions and chord charts as a backing loop, with the speed trainer, and **Save BPM** offers the tempo you reach as the note's current BPM. See [Usage](usage.md#progressions-in-time).
 
 The numerals, minor keys and Nashville numbers are explained in the [guide](https://dsebastien.github.io/music-notation/blocks.html#progressions), and the play bar in [play a progression in time](https://dsebastien.github.io/music-notation/blocks.html#play-a-progression-in-time).
@@ -279,7 +279,9 @@ A fingerpicking pattern note's empty ` ```picking ` block draws its pattern, wit
 
 ## Hear the diagrams
 
-Hover a chord, keyboard or fretboard diagram (tap it on a phone or tablet) and a bar at its bottom plays it. Guitar chords strum from the low string up and ring, and piano chords sound together. Scales play every note drawn: from their lowest tonic up to the highest note, down to the lowest, and back to the tonic. The bar also has loop, speed (when several notes play), volume and sound (guitar or piano). A click on a dot or a key plays that note.
+Click a chord, keyboard or fretboard diagram (tap it on a phone or tablet) to hear it, and click it again to stop it. A click on a dot or a key plays only that note. With the keyboard, Tab to a diagram and press Space or Enter. Guitar chords strum from the low string up and ring, and piano chords sound together. Scales play every note drawn: from their lowest tonic up to the highest note, down to the lowest, and back to the tonic.
+
+Under each block, one bar plays its diagrams: play / stop, **Play all in turn** when the block has several diagrams (a row of voicings, the positions of a scale; a beat of silence between two), loop, speed (when several notes play, with its value: "90 BPM", "12 ms") and sound (guitar or piano; the other instrument redraws every diagram of the block for it). In a row, the diagram you clicked last is the one the bar plays and names. The volume is not on the bar: set it in **Settings → Playback**, and it applies at once to every bar.
 
 While a diagram plays, each note lights up when you hear it: the dot, the key or the string's mark. A strummed chord lights its strings from the low one up, and a clicked note lights only what you clicked. Stop, or a new sound, turns every light off. On the first play, the soundfont takes a moment to load: the lights wait for it, so they always match what you hear.
 

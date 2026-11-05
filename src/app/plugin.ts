@@ -521,7 +521,11 @@ export class MusicPracticePlugin extends Plugin {
 
     /** The diagrams' playback options (#31): the soundfont of the diagram's window, or the light synth. */
     playOptions(): PlayOptions | false {
-        return playOptions(this.settings.playback, (win) => this.alphaTab.player(win))
+        return playOptions(
+            this.settings.playback,
+            (win) => this.alphaTab.player(win),
+            () => this.settings.playback
+        )
     }
 
     /** A score's export menu in its player bar (#20): Guitar Pro 7, MIDI, print. */

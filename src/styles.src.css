@@ -328,7 +328,8 @@
     box-shadow: none;
     border: 2px solid transparent;
     border-radius: var(--radius-m);
-    cursor: var(--cursor);
+    /* The cell is clickable (it selects the voicing): the hand, as on the diagram in it. */
+    cursor: pointer;
     align-items: flex-start;
     white-space: normal;
 }
@@ -348,6 +349,12 @@
 .mp-voicing-row .mn-block {
     width: 100%;
     margin: 0;
+}
+
+/* Each cell is a block of one diagram: no bar under each (music-notation 0.14 gives every block
+   one). A click on the diagram plays it and selects the cell; a dot plays its note. */
+.mp-voicing-row .mn-block-bar {
+    display: none;
 }
 
 .mp-voicing-row .mn-svg {

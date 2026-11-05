@@ -76,7 +76,7 @@ A chord chart with its chord diagrams, lighting the chord that plays:
 
 - **Tabs and scores** with playback: play, slow down, loop, metronome and count-in. Write them in alphaTex, or use a Guitar Pro / MusicXML file. Export to Guitar Pro 7 or MIDI, or print. Everything is bundled, so it works offline, and in popout windows too.
 - **Tab exercises**: turn a scale position or an arpeggio shape into a tab that plays in time, with a count-in and a speed control. Save BPM in the tab's player bar keeps the tempo you reached.
-- **Hear the diagrams**: a play bar on every chord, keyboard and fretboard diagram, shown on hover. Chords strum, scales go up and down, and a click plays a note. Each note lights up on the drawing as you hear it.
+- **Hear the diagrams**: click a chord, keyboard or fretboard diagram to hear it, or a dot to hear one note. One bar under each block plays its diagrams, one by one or all in turn. Chords strum, scales go up and down. Each note lights up on the drawing as you hear it.
 - **Imports**: Guitar Pro, MusicXML, Capella and ChordPro files, plus pasted text tabs (drum tabs too) and chord sheets. A text tab already in a note shows as tablature you can play, and **Edit as alphaTex** turns it into alphaTex. **Tab**, **Score** and **Both** in the player bar change the view.
 
 ![A two-bar guitar part shown as notation over tablature, with the player bar and its Tab, Score and Both buttons](docs/images/tab.png)
