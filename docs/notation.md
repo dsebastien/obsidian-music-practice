@@ -87,7 +87,7 @@ Songs in [ChordPro](https://www.chordpro.org/): chords in brackets inside the ly
 ```
 ````
 
-![The chord chart of Campfire Song: its key, tempo and time, a row of G, Em, C and D diagrams, the lyrics with their chords, and the play bar on top](images/notation-chord-chart.png)
+![The chord chart of Campfire Song: its key, tempo and time, a row of G, Em, C and D diagrams, the lyrics with their chords, and the play bar under them](images/notation-chord-chart.png)
 
 Want the chord shapes next to the song? `{diagrams}` draws every chord the song uses as a row above it, in the order they first appear (`{diagrams: bottom}` puts it under). `{define}` gives a chord your own shape, `{chord: Am}` draws one chord where you write it, and `{instrument: piano}` draws piano chords instead. With `{capo: 2}`, guitar diagrams show the shapes you play, with the capo drawn. See the [guide](https://dsebastien.github.io/music-notation/blocks.html#chord-diagrams-in-a-chart).
 
@@ -167,7 +167,7 @@ key: C
 ```
 ````
 
-![The progression ii V I vi in C major: each numeral over its chord name and guitar diagram (Dm, G, C, Am), and the play bar on top](images/notation-progression-light.png)
+![The progression ii V I vi in C major: each numeral over its chord name and guitar diagram (Dm, G, C, Am), and the play bar under them](images/notation-progression-light.png)
 
 - `key: G`, `key: Em` or `key: F# minor`. Chord names without a key get the likeliest one, shown with the others it could be.
 - `transpose: -2` moves the key, and `functions: yes` writes each chord's function under it (tonic, subdominant, dominant…).
