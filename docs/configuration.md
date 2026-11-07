@@ -56,6 +56,15 @@ Each diagram's bar can change the speed, volume and sound for that diagram.
 | Flash on each beat        | Off           | A light that flashes on each beat, beat one in another color: for noisy rooms.                                             |
 | Chord change drill length | 60            | Seconds, from 10 to 600.                                                                                                   |
 
+## Play-along
+
+| Setting           | Default | What it does                                                                                                              |
+| ----------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Play-along player | On      | Draws ` ```playalong ` blocks (a recording with an A-B loop, speed, sections and a count-in). Off: they show as code.     |
+| Pre-roll          | 0.2     | Seconds played before A at each pass of the loop, from 0 to 2, so the first note isn't cut. The count-in still ends on A. |
+
+The count-in uses the metronome's **Count-in** bars (one at least) and its **Volume**.
+
 ## Rules
 
 | Group          | Settings (defaults)                                                                                                                                                                                                                 |

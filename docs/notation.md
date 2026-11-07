@@ -327,15 +327,34 @@ staves: both
 
 The full syntax, with triads, chord transitions and every option, is in the [library's guide](https://dsebastien.github.io/music-notation/blocks.html).
 
+## Play-along blocks
+
+A ` ```playalong ` block plays a recording of your vault with an A-B loop, the speed without a pitch change, its sections and a count-in ([how to use it](usage.md#play-along-with-a-recording)):
+
+````markdown
+```playalong
+file: [[Wonderwall.mp3]]
+tempo: 87
+0:00 Intro
+0:12 Verse
+0:45.5 Chorus
+```
+````
+
+- The recording: a `file:` line, or a line with only the link (`[[Song.mp3]]`, `![[Song.mp3]]`, `[Song](Music/Song.mp3)`) or the path. Audio: mp3, m4a, wav, flac, ogg, oga, opus, 3gp, aac. Video: mp4, webm, ogv, mov, mkv, m4v. A video shows its picture; whether a file plays depends on your device, as for Obsidian's own embeds.
+- `tempo: 87`: the recording's tempo at full speed, for the count-in and Save BPM. Optional: without it the note's target BPM counts, and a tempo you tap on the player is written here.
+- A section: its time (`0:12`, `12:05`, `1:02:03`, with up to three decimals: `0:45.5`), then its name. The name can be empty. The player shows the sections in time order, and **Add a section** writes new ones in that order.
+- A line the player can't read is named under the player ("Line 4 is not a section: write 0:12 Verse"); the rest works. A block without a file, or with a file that isn't in the vault or isn't audio or video, shows a message and its text.
+
 ## Turning blocks off
 
-**Settings → Music Practice → Notation blocks** has one switch per kind of block. A block turned off shows as code. When another plugin already draws one of these code blocks, Music Practice leaves it alone and says so there.
+**Settings → Music Practice → Notation blocks** has one switch per kind of block, and **Play-along** has the switch for ` ```playalong `. A block turned off shows as code. When another plugin already draws one of these code blocks, Music Practice leaves it alone and says so there.
 
 Music Practice claims its blocks once Obsidian has started, so plugins enabled at startup keep theirs. If you enable another plugin later that draws `chord`, `chords`, `keyboard`, `fretboard`, `strum`, `picking`, `progression`, `circle`, `tab` or `score` blocks, it can't register them while Music Practice holds them: turn that block off here, reload Music Practice, then enable the other plugin.
 
 ## Obsidian Publish
 
-Obsidian Publish doesn't run plugins. To draw these blocks on a Publish site, add the loader from the [library's Publish guide](https://dsebastien.github.io/music-notation/publish.html) to your site's `publish.js`. Pin the library at 0.8.0 or later (0.11.0 for picking patterns, tab exercises, and progressions and chord charts that play in time, 0.12.0 for bars in a chart, tab exercises with a capo and long titles that wrap), and keep `strum`, `picking`, `progression` and `circle` in the loader's list of block languages: without them, those blocks stay code on your site.
+Obsidian Publish doesn't run plugins. ` ```playalong ` blocks show as code there. To draw the other blocks on a Publish site, add the loader from the [library's Publish guide](https://dsebastien.github.io/music-notation/publish.html) to your site's `publish.js`. Pin the library at 0.8.0 or later (0.11.0 for picking patterns, tab exercises, and progressions and chord charts that play in time, 0.12.0 for bars in a chart, tab exercises with a capo and long titles that wrap), and keep `strum`, `picking`, `progression` and `circle` in the loader's list of block languages: without them, those blocks stay code on your site.
 
 Your layout settings (left-handed, orientations) stay in Obsidian. To get the same on your site, set them at the top of `publish.js`, before the loader:
 

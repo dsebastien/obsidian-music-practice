@@ -48,6 +48,7 @@ A chord chart with its chord diagrams, lighting the chord that plays:
 - **Practice panel**: the timer, your session list from a plan, BPM nudges, the metronome, Log this session.
 - **Metronome and speed trainer**: accents, subdivisions, tap tempo, a count-in and a beat flash, and the meter of the piece you practice. The speed trainer steps up to the note's target BPM, and Save BPM keeps the tempo you reached.
 - **Practice a progression in time**: a song's chords, one a bar or as its chart's bar lines say, as a backing loop with a click, a count-in and the speed trainer, to practice the changes or to solo over them. Save BPM keeps the tempo you reached.
+- **Play along with a recording**: a song's audio or video file of your vault, with an A-B loop, the speed from 50 % to 125 % without a pitch change, its sections to jump to or loop, and a count-in before each pass. Save BPM keeps the tempo you reached.
 - **Chord change drills**: count the changes between two chords in a minute. Your best and last counts go on the pair's note.
 - **Key, scales and hard changes of a piece**: find a song's key and the scales to solo with, and drill its hardest chord changes first.
 - **Mastery and spaced review**: a rubric for each kind of item, and a light SM-2 review that catches what's getting rusty.

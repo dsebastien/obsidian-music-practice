@@ -146,6 +146,33 @@ The loop counts the progression's own time, else the note's time signature (`tim
 
 The loop plays through your playback settings (the soundfont or the light synthesizer, and the volume), on piano for a piano progression block or a piano note. It never plays with the metronome: starting one stops the other. It stops when you close its window, when you close the Obsidian window it plays in, and when you turn the plugin off.
 
+## Play along with a recording
+
+Learn a song from its recording: loop a passage, slow it down without changing its pitch, jump to the verse or the chorus, and get a count-in before each pass. Put a ` ```playalong ` block in the piece's note with the recording (an audio or a video file of your vault) and its sections (see [Notation](notation.md#play-along-blocks)):
+
+````markdown
+```playalong
+file: [[Wonderwall.mp3]]
+tempo: 87
+0:00 Intro
+0:12 Verse
+0:45.5 Chorus
+```
+````
+
+The player shows the file, **Play**, the time, a timeline with the loop and the sections on it, and its controls:
+
+- **−** and **+**: the speed, from 50 % to 125 %, in steps of 5 %. The pitch doesn't change.
+- **A** and **B** set the start and the end of the loop at the playhead. **Loop** turns it on or off, and the cross clears it. A loop needs half a second at least; set A after B and the two swap. Each pass starts a little before A (the **Pre-roll** setting, 0.2 s by default), so the first note isn't cut.
+- **Count-in** (on by default): before Play and before every pass of the loop, the metronome clicks a bar (or its **Count-in** bars) at the recording's tempo times the speed, in the note's time signature. The passage starts on the beat after the last click. The tempo is the recording's: the block's `tempo:` line, else the note's target BPM. Without either, select **Tap** (or press T) on the beat a few times while it plays: two seconds after the last tap, the player writes the tempo as the block's `tempo:` line, so you tap once per song. Tap again to correct it. The note's current BPM is never used: it is the tempo you play at, not the recording's.
+- **Add a section** (the bookmark): asks for a name and writes the section at the playhead into the block (Ctrl+Z, or Cmd+Z, undoes it in editing view). The music plays on.
+- **Save BPM** (in a learning note): opens Set BPM with the tempo it plays at, the tempo times the speed.
+- Under the controls, the sections: select one to jump there, or its loop button to loop it (to the next section, the last one to the end).
+
+Click the player (or press Tab until it is selected) to use the keys: Space or K play and pause, `[` and `]` set A and B, L turns the loop on or off, the arrows go back or forward 5 s (with Shift, 1 s; on the timeline itself, they move a tenth of a second), − and + change the speed, C turns the count-in on or off, T taps the tempo and M adds a section.
+
+Play puts a learning note in the practice panel's list, so **Log this session** logs it with the timer's minutes. Start the timer yourself: Play doesn't. One player plays at a time: Play pauses the others and stops the metronome and the backing loop, and starting either of them pauses the players. The player keeps its loop, speed and tempo while Obsidian runs, also when you switch to editing view or open the note again. A switch to the other view pauses the music: press Play there to go on from the same place. It stops when you close the note, close its window or turn the plugin off. Video files show their picture (click it to play or pause); audio files show only the controls.
+
 ## Tab exercises
 
 Learn a scale or an arpeggio position in time, then speed it up. On a guitar scale or arpeggio note, in editing view, run **Insert a tab exercise of this scale or arpeggio**:
