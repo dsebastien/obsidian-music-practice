@@ -162,6 +162,33 @@ export const replaceBody = (block: CodeBlock, text: string): LineChange => ({
     lines: text.split('\n').map((l) => block.prefix + l)
 })
 
+/**
+ * A change of the `language` block drawn from `source` (found as `findBlock` finds it): its body
+ * becomes `change(body)`, each line with the block's prefix; null when the block isn't there.
+ */
+export const editBlock =
+    (language: string, source: string, section: Section | null, change: (body: string) => string) =>
+    (lines: string[]): LineChange | null => {
+        const block = findBlock(lines, language, source, section)
+        return block ? replaceBody(block, change(block.body.join('\n'))) : null
+    }
+
+/**
+ * A note's text: the editor showing it in editing view (the one `el` is in first), so Ctrl+Z
+ * (Cmd+Z) undoes the change, else its file; null when it isn't a note.
+ */
+export function noteTextOf(app: App, sourcePath: string, el?: HTMLElement): NoteText | null {
+    const views = app.workspace
+        .getLeavesOfType('markdown')
+        .map((leaf) => leaf.view)
+        .filter((view): view is MarkdownView => view instanceof MarkdownView)
+        .filter((view) => view.file?.path === sourcePath && view.getMode() === 'source')
+    const view = views.find((v) => el && v.containerEl.contains(el)) ?? views[0]
+    if (view) return editorText(view.editor)
+    const file = app.vault.getAbstractFileByPath(sourcePath)
+    return file instanceof TFile ? fileText(app, file) : null
+}
+
 export function applyChange(lines: string[], change: LineChange): string[] {
     return [...lines.slice(0, change.from), ...change.lines, ...lines.slice(change.to)]
 }
@@ -267,15 +294,7 @@ export class TextTabConverter {
 
     /** The note's text: its editor in editing view (the one the block is in first), else its file. */
     private textOf(sourcePath: string, el?: HTMLElement): NoteText | null {
-        const views = this.app.workspace
-            .getLeavesOfType('markdown')
-            .map((leaf) => leaf.view)
-            .filter((view): view is MarkdownView => view instanceof MarkdownView)
-            .filter((view) => view.file?.path === sourcePath && view.getMode() === 'source')
-        const view = views.find((v) => el && v.containerEl.contains(el)) ?? views[0]
-        if (view) return editorText(view.editor)
-        const file = this.app.vault.getAbstractFileByPath(sourcePath)
-        return file instanceof TFile ? fileText(this.app, file) : null
+        return noteTextOf(this.app, sourcePath, el)
     }
 
     /** The Convert button under a text tab block. */

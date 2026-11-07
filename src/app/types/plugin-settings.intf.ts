@@ -17,6 +17,15 @@ import { panelItemsFrom } from '../domain/panel'
 import type { PanelItem } from '../domain/panel'
 import type { MetronomeSettings } from '../domain/metronome'
 import type { UndoRecord } from '../domain/undo'
+import { DEFAULT_PRE_ROLL, MAX_PRE_ROLL } from '../domain/playalong'
+
+/** The play-along player (#75). */
+export interface PlayAlongSettings {
+    /** Draw ```playalong blocks (off: they show as code). */
+    enabled: boolean
+    /** Seconds played before A at each pass, 0 to 2. */
+    preRoll: number
+}
 
 export interface PluginSettings {
     /** Every number the practice rules use (#27). */
@@ -53,6 +62,8 @@ export interface PluginSettings {
     panelItems: PanelItem[]
     /** Length of a chord change drill, in seconds (#40). */
     drillSeconds: number
+    /** The play-along player (#75). */
+    playAlong: PlayAlongSettings
 }
 
 /**
@@ -99,7 +110,8 @@ export function createDefaultSettings(): PluginSettings {
         lastLog: null,
         metronome: createDefaultMetronomeSettings(),
         panelItems: [],
-        drillSeconds: 60
+        drillSeconds: 60,
+        playAlong: { enabled: true, preRoll: DEFAULT_PRE_ROLL }
     }
 }
 
@@ -161,6 +173,8 @@ export function settingsFrom(loaded: unknown): PluginSettings {
         settings.drillSeconds > 600
     )
         settings.drillSeconds = DEFAULT_SETTINGS.drillSeconds
+    const preRoll = settings.playAlong.preRoll
+    if (preRoll < 0 || preRoll > MAX_PRE_ROLL) settings.playAlong.preRoll = DEFAULT_PRE_ROLL
     // A pause from before the start, or in the future, or negative paused time: count no pause.
     const now = Date.now()
     if (

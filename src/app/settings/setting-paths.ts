@@ -61,7 +61,8 @@ const MINIMUMS: Record<string, { min: number; integer: boolean }> = {
     'drillSeconds': { min: 10, integer: true },
     'playback.volume': { min: 0, integer: true },
     'playback.bpm': { min: 20, integer: true },
-    'playback.strum': { min: 0, integer: true }
+    'playback.strum': { min: 0, integer: true },
+    'playAlong.preRoll': { min: 0, integer: false }
 }
 
 /** Upper bounds, for the settings that have one. */
@@ -75,7 +76,8 @@ const MAXIMUMS: Record<string, number> = {
     'drillSeconds': 600,
     'playback.volume': 100,
     'playback.bpm': 240,
-    'playback.strum': 200
+    'playback.strum': 200,
+    'playAlong.preRoll': 2
 }
 
 /** Text settings that may be left empty; every other text setting needs a value. */

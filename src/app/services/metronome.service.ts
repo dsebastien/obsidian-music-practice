@@ -46,6 +46,24 @@ export interface MetronomeState {
     meter: ItemMeter | null
 }
 
+/** A count-in for another player (#75): clicks on the metronome's clock, without starting it. */
+export interface CountInRequest {
+    beats: number
+    beatsPerBar: number
+    bpm: number
+    /** Seconds before the beat after the last click at which `done` resolves (the player starts then). */
+    lead: number
+    /** The window whose timer ends it (the player's: a popout's timers run there); the metronome's by default. */
+    window?: Window
+}
+
+export interface CountInHandle {
+    /** True at the end (`lead` before the next beat), false when cancelled. */
+    done: Promise<boolean>
+    /** Silences the clicks still to come; `done` resolves to false. */
+    cancel(): void
+}
+
 const LOOKAHEAD_S = 0.12
 const INTERVAL_MS = 25
 const FREQUENCY: Record<TickKind, number> = { accent: 1600, beat: 1100, sub: 800, count: 2000 }
@@ -74,6 +92,8 @@ export class Metronome {
     /** Count-in clicks left before the first bar. */
     private countInLeft = 0
     private countInTotal = 0
+    /** Count-ins clicking now (#75): the audio device rests only when none is. */
+    private countIns = 0
 
     constructor(
         private readonly win: Window,
@@ -199,6 +219,89 @@ export class Metronome {
         else this.start()
     }
 
+    /**
+     * Clicks a count-in for another player (the play-along player, #75) on this metronome's audio
+     * clock, with its volume and sounds (the first beat of each bar in the count-in pitch), without
+     * starting the metronome. `done` resolves `lead` seconds before the beat after the last click.
+     */
+    countIn(request: CountInRequest): CountInHandle {
+        let cancelled = false
+        let timer: number | null = null
+        const timers = request.window ?? this.win
+        this.countIns++
+        const nodes: OscillatorNode[] = []
+        let finish: (ok: boolean) => void = () => {}
+        const done = new Promise<boolean>((resolve) => (finish = resolve))
+        const cancel = (): void => {
+            if (cancelled) return
+            cancelled = true
+            if (timer !== null) timers.clearTimeout(timer)
+            timer = null
+            this.countIns--
+            this.rest(0)
+            for (const node of nodes) {
+                try {
+                    node.stop(0)
+                } catch {
+                    // Already stopped.
+                }
+            }
+            nodes.length = 0
+            finish(false)
+        }
+        const Context = (this.win as Window & { AudioContext?: typeof AudioContext }).AudioContext
+        if (!Context) {
+            cancelled = true
+            this.countIns--
+            finish(true)
+            return { done, cancel }
+        }
+        this.context ??= new Context()
+        const context = this.context
+        void context
+            .resume()
+            .catch(() => {})
+            .then(() => {
+                if (cancelled) return
+                const { volume } = this.settings()
+                const beat = tickSeconds(request.bpm, 1)
+                // A lead longer than the clicks (a long pre-roll at a slow speed): the clicks start
+                // later, so the player never has to start before now.
+                const start =
+                    context.currentTime + 0.05 + Math.max(0, request.lead - request.beats * beat)
+                for (let n = 0; n < request.beats; n++) {
+                    const kind: TickKind = n % request.beatsPerBar === 0 ? 'count' : 'beat'
+                    nodes.push(this.click(context, start + n * beat, kind, volume))
+                }
+                const end = start + request.beats * beat - request.lead
+                const delay = Math.max(0, (end - context.currentTime) * 1000)
+                timer = timers.setTimeout(() => {
+                    timer = null
+                    if (cancelled) return
+                    // Ended: a cancel from now on changes nothing.
+                    cancelled = true
+                    nodes.length = 0
+                    this.countIns--
+                    finish(true)
+                    // The audio device rests once the clicks are over (after the beat they lead to).
+                    this.rest(
+                        Math.max(0, (start + request.beats * beat - context.currentTime) * 1000) +
+                            150
+                    )
+                }, delay)
+            })
+        return { done, cancel }
+    }
+
+    /** Suspends the audio context after `ms` when nothing uses it (no metronome, no count-in). */
+    private rest(ms: number): void {
+        const id = this.win.setTimeout(() => {
+            this.pending.delete(id)
+            if (!this.state.running && this.countIns === 0) this.context?.suspend().catch(() => {})
+        }, ms)
+        this.pending.add(id)
+    }
+
     /** Stop and release the audio device (plugin unload). */
     destroy(): void {
         this.stop()
@@ -249,7 +352,12 @@ export class Metronome {
         }
     }
 
-    private click(context: AudioContext, at: number, kind: TickKind, volume: number): void {
+    private click(
+        context: AudioContext,
+        at: number,
+        kind: TickKind,
+        volume: number
+    ): OscillatorNode {
         const oscillator = context.createOscillator()
         const gain = context.createGain()
         oscillator.frequency.value = FREQUENCY[kind]
@@ -260,6 +368,7 @@ export class Metronome {
         oscillator.connect(gain).connect(context.destination)
         oscillator.start(at)
         oscillator.stop(at + 0.06)
+        return oscillator
     }
 
     /** Moves the beat display when the click sounds; a beat (not a subdivision) also pulses. */

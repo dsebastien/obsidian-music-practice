@@ -285,6 +285,35 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                 ]
             },
             {
+                type: 'group',
+                heading: 'Play-along',
+                items: [
+                    {
+                        name: 'Play-along player',
+                        desc: 'A playalong code block plays a recording of the vault (audio or video) with an A-B loop, the speed without a pitch change, its sections and a count-in before each pass.',
+                        control: { type: 'toggle', key: 'playAlong.enabled' }
+                    },
+                    this.num(
+                        'playAlong.preRoll',
+                        'Pre-roll',
+                        'Seconds played before A at each pass of the loop, from 0 to 2 (0.2 by default), so the first note is not cut.'
+                    ),
+                    {
+                        name: 'Status',
+                        desc: '',
+                        searchable: false,
+                        // Read at each opening: registrations change when the plugin reloads.
+                        render: (setting): void => {
+                            setting.setDesc(
+                                this.plugin.playAlongStatus() === 'taken'
+                                    ? 'Another plugin already draws playalong blocks, so Music Practice leaves them alone.'
+                                    : 'Turned off, the blocks show as code; reload the plugin to let another plugin draw them.'
+                            )
+                        }
+                    }
+                ]
+            },
+            {
                 type: 'page',
                 name: 'Rules',
                 desc: 'Mastery levels, spaced review, practice score and practice plans.',

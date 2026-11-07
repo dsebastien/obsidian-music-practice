@@ -1,4 +1,4 @@
-import { Menu, Notice, Platform, Plugin, debounce, setIcon } from 'obsidian'
+import { MarkdownView, Menu, Notice, Platform, Plugin, debounce, setIcon } from 'obsidian'
 import type { Editor, TFile } from 'obsidian'
 import { createDefaultSettings, settingsFrom } from './types/plugin-settings.intf'
 import type { PluginSettings } from './types/plugin-settings.intf'
@@ -44,12 +44,23 @@ import {
     timerRunningMessage
 } from './domain/timer'
 import type { TimerState } from './domain/timer'
-import { NotationBlocks } from './services/notation.service'
+import { NotationBlocks, processorExists } from './services/notation.service'
+import { PlayAlongBlocks } from './services/playalong.service'
+import type { PlayAlongDeps } from './services/playalong.service'
+import { mountPlayAlong, showPlayAlongMessage } from './ui/playalong-view'
+import { askSectionName } from './ui/section-name-modal'
+import { PLAYALONG_LANGUAGE } from './domain/playalong'
 import type { BlockLanguage } from './services/notation.service'
 import { AlphaTabRuntime } from './services/alphatab.service'
 import { ImportService, TAB_STARTER, fenced, insertBlock } from './services/import.service'
 import type { PreparedScore } from './services/import.service'
-import { TextTabConverter, blockAt, convertible } from './services/text-tab.service'
+import {
+    TextTabConverter,
+    blockAt,
+    convertible,
+    editBlock,
+    noteTextOf
+} from './services/text-tab.service'
 import { PasteImportModal, ScoreImportModeModal } from './ui/import-modals'
 import { chordSheetToChordPro, textTabToAlphaTex } from '@dsebastien/music-notation/tab'
 import { DEFAULT_STRUM, playOptions, strumOption } from './domain/playback'
@@ -143,6 +154,8 @@ export class MusicPracticePlugin extends Plugin {
     private practiceLog!: PracticeLogService
     private noteCreator!: NoteCreatorService
     private notation!: NotationBlocks
+    /** The play-along players (#75). */
+    private playAlong!: PlayAlongBlocks
     /** Set by onunload: an onload still running stops at its next step (#90). */
     private unloaded = false
     private alphaTab!: AlphaTabRuntime
@@ -282,6 +295,91 @@ export class MusicPracticePlugin extends Plugin {
             type.kind,
             instrument
         )
+    }
+
+    /** Whether Music Practice draws ```playalong blocks (for the settings tab). */
+    playAlongStatus(): 'on' | 'off' | 'taken' {
+        return this.playAlong.status()
+    }
+
+    /** What the play-along players need from the plugin (#75). */
+    private playAlongDeps(): PlayAlongDeps {
+        return {
+            enabled: () => this.settings.playAlong.enabled,
+            exists: processorExists,
+            resolve: (link, sourcePath) => {
+                const file = this.app.metadataCache.getFirstLinkpathDest(link, sourcePath)
+                return file ? { path: file.path, url: this.app.vault.getResourcePath(file) } : null
+            },
+            note: (path) => this.playAlongNote(path),
+            settings: () => ({
+                preRoll: this.settings.playAlong.preRoll,
+                countInBars: this.settings.metronome.countInBars
+            }),
+            countIn: (request) => this.metronome.countIn(request),
+            isLearningNote: (path) => this.items.items().some((i) => i.path === path),
+            addToPanel: (path) => {
+                if (this.settings.panelItems.some((i) => i.path === path)) return
+                void this.setPanelItems((items) => withPaths(items, [path]))
+            },
+            stopOthers: () => {
+                if (this.metronome.state.running) this.metronome.stop()
+                this.backing.stop()
+            },
+            saveBpm: (path, bpm) => this.openSaveBpm(path, bpm),
+            writeBlock: (request, change) => {
+                const text = noteTextOf(this.app, request.sourcePath, request.el)
+                if (!text) return Promise.resolve(false)
+                return text.edit(
+                    editBlock(PLAYALONG_LANGUAGE, request.source, request.section(), change)
+                )
+            },
+            askName: (proposed) => askSectionName(this.app, proposed),
+            notice: (message) => new Notice(message),
+            showMessage: showPlayAlongMessage,
+            mount: mountPlayAlong,
+            openNotes: () =>
+                new Set(
+                    this.app.workspace
+                        .getLeavesOfType('markdown')
+                        .map((leaf) =>
+                            leaf.view instanceof MarkdownView ? leaf.view.file?.path : null
+                        )
+                        .filter((path): path is string => !!path)
+                ),
+            hostOf: (el) => {
+                const leaf = this.app.workspace
+                    .getLeavesOfType('markdown')
+                    .find((l) => l.view.containerEl.contains(el))
+                return leaf?.view instanceof MarkdownView ? (leaf.view.file?.path ?? null) : null
+            },
+            now: () => Date.now(),
+            timer: {
+                set: (fn, ms) => window.setTimeout(fn, ms),
+                clear: (id) => window.clearTimeout(id)
+            }
+        }
+    }
+
+    /**
+     * A note's target BPM and beats per bar, for its play-along players (#75). Not its current BPM:
+     * that is the tempo the learner plays at, not the recording's.
+     */
+    private playAlongNote(path: string): { bpmTarget: number | null; beatsPerBar: number } {
+        const file = this.app.vault.getFileByPath(path)
+        const frontmatter = file
+            ? this.app.metadataCache.getFileCache(file)?.frontmatter
+            : undefined
+        const fields = this.effective().fields
+        const bpm = (value: unknown): number | null => {
+            const n =
+                typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
+            return Number.isFinite(n) && n > 0 ? n : null
+        }
+        return {
+            bpmTarget: bpm(frontmatter?.[fields.bpmTarget]),
+            beatsPerBar: (file ? this.meterOfNote(file)?.beatsPerBar : null) ?? 4
+        }
     }
 
     /** Whether Music Practice draws a notation block language (for the settings tab). */
@@ -435,6 +533,7 @@ export class MusicPracticePlugin extends Plugin {
         this.registerEvent(
             this.app.vault.on('rename', (file, oldPath) => {
                 this.notation?.renamed(oldPath, file.path)
+                this.playAlong?.renamed(oldPath, file.path)
                 this.panelPathChanged(oldPath, file.path)
             })
         )
@@ -442,10 +541,15 @@ export class MusicPracticePlugin extends Plugin {
             this.app.vault.on('delete', (file) => this.panelPathChanged(file.path, null))
         )
         this.app.workspace.onLayoutReady(() => this.notation.sync())
+        this.playAlong = new PlayAlongBlocks(this, this.playAlongDeps())
+        this.app.workspace.onLayoutReady(() => this.playAlong.sync())
+        // A note closed: its players go (Obsidian may keep a closed note's blocks loaded).
+        this.registerEvent(this.app.workspace.on('layout-change', () => this.playAlong.prune()))
         // A popout window closed: free the alphaTab it loaded and its hidden player.
         this.registerEvent(
             this.app.workspace.on('window-close', (_workspaceWindow, win) => {
                 if (this.backingWindow === win) this.backing.stop()
+                this.playAlong.windowClosed(win)
                 this.alphaTab.release(win)
             })
         )
@@ -458,6 +562,13 @@ export class MusicPracticePlugin extends Plugin {
         this.register(
             this.metronome.subscribe(() => {
                 if (this.metronome.state.running && this.backing.state.running) this.backing.stop()
+                // The metronome started: the play-along players pause (#75).
+                if (this.metronome.state.running) this.playAlong.pauseAll()
+            })
+        )
+        this.register(
+            this.backing.subscribe(() => {
+                if (this.backing.state.running) this.playAlong.pauseAll()
             })
         )
         this.metronomeEl = this.addStatusBarItem()
@@ -516,6 +627,7 @@ export class MusicPracticePlugin extends Plugin {
         this.backing?.destroy()
         // Drawings stay on screen after a plugin unloads: stop and free them first.
         this.notation?.unload()
+        this.playAlong?.unload()
         this.alphaTab?.unload()
     }
 
@@ -803,12 +915,18 @@ export class MusicPracticePlugin extends Plugin {
     /** Another device (sync) changed data.json: reload, so a save here never wipes its changes. */
     override async onExternalSettingsChange(): Promise<void> {
         const notation = JSON.stringify(this.settings.notation)
+        const playAlong = this.settings.playAlong.enabled
         const layout = JSON.stringify([this.settings.notationLayout, this.settings.playback])
         await this.loadSettings()
         this.noteModel?.refresh()
         this.renderTimer()
         this.notation?.sync()
-        if (JSON.stringify(this.settings.notation) !== notation) this.notation?.refreshOpenNotes()
+        this.playAlong?.sync()
+        if (
+            JSON.stringify(this.settings.notation) !== notation ||
+            this.settings.playAlong.enabled !== playAlong
+        )
+            this.notation?.refreshOpenNotes()
         if (JSON.stringify([this.settings.notationLayout, this.settings.playback]) !== layout)
             this.notation?.redrawLayout()
         this.refreshPanels()
@@ -2360,6 +2478,7 @@ export class MusicPracticePlugin extends Plugin {
             const next = produce(this.settings, mutator)
             await this.saveData(next)
             const notationChanged = next.notation !== this.settings.notation
+            const playAlongChanged = next.playAlong.enabled !== this.settings.playAlong.enabled
             // Property names change what empty blocks draw from, like the layout changes how;
             // playback settings change the diagrams' bars.
             const layoutChanged =
@@ -2371,6 +2490,10 @@ export class MusicPracticePlugin extends Plugin {
             this.noteModel?.refresh()
             if (notationChanged) {
                 this.notation?.sync()
+                this.notation?.refreshOpenNotes()
+            }
+            if (playAlongChanged) {
+                this.playAlong?.sync()
                 this.notation?.refreshOpenNotes()
             }
             if (layoutChanged) this.notation?.redrawLayout()

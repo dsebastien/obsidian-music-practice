@@ -8,6 +8,7 @@ import {
     codeBlocks,
     convertedTab,
     convertible,
+    editBlock,
     editorText,
     fileText,
     findBlock,
@@ -341,5 +342,36 @@ describe('Keep this view (#83)', () => {
             },
             { from: { line: 5, ch: 0 }, to: { line: 5, ch: 6 }, text: 'staves: score\n:4 0.6' }
         ])
+    })
+})
+
+describe('editBlock (#75: a section written into a playalong block)', () => {
+    const note = [
+        '# Song',
+        '```playalong',
+        'file: [[a.mp3]]',
+        '0:00 Intro',
+        '```',
+        '> ```playalong',
+        '> file: [[b.mp3]]',
+        '> ```'
+    ]
+    it('changes the body of the block drawn from that source, with its prefix', () => {
+        const change = editBlock(
+            'playalong',
+            'file: [[b.mp3]]\n',
+            null,
+            (body) => `${body}\n0:12 Verse`
+        )
+        expect(applyChange(note, change(note)!)).toEqual([
+            ...note.slice(0, 6),
+            '> file: [[b.mp3]]',
+            '> 0:12 Verse',
+            '> ```'
+        ])
+    })
+    it('finds nothing when the block changed meanwhile', () => {
+        const change = editBlock('playalong', 'file: [[c.mp3]]', null, (body) => body)
+        expect(change(note)).toBeNull()
     })
 })

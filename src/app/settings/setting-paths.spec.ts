@@ -80,3 +80,13 @@ describe('layout settings', () => {
         expect(parseSetting('notationLayout.leftHanded', true)).toEqual({ ok: true, value: true })
     })
 })
+
+describe('play-along settings (#75)', () => {
+    it('takes a pre-roll from 0 to 2 seconds, tenths allowed', () => {
+        expect(parseSetting('playAlong.preRoll', '0.5')).toEqual({ ok: true, value: 0.5 })
+        expect(parseSetting('playAlong.preRoll', 0)).toEqual({ ok: true, value: 0 })
+        expect(parseSetting('playAlong.preRoll', 2.5).ok).toBe(false)
+        expect(parseSetting('playAlong.preRoll', -0.1).ok).toBe(false)
+        expect(parseSetting('playAlong.enabled', false)).toEqual({ ok: true, value: false })
+    })
+})

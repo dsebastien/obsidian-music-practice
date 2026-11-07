@@ -145,3 +145,19 @@ describe('settingsFrom: playback strum', () => {
         expect(settingsFrom({}).playback.strum).toBe(12)
     })
 })
+
+describe('settingsFrom: the play-along player (#75)', () => {
+    it('is on with a 0.2 s pre-roll by default', () => {
+        expect(createDefaultSettings().playAlong).toEqual({ enabled: true, preRoll: 0.2 })
+        expect(settingsFrom({}).playAlong).toEqual({ enabled: true, preRoll: 0.2 })
+    })
+    it('keeps stored values in range, and drops the others', () => {
+        expect(settingsFrom({ playAlong: { enabled: false, preRoll: 1.5 } }).playAlong).toEqual({
+            enabled: false,
+            preRoll: 1.5
+        })
+        expect(settingsFrom({ playAlong: { preRoll: 3 } }).playAlong.preRoll).toBe(0.2)
+        expect(settingsFrom({ playAlong: { preRoll: -1 } }).playAlong.preRoll).toBe(0.2)
+        expect(settingsFrom({ playAlong: { preRoll: 'x' } }).playAlong.preRoll).toBe(0.2)
+    })
+})

@@ -6,8 +6,9 @@ const fake = <T>(value: unknown): T => value as T
 
 /** A window whose timers run by hand, and an audio context whose clock moves by hand. */
 function harness(settings: Partial<MetronomeSettings> = {}) {
-    const clicks: { at: number; frequency: number }[] = []
+    const clicks: { at: number; frequency: number; stops: number[] }[] = []
     let now = 0
+    let suspends = 0
     const timeouts = new Map<number, { at: number; run: () => void }>()
     let id = 0
     let interval: (() => void) | null = null
@@ -17,14 +18,18 @@ function harness(settings: Partial<MetronomeSettings> = {}) {
         }
         destination = {}
         resume = () => Promise.resolve()
-        suspend = () => Promise.resolve()
+        suspend = () => {
+            suspends++
+            return Promise.resolve()
+        }
         close = () => Promise.resolve()
         createOscillator() {
+            const stops: number[] = []
             const node = {
                 frequency: { value: 0 },
                 connect: (gain: unknown) => gain,
-                start: (at: number) => clicks.push({ at, frequency: node.frequency.value }),
-                stop: () => {}
+                start: (at: number) => clicks.push({ at, frequency: node.frequency.value, stops }),
+                stop: (at = now) => stops.push(at)
             }
             return node
         }
@@ -65,7 +70,7 @@ function harness(settings: Partial<MetronomeSettings> = {}) {
                 }
         }
     }
-    return { metronome, clicks, advance, config }
+    return { metronome, clicks, advance, config, suspends: () => suspends, win }
 }
 
 describe('Metronome count-in and pulse (#77)', () => {
@@ -165,5 +170,151 @@ describe('Metronome meter from the item (#77)', () => {
         metronome.stop()
         metronome.setItem({ path: 'B.md', name: 'B', bpmCurrent: null, bpmTarget: null })
         expect(metronome.meterNow().beatsPerBar).toBe(4)
+    })
+})
+
+describe('Metronome.countIn (#75, the play-along player)', () => {
+    it('clicks the beats at the tempo, the first of each bar in the count-in pitch', async () => {
+        const { metronome, clicks, advance } = harness({ volume: 0.5 })
+        const count = metronome.countIn({ beats: 6, beatsPerBar: 3, bpm: 120, lead: 0 })
+        await Promise.resolve()
+        await Promise.resolve()
+        expect(clicks.map((c) => c.frequency)).toEqual([2000, 1100, 1100, 2000, 1100, 1100])
+        const gaps = clicks.slice(1).map((c, i) => c.at - clicks[i]!.at)
+        for (const gap of gaps) expect(gap).toBeCloseTo(0.5)
+        let done = null as boolean | null
+        void count.done.then((ok) => (done = ok))
+        advance(clicks[0]!.at + 2.9)
+        await Promise.resolve()
+        expect(done).toBeNull()
+        advance(0.2)
+        await Promise.resolve()
+        expect(done).toBe(true)
+        // The metronome itself did not start.
+        expect(metronome.state.running).toBe(false)
+    })
+    it('ends `lead` seconds before the beat after the last click', async () => {
+        const { metronome, clicks, advance } = harness()
+        const count = metronome.countIn({ beats: 4, beatsPerBar: 4, bpm: 60, lead: 0.4 })
+        await Promise.resolve()
+        await Promise.resolve()
+        const downbeat = clicks[0]!.at + 4
+        let doneAt: number | null = null
+        let now = 0
+        void count.done.then(() => (doneAt = now))
+        while (doneAt === null && now < 10) {
+            advance(0.025)
+            now += 0.025
+            await Promise.resolve()
+        }
+        expect(doneAt).not.toBeNull()
+        expect(Math.abs(doneAt! - (downbeat - 0.4))).toBeLessThan(0.06)
+    })
+    it('a lead longer than the count-in ends it at once', async () => {
+        const { metronome, advance } = harness()
+        const count = metronome.countIn({ beats: 1, beatsPerBar: 4, bpm: 300, lead: 4 })
+        let done = null as boolean | null
+        void count.done.then((ok) => (done = ok))
+        await Promise.resolve()
+        await Promise.resolve()
+        advance(0.05)
+        await Promise.resolve()
+        expect(done).toBe(true)
+    })
+    it('cancel silences the clicks still to come and ends it with false', async () => {
+        const { metronome, clicks, advance } = harness()
+        const count = metronome.countIn({ beats: 4, beatsPerBar: 4, bpm: 60, lead: 0 })
+        await Promise.resolve()
+        await Promise.resolve()
+        let done = null as boolean | null
+        void count.done.then((ok) => (done = ok))
+        count.cancel()
+        await Promise.resolve()
+        expect(done).toBe(false)
+        // Each click was stopped again at once (its own stop came first).
+        expect(clicks).toHaveLength(4)
+        for (const click of clicks) expect(click.stops.at(-1)).toBe(0)
+        advance(5)
+        await Promise.resolve()
+        expect(done).toBe(false)
+    })
+    it('a cancel before the clicks are scheduled schedules none', async () => {
+        const { metronome, clicks } = harness()
+        const count = metronome.countIn({ beats: 4, beatsPerBar: 4, bpm: 60, lead: 0 })
+        count.cancel()
+        await Promise.resolve()
+        await Promise.resolve()
+        expect(clicks).toEqual([])
+        expect(await count.done).toBe(false)
+    })
+})
+
+describe('Metronome.countIn: review fixes (#75)', () => {
+    it('a lead longer than the clicks starts them later, so the next beat still comes `lead` after the end', async () => {
+        const { metronome, clicks } = harness()
+        // 1 beat at 120 BPM lasts 0.5 s; the player needs 2 s before the beat.
+        metronome.countIn({ beats: 1, beatsPerBar: 4, bpm: 120, lead: 2 })
+        await Promise.resolve()
+        await Promise.resolve()
+        // The beat after the click (click + 0.5 s) comes 2 s after now at least.
+        expect(clicks[0]!.at + 0.5).toBeGreaterThanOrEqual(2)
+    })
+    it('lets the audio device rest after the count-in when the metronome is not running', async () => {
+        const { metronome, advance, suspends } = harness()
+        const count = metronome.countIn({ beats: 2, beatsPerBar: 2, bpm: 120, lead: 0 })
+        await Promise.resolve()
+        await Promise.resolve()
+        let done = false
+        void count.done.then(() => (done = true))
+        const before = suspends()
+        advance(1.1)
+        await Promise.resolve()
+        expect(done).toBe(true)
+        expect(suspends()).toBe(before)
+        advance(0.3)
+        expect(suspends()).toBe(before + 1)
+    })
+    it('ends on the timer of the window it is given (a popout player)', async () => {
+        const { metronome } = harness()
+        const set: number[] = []
+        const popout = {
+            setTimeout: (fn: () => void, ms: number) => {
+                set.push(ms)
+                fn()
+                return 1
+            },
+            clearTimeout: () => {}
+        }
+        const count = metronome.countIn({
+            beats: 1,
+            beatsPerBar: 4,
+            bpm: 120,
+            lead: 0,
+            window: fake<Window>(popout)
+        })
+        await Promise.resolve()
+        await Promise.resolve()
+        expect(await count.done).toBe(true)
+        expect(set.length).toBeGreaterThan(0)
+    })
+})
+
+describe('Metronome.countIn: a cancel after the end', () => {
+    it('changes nothing: the next count-in still lets the device rest', async () => {
+        const { metronome, advance, suspends } = harness()
+        const first = metronome.countIn({ beats: 1, beatsPerBar: 4, bpm: 120, lead: 0 })
+        await Promise.resolve()
+        await Promise.resolve()
+        advance(1)
+        await Promise.resolve()
+        first.cancel()
+        expect(await first.done).toBe(true)
+        const second = metronome.countIn({ beats: 1, beatsPerBar: 4, bpm: 120, lead: 0 })
+        await Promise.resolve()
+        await Promise.resolve()
+        void second.done
+        const before = suspends()
+        advance(1.5)
+        expect(suspends()).toBe(before + 1)
     })
 })

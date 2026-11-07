@@ -643,3 +643,145 @@
 .mp-backing-status {
     font-variant-numeric: tabular-nums;
 }
+
+/* Play-along player (#75): a recording with an A-B loop, speed, sections and a count-in. */
+.mp-playalong {
+    @apply flex flex-col gap-2 p-3 rounded;
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary-alt);
+}
+
+.mp-playalong:focus-visible {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: 2px;
+}
+
+.mp-playalong-audio .mp-playalong-media {
+    @apply hidden;
+}
+
+.mp-playalong-video .mp-playalong-media {
+    @apply block w-full rounded cursor-pointer;
+    max-height: 60vh;
+    background-color: #000;
+}
+
+.mp-playalong-head {
+    @apply flex flex-wrap items-baseline gap-2;
+    font-size: var(--font-ui-small);
+}
+
+.mp-playalong-name {
+    font-weight: 600;
+}
+
+.mp-playalong-main,
+.mp-playalong-controls,
+.mp-playalong-group,
+.mp-playalong-sections {
+    @apply flex flex-wrap items-center gap-2;
+}
+
+.mp-playalong-controls {
+    @apply gap-x-4;
+}
+
+.mp-playalong-group {
+    @apply gap-1;
+}
+
+.mp-playalong .mp-playalong-button {
+    @apply inline-flex items-center gap-1 px-2 cursor-pointer;
+}
+
+.mp-playalong .mp-playalong-button.is-active {
+    color: var(--text-on-accent);
+    background-color: var(--interactive-accent);
+}
+
+.mp-playalong-time,
+.mp-playalong-speed,
+.mp-playalong-tempo,
+.mp-playalong-status {
+    font-variant-numeric: tabular-nums;
+}
+
+.mp-playalong-speed {
+    min-width: 3.5em;
+    text-align: center;
+}
+
+.mp-playalong-tempo,
+.mp-playalong-status {
+    color: var(--text-muted);
+    font-size: var(--font-ui-small);
+}
+
+.mp-playalong-timeline {
+    @apply relative flex-1;
+    min-width: 10em;
+}
+
+/* Beats Obsidian's input[type='range'] width (0,1,1). */
+.mp-playalong .mp-playalong-range {
+    @apply relative w-full cursor-pointer;
+}
+
+/* The A-B span and the sections, drawn under the slider's track. */
+.mp-playalong-span,
+.mp-playalong-tick {
+    @apply absolute pointer-events-none;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.mp-playalong-span {
+    left: var(--mp-from);
+    right: calc(100% - var(--mp-to));
+    height: 0.9em;
+    border-radius: var(--radius-s);
+    background-color: var(--interactive-accent);
+    opacity: 0.35;
+}
+
+.mp-playalong-span.mp-is-hidden {
+    @apply hidden;
+}
+
+.mp-playalong-tick {
+    left: var(--mp-at);
+    width: 2px;
+    height: 1.2em;
+    background-color: var(--text-muted);
+}
+
+.mp-playalong-sections.mp-is-hidden {
+    @apply hidden;
+}
+
+.mp-playalong-section {
+    @apply inline-flex items-center;
+}
+
+.mp-playalong-section .mp-playalong-button:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.mp-playalong-section .mp-playalong-button:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.mp-playalong .mp-playalong-button.mp-is-hidden {
+    @apply hidden;
+}
+
+.mp-playalong-problems {
+    @apply m-0 pl-5;
+    font-size: var(--font-ui-small);
+}
+
+.mp-section-name {
+    @apply w-full mb-3;
+}
