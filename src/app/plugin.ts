@@ -528,7 +528,10 @@ export class MusicPracticePlugin extends Plugin {
         // Empty blocks in chord and scale notes draw from the note's properties: redraw them when
         // the properties change.
         this.registerEvent(
-            this.app.metadataCache.on('changed', (file) => this.notation?.redrawNote(file.path))
+            this.app.metadataCache.on('changed', (file) => {
+                this.notation?.redrawNote(file.path)
+                this.playAlong?.noteChanged(file.path)
+            })
         )
         this.registerEvent(
             this.app.vault.on('rename', (file, oldPath) => {

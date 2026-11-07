@@ -51,7 +51,8 @@ export interface PlayAlongView {
     /** The window it was drawn in; null when it can't tell. */
     window: Window | null
     bind(controller: PlayAlongController): void
-    refresh(): void
+    /** Redraws from the state; `force` reads the note's tempo and kind again (throttled otherwise). */
+    refresh(force?: boolean): void
     /** Whether it is on the page and shown (not the hidden live preview copy). */
     visible(): boolean
     /** Whether it is on the page but hidden by another view of its note (not when detached). */
@@ -103,6 +104,8 @@ export interface PlayAlongDeps {
 
 /** A player drawn again within this time after its own write plays on. */
 const RESUME_MS = 5000
+/** When a copy drawn off the page checks again whether it shows (1.5 s in all). */
+const TAKE_OVER_DELAYS = [50, 100, 200, 400, 750]
 /** A tapped tempo is written once the taps stop for this long. */
 const TAP_WRITE_MS = 2000
 
@@ -115,6 +118,7 @@ class PlayAlongChild extends MarkdownRenderChild {
     readonly hosts = new Set<string>()
     private gone = false
     private tapTimer: number | null = null
+    private takeOverTimer: number | null = null
 
     constructor(
         readonly el: HTMLElement,
@@ -186,9 +190,27 @@ class PlayAlongChild extends MarkdownRenderChild {
             if (host) this.hosts.add(host)
         }
         view.bind(controller)
-        // Drawn again after its own write: only a copy on the page takes it (not the hidden live
-        // preview copy), plays on when it played and gets the keyboard focus back when it had it.
-        if (!view.visible()) return
+        this.takeOver(0)
+    }
+
+    /**
+     * Drawn again after its own write: only a copy on the page takes over (not the hidden live
+     * preview copy), playing on when the writer played and taking the keyboard focus when it had
+     * it. Reading view draws a block before it puts it on the page: checked again for 1.5 s.
+     */
+    private takeOver(attempt: number): void {
+        this.takeOverTimer = null
+        const view = this.view
+        const controller = this.controller
+        if (this.gone || !view || !controller) return
+        if (!view.visible()) {
+            if (attempt < TAKE_OVER_DELAYS.length && this.owner.hasResume(this.key))
+                this.takeOverTimer = this.owner.deps.timer.set(
+                    () => this.takeOver(attempt + 1),
+                    TAKE_OVER_DELAYS[attempt]!
+                )
+            return
+        }
         const resume = this.owner.takeResume(this.key)
         if (resume?.focus) view.focus()
         if (resume?.play) controller.play({ countIn: false })
@@ -216,11 +238,13 @@ class PlayAlongChild extends MarkdownRenderChild {
         const controller = this.controller
         if (!controller || this.gone) return
         const time = controller.position()
+        // Read before the question: its modal takes the focus while it is open.
+        const focused = this.view?.hasFocus() ?? false
         const name = await this.owner.deps.askName(`Section ${this.block.sections.length + 1}`)
         // Written even when the block was drawn again meanwhile: it is found by its text.
         if (name === null) return
         const line = sectionLine(time, name)
-        await this.write((body) => insertSection(body, line), "Couldn't add the section")
+        await this.write((body) => insertSection(body, line), "Couldn't add the section", focused)
     }
 
     /** A tempo was tapped: written as the tempo line once the taps stop for 2 s. */
@@ -243,11 +267,15 @@ class PlayAlongChild extends MarkdownRenderChild {
      * Changes the block in its note. The block drawn again plays on when this one plays, and gets
      * the focus back when this one had it. True when written.
      */
-    private async write(change: (body: string) => string, failure: string): Promise<boolean> {
+    private async write(
+        change: (body: string) => string,
+        failure: string,
+        hadFocus = false
+    ): Promise<boolean> {
         const deps = this.owner.deps
         const playing =
             !this.gone && this.controller !== null && this.controller.status !== 'paused'
-        const focused = !this.gone && (this.view?.hasFocus() ?? false)
+        const focused = hadFocus || (!this.gone && (this.view?.hasFocus() ?? false))
         if (playing || focused) this.owner.markResume(this.key, { play: playing, focus: focused })
         const written = await deps
             .writeBlock(
@@ -278,6 +306,8 @@ class PlayAlongChild extends MarkdownRenderChild {
         this.gone = true
         if (this.tapTimer !== null) this.owner.deps.timer.clear(this.tapTimer)
         this.tapTimer = null
+        if (this.takeOverTimer !== null) this.owner.deps.timer.clear(this.takeOverTimer)
+        this.takeOverTimer = null
         this.controller?.free()
         this.view?.destroy()
         this.owner.removed(this)
@@ -380,6 +410,12 @@ export class PlayAlongBlocks {
         this.resumes.delete(key)
     }
 
+    /** Whether a write of this note's recording waits for a copy to take over. */
+    hasResume(key: string): boolean {
+        const resume = this.resumes.get(key)
+        return resume !== undefined && this.deps.now() <= resume.until
+    }
+
     /** What a player drawn now takes over after its own write (used once); null when nothing. */
     takeResume(key: string): { play: boolean; focus: boolean } | null {
         const resume = this.resumes.get(key)
@@ -404,6 +440,11 @@ export class PlayAlongBlocks {
         for (const other of this.live) if (other !== child) other.controller?.pause()
         this.deps.stopOthers()
         if (this.deps.isLearningNote(child.sourcePath)) this.deps.addToPanel(child.sourcePath)
+    }
+
+    /** A note's properties changed: its players read its tempo and kind again. */
+    noteChanged(path: string): void {
+        for (const child of this.live) if (child.sourcePath === path) child.view?.refresh(true)
     }
 
     /** Redraws every live copy of a note's recording. */

@@ -33,6 +33,7 @@ interface FakeView extends PlayAlongView {
     controller: PlayAlongController | null
     destroyed: boolean
     refreshes: number
+    forced: number
     shown: boolean
     focused: boolean
 }
@@ -102,8 +103,10 @@ function harness(overrides: Partial<PlayAlongDeps> = {}) {
                 },
                 refreshes: 0,
                 focused: false,
-                refresh() {
+                forced: 0,
+                refresh(force?: boolean) {
                     view.refreshes++
+                    if (force) view.forced++
                 },
                 visible: () => view.shown,
                 hidden: () => false,
@@ -618,5 +621,76 @@ describe('PlayAlongBlocks: the count-in window', () => {
         view.window = popout
         view.controller!.play()
         expect(requests[0]!.window).toBe(popout)
+    })
+})
+
+describe('PlayAlongBlocks: focus after Add section', () => {
+    it('comes back when the player had it before the name was asked (the modal takes it meanwhile)', async () => {
+        let first: FakeView | null = null
+        const h = harness({
+            askName: () => {
+                // The modal has the focus while it is open.
+                if (first) first.focused = false
+                return Promise.resolve('Bridge')
+            }
+        })
+        h.blocks.sync()
+        h.blockBody.text = SOURCE
+        const drawn = h.draw(SOURCE)
+        first = drawn.view as FakeView
+        first.focused = true
+        await first.request.actions.addSection()
+        drawn.child!.unload()
+        const again = h.draw(h.writes[0]!.result).view!
+        expect(again.focused).toBe(true)
+    })
+})
+
+describe('PlayAlongBlocks: taking over after a write, once on the page', () => {
+    it('a copy drawn before Obsidian puts it on the page takes over once it shows', async () => {
+        const h = harness()
+        h.blocks.sync()
+        h.blockBody.text = SOURCE
+        const first = h.draw(SOURCE)
+        first.view!.focused = true
+        first.view!.controller!.state.countIn = false
+        first.view!.controller!.play()
+        await h.flush()
+        h.setNames(['Bridge'])
+        await first.view!.request.actions.addSection()
+        first.child!.unload()
+        h.hideNext(1)
+        const again = h.draw(h.writes[0]!.result).view!
+        expect(again.focused).toBe(false)
+        again.shown = true
+        h.advance(200)
+        await h.flush()
+        expect(again.focused).toBe(true)
+        expect(again.controller!.status).toBe('playing')
+    })
+    it('stops checking after 1.5 s, and when freed', () => {
+        const h = harness()
+        h.blocks.sync()
+        h.hideNext(1)
+        const { child } = h.draw(SOURCE)
+        h.advance(2000)
+        expect(h.timers.size).toBe(0)
+        h.hideNext(1)
+        const second = h.draw(SOURCE)
+        second.child!.unload()
+        expect(h.timers.size).toBe(0)
+        void child
+    })
+})
+
+describe("PlayAlongBlocks: a note's properties changed", () => {
+    it('makes its players read the tempo and the note kind again, and only its players', () => {
+        const h = harness()
+        h.blocks.sync()
+        const mine = h.draw(SOURCE).view!
+        const other = h.draw(SOURCE, 'Inbox/Other.md').view!
+        h.blocks.noteChanged('Songs/Wonderwall.md')
+        expect(mine.forced).toBe(1)
+        expect(other.forced).toBe(0)
     })
 })

@@ -662,7 +662,8 @@
 
 .mp-playalong-video .mp-playalong-media {
     @apply block w-full rounded cursor-pointer;
-    max-height: 60vh;
+    /* Small enough for the picture and the controls to fit on a laptop screen together. */
+    max-height: min(50vh, 28rem);
     background-color: #000;
 }
 

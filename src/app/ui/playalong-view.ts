@@ -262,9 +262,10 @@ export function mountPlayAlong(request: MountRequest): PlayAlongView {
     let readTapped: number | null = null
     let playing: boolean | null = null
 
-    function refresh(): void {
+    function refresh(force = false): void {
         const c = controller
         if (!c) return
+        if (force) readAt = Number.NEGATIVE_INFINITY
         const duration = c.duration()
         const known = Number.isFinite(duration) && duration > 0
         const position = c.position()
@@ -351,7 +352,15 @@ export function mountPlayAlong(request: MountRequest): PlayAlongView {
         visible: () => root.isConnected && root.offsetParent !== null,
         hidden: () => root.isConnected && root.offsetParent === null,
         hasFocus: () => root.contains(doc.activeElement),
-        focus: () => root.focus(),
+        focus: () => {
+            root.focus()
+            // A closing modal gives the focus back to the element it took it from (the drawing
+            // this one replaces) a moment later: take it again when it fell to the page.
+            win.setTimeout(() => {
+                if (root.isConnected && (!doc.activeElement || doc.activeElement === doc.body))
+                    root.focus()
+            }, 200)
+        },
         destroy() {
             controller = null
             media.pause()
