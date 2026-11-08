@@ -153,7 +153,13 @@ describe('NotationBlocks layout', () => {
         ): RenderResult => {
             const entry = { source, options, destroyed: false }
             drawn.push(entry)
-            return { ok: true, el: host, error: null, destroy: () => (entry.destroyed = true) }
+            return {
+                ok: true,
+                el: host,
+                error: null,
+                picks: [],
+                destroy: () => (entry.destroyed = true)
+            }
         }
         const blocks = new NotationBlocks(
             plugin,
@@ -267,7 +273,7 @@ describe('NotationBlocks and note properties', () => {
             options: RenderOptions = {}
         ): RenderResult => {
             drawn.push({ source, properties: options.properties })
-            return { ok: true, el: host, error: null, destroy: () => {} }
+            return { ok: true, el: host, error: null, picks: [], destroy: () => {} }
         }
         const blocks = new NotationBlocks(
             plugin,
@@ -334,7 +340,7 @@ describe('NotationBlocks and note properties', () => {
             options: RenderOptions = {}
         ): RenderResult => {
             drawn.push({ source, properties: options.properties })
-            return { ok: true, el: host, error: null, destroy: () => {} }
+            return { ok: true, el: host, error: null, picks: [], destroy: () => {} }
         }
         let own: string | null = 'arpeggio: Am7\nshape: E'
         const blocks = new NotationBlocks(
@@ -560,7 +566,7 @@ describe('NotationBlocks: exercise tabs under fretboards (#70)', () => {
             o: RenderOptions = {}
         ): RenderResult => {
             options.push(o)
-            return { ok: true, el: host, error: null, destroy: () => {} }
+            return { ok: true, el: host, error: null, picks: [], destroy: () => {} }
         }
         let resolve: (value: unknown) => void = () => {}
         const loads: unknown[] = []
@@ -779,7 +785,7 @@ describe('NotationBlocks playback in time (#69)', () => {
             options: RenderOptions = {}
         ): RenderResult => {
             drawn.push({ language, play: options.play })
-            return { ok: true, el: host, error: null, destroy: () => {} }
+            return { ok: true, el: host, error: null, picks: [], destroy: () => {} }
         }
         const player = { play: () => ({ stop: () => {} }) }
         const play = { player, bpm: 72, volume: 0.5 }
@@ -823,7 +829,7 @@ describe('NotationBlocks playback in time (#69)', () => {
             options: RenderOptions = {}
         ): RenderResult => {
             drawn.push({ path, play: options.play as Record<string, unknown> | undefined })
-            return { ok: true, el: host, error: null, destroy: () => {} }
+            return { ok: true, el: host, error: null, picks: [], destroy: () => {} }
         }
         const hook = () => {}
         let playing = true

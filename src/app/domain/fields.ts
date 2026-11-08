@@ -27,6 +27,10 @@ export interface FieldNames {
     trains: string
     changesBest: string
     changesLast: string
+    /** Note, chord and scale drills (#73): the drill's kind, its setting in words, the weak-spot map. */
+    drillKind: string
+    drillSetting: string
+    drillStats: string
     /** Pieces: where they come from (links); imported score files are added here (#19). */
     sources: string
     /**
@@ -90,6 +94,9 @@ export function createDefaultFieldNames(): FieldNames {
         trains: 'trains',
         changesBest: 'changes_best',
         changesLast: 'changes_last',
+        drillKind: 'drill_kind',
+        drillSetting: 'drill_setting',
+        drillStats: 'drill_stats',
         sources: 'sources',
         timeSignature: 'time_signature',
         key: 'key',

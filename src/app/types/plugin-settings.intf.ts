@@ -62,6 +62,8 @@ export interface PluginSettings {
     panelItems: PanelItem[]
     /** Length of a chord change drill, in seconds (#40). */
     drillSeconds: number
+    /** Note, chord and scale drills (#73). */
+    drills: DrillSettings
     /** The play-along player (#75). */
     playAlong: PlayAlongSettings
 }
@@ -76,6 +78,22 @@ export interface PluginSettings {
  * property". Produce from this instead, and keep it deep-fresh: build
  * nested arrays and objects as new values, never by spreading DEFAULT_SETTINGS.
  */
+/** Note drills (#73): questions per drill, the weak spots' share (percent), the streak of fast right
+ * answers that clears a weak spot and what fast is (seconds). */
+export interface DrillSettings {
+    questions: number
+    weakShare: number
+    clearStreak: number
+    fastSeconds: number
+}
+
+export const DEFAULT_DRILLS: DrillSettings = {
+    questions: 20,
+    weakShare: 60,
+    clearStreak: 3,
+    fastSeconds: 2
+}
+
 export function createDefaultSettings(): PluginSettings {
     return {
         rules: createDefaultRules(),
@@ -111,6 +129,7 @@ export function createDefaultSettings(): PluginSettings {
         metronome: createDefaultMetronomeSettings(),
         panelItems: [],
         drillSeconds: 60,
+        drills: { ...DEFAULT_DRILLS },
         playAlong: { enabled: true, preRoll: DEFAULT_PRE_ROLL }
     }
 }
@@ -173,6 +192,15 @@ export function settingsFrom(loaded: unknown): PluginSettings {
         settings.drillSeconds > 600
     )
         settings.drillSeconds = DEFAULT_SETTINGS.drillSeconds
+    const dr = settings.drills
+    if (!Number.isInteger(dr.questions) || dr.questions < 1 || dr.questions > 100)
+        dr.questions = DEFAULT_DRILLS.questions
+    if (!Number.isInteger(dr.weakShare) || dr.weakShare < 0 || dr.weakShare > 100)
+        dr.weakShare = DEFAULT_DRILLS.weakShare
+    if (!Number.isInteger(dr.clearStreak) || dr.clearStreak < 1 || dr.clearStreak > 10)
+        dr.clearStreak = DEFAULT_DRILLS.clearStreak
+    if (!Number.isFinite(dr.fastSeconds) || dr.fastSeconds < 0.5 || dr.fastSeconds > 10)
+        dr.fastSeconds = DEFAULT_DRILLS.fastSeconds
     const preRoll = settings.playAlong.preRoll
     if (preRoll < 0 || preRoll > MAX_PRE_ROLL) settings.playAlong.preRoll = DEFAULT_PRE_ROLL
     // A pause from before the start, or in the future, or negative paused time: count no pause.

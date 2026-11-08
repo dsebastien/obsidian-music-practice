@@ -90,3 +90,21 @@ describe('play-along settings (#75)', () => {
         expect(parseSetting('playAlong.enabled', false)).toEqual({ ok: true, value: false })
     })
 })
+
+describe('note drill settings (#73)', () => {
+    it('takes questions 1-100, a weak share 0-100 %, a streak 1-10 and a fast time 0.5-10 s', () => {
+        expect(parseSetting('drills.questions', '30')).toEqual({ ok: true, value: 30 })
+        expect(parseSetting('drills.questions', '0').ok).toBe(false)
+        expect(parseSetting('drills.questions', '101').ok).toBe(false)
+        expect(parseSetting('drills.weakShare', '0')).toEqual({ ok: true, value: 0 })
+        expect(parseSetting('drills.weakShare', '101').ok).toBe(false)
+        expect(parseSetting('drills.clearStreak', '1.5').ok).toBe(false)
+        expect(parseSetting('drills.clearStreak', '11').ok).toBe(false)
+        expect(parseSetting('drills.fastSeconds', '1.5')).toEqual({ ok: true, value: 1.5 })
+        expect(parseSetting('drills.fastSeconds', '0.4').ok).toBe(false)
+        expect(parseSetting('fields.drillStats', 'weak_spots')).toEqual({
+            ok: true,
+            value: 'weak_spots'
+        })
+    })
+})

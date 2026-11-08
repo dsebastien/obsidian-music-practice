@@ -161,3 +161,27 @@ describe('settingsFrom: the play-along player (#75)', () => {
         expect(settingsFrom({ playAlong: { preRoll: 'x' } }).playAlong.preRoll).toBe(0.2)
     })
 })
+
+describe('settingsFrom: note drills (#73)', () => {
+    it('has the drill property names and rules by default', () => {
+        const s = settingsFrom({})
+        expect([s.fields.drillKind, s.fields.drillSetting, s.fields.drillStats]).toEqual([
+            'drill_kind',
+            'drill_setting',
+            'drill_stats'
+        ])
+        expect(s.drills).toEqual({ questions: 20, weakShare: 60, clearStreak: 3, fastSeconds: 2 })
+    })
+    it('keeps stored values in range, and drops the others', () => {
+        expect(
+            settingsFrom({
+                drills: { questions: 10, weakShare: 0, clearStreak: 5, fastSeconds: 1.5 }
+            }).drills
+        ).toEqual({ questions: 10, weakShare: 0, clearStreak: 5, fastSeconds: 1.5 })
+        expect(
+            settingsFrom({
+                drills: { questions: 0, weakShare: 101, clearStreak: 0.5, fastSeconds: 0 }
+            }).drills
+        ).toEqual({ questions: 20, weakShare: 60, clearStreak: 3, fastSeconds: 2 })
+    })
+})
