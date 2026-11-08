@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'bun:test'
 import {
+    afterPick,
+    scalePick,
+    startScale,
+    type Question,
     CHORD_FAMILIES,
     chordOfName,
     chordsOfText,
@@ -381,5 +385,69 @@ describe('pools: chords and scales to ask (decision 10)', () => {
         expect(scaleOf('C#', 'Major')).toBe('C# major')
         expect(scaleOf('H', 'Major')).toBeNull()
         expect(scaleOf('C', 'Nothing')).toBeNull()
+    })
+})
+
+describe('picks on the drawing: what they mark', () => {
+    const ask = (setting: DrillSetting) =>
+        questions(setting, {
+            stats: new Map(),
+            rules: { ...DEFAULT_DRILL_RULES, questions: 1 },
+            random: seededRandom(1)
+        })[0]!
+
+    it('marks a right fretboard pick, and after a miss every right place on the string', () => {
+        const q = ask(fretboard({ ask: 'find', frets: [3, 3] })) // Find C on string 5
+        expect(afterPick(q, { string: 5, fret: 3, pitch: 48 }, [0, 12])).toEqual({
+            right: true,
+            done: true,
+            marks: [{ at: { string: 5, fret: 3 }, result: 'right' }]
+        })
+        expect(afterPick(q, { string: 5, fret: 2, pitch: 47 }, [0, 12])).toEqual({
+            right: false,
+            done: true,
+            marks: [
+                { at: { string: 5, fret: 2 }, result: 'wrong' },
+                { at: { string: 5, fret: 3 }, result: 'right' }
+            ]
+        })
+    })
+
+    it('marks a key, and after a miss the right key', () => {
+        const q = ask({ kind: 'keyboard', keys: [60, 60], ask: 'find' }) // Find C4
+        expect(afterPick(q, { string: null, fret: null, pitch: 60 }, [0, 0]).marks).toEqual([
+            { at: { pitch: 60 }, result: 'right' }
+        ])
+        expect(afterPick(q, { string: null, fret: null, pitch: 62 }, [0, 0]).marks).toEqual([
+            { at: { pitch: 62 }, result: 'wrong' },
+            { at: { pitch: 60 }, result: 'right' }
+        ])
+    })
+
+    it('finds the notes of a scale one pick at a time; right only without a wrong pick', () => {
+        const scale: Question = {
+            type: 'find-scale',
+            spot: 'C major pentatonic',
+            prompt: 'Find the notes of C major pentatonic',
+            classes: [0, 2, 4, 7, 9]
+        }
+        let state = startScale()
+        const pick = (pitch: number) => {
+            const r = scalePick(scale, state, { string: null, fret: null, pitch })
+            state = r.state
+            return r
+        }
+        expect(pick(60).marks).toEqual([{ at: { pitch: 60 }, result: 'right' }])
+        expect(pick(61)).toMatchObject({
+            done: false,
+            marks: [{ at: { pitch: 61 }, result: 'wrong' }]
+        })
+        pick(62)
+        pick(64)
+        pick(67)
+        const last = pick(69)
+        expect(last.done).toBe(true)
+        expect(last.right).toBe(false) // one wrong pick on the way
+        expect(state).toEqual({ found: [0, 2, 4, 7, 9], misses: 1 })
     })
 })

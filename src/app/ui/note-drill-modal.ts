@@ -24,6 +24,11 @@ import type {
     PlayOptions
 } from '@dsebastien/music-notation'
 import {
+    afterPick,
+    scalePick,
+    startScale,
+    type DrawnPick,
+    type DrillMark,
     CHORD_FAMILIES,
     KIND_LABELS,
     drillTitle,
@@ -92,9 +97,6 @@ export class NoteDrillModal extends Modal {
     private layer: PickLayer | null = null
     private started = 0
     private answered = false
-    /** Find the notes of a scale: the notes found and the wrong clicks so far. */
-    private found = new Set<number>()
-    private misses = 0
     private next: (() => void) | null = null
 
     constructor(
@@ -349,8 +351,6 @@ export class NoteDrillModal extends Modal {
         this.layer = null
         this.answered = false
         this.next = null
-        this.found = new Set()
-        this.misses = 0
         const el = this.contentEl
         el.empty()
         el.createDiv({
@@ -448,15 +448,16 @@ export class NoteDrillModal extends Modal {
             row.createEl('button', { text: c }).addEventListener('click', () => onPick(c))
     }
 
-    private pick(
-        svg: SVGElement,
-        onPick: (string: number | null, fret: number | null, pitch: number) => void
-    ): void {
+    private pick(svg: SVGElement, onPick: (pick: DrawnPick) => void): void {
         const play = this.deps.play()
         this.layer = attachPick(svg, {
             ...(play ? { play } : {}),
-            onPick: (p) => onPick(p.string, p.fret, p.pitch)
+            onPick: (p) => onPick({ string: p.string, fret: p.fret, pitch: p.pitch })
         })
+    }
+
+    private drawMarks(marks: DrillMark[]): void {
+        for (const mark of marks) this.layer?.mark(mark.at, mark.result)
     }
 
     private draw(
@@ -504,15 +505,11 @@ export class NoteDrillModal extends Modal {
                 const frets = s.kind === 'fretboard' ? s.frets : ([0, 12] as [number, number])
                 const svg = neck(frets, emptyNoteSet(), { pick: true })
                 drawing.appendChild(svg)
-                this.pick(svg, (string, fret, pitch) => {
-                    if (this.answered || string === null || fret === null) return
-                    const right = isRight(q, { string, pitch })
-                    this.layer?.mark({ string, fret }, right ? 'right' : 'wrong')
-                    if (!right)
-                        for (let f = frets[0]; f <= frets[1]; f++)
-                            if ((STRINGS[q.string - 1]! + f) % 12 === q.pitch % 12)
-                                this.layer?.mark({ string: q.string, fret: f }, 'right')
-                    this.finish(q, right, feedback, actions)
+                this.pick(svg, (pick) => {
+                    if (this.answered) return
+                    const outcome = afterPick(q, pick, frets)
+                    this.drawMarks(outcome.marks)
+                    this.finish(q, outcome.right, feedback, actions)
                 })
                 this.layer?.focus()
                 return
@@ -529,12 +526,11 @@ export class NoteDrillModal extends Modal {
                 const range = s.kind === 'keyboard' ? s.keys : ([48, 71] as [number, number])
                 const svg = keyboard(range, emptyNoteSet(), { pick: true })
                 drawing.appendChild(svg)
-                this.pick(svg, (_s, _f, pitch) => {
+                this.pick(svg, (pick) => {
                     if (this.answered) return
-                    const right = isRight(q, { pitch })
-                    this.layer?.mark({ pitch }, right ? 'right' : 'wrong')
-                    if (!right) this.layer?.mark({ pitch: q.pitch }, 'right')
-                    this.finish(q, right, feedback, actions)
+                    const outcome = afterPick(q, pick, [0, 0])
+                    this.drawMarks(outcome.marks)
+                    this.finish(q, outcome.right, feedback, actions)
                 })
                 this.layer?.focus()
                 return
@@ -600,26 +596,25 @@ export class NoteDrillModal extends Modal {
                         : keyboard([48, 71], emptyNoteSet(), { pick: true })
                 drawing.appendChild(svg)
                 const left = answer.createDiv({ cls: 'mp-muted' })
+                let state = startScale()
                 const show = () =>
                     left.setText(
-                        `${this.found.size} of ${q.classes.length} notes found${this.misses ? `, ${this.misses} wrong` : ''}`
+                        `${state.found.length} of ${q.classes.length} notes found${state.misses ? `, ${state.misses} wrong` : ''}`
                     )
                 show()
-                this.pick(svg, (string, fret, pitch) => {
+                this.pick(svg, (pick) => {
                     if (this.answered) return
-                    const right = isRight(q, { pitch })
-                    const at = string !== null && fret !== null ? { string, fret } : { pitch }
-                    this.layer?.mark(at, right ? 'right' : 'wrong')
-                    if (right) this.found.add(pitch % 12)
-                    else this.misses++
+                    const outcome = scalePick(q, state, pick)
+                    state = outcome.state
+                    this.drawMarks(outcome.marks)
                     show()
-                    if (this.found.size === q.classes.length)
+                    if (outcome.done)
                         this.finish(
                             q,
-                            this.misses === 0,
+                            outcome.right,
                             feedback,
                             actions,
-                            this.misses ? `All found, with ${this.misses} wrong.` : undefined
+                            state.misses ? `All found, with ${state.misses} wrong.` : undefined
                         )
                 })
                 answer
@@ -627,7 +622,7 @@ export class NoteDrillModal extends Modal {
                     .addEventListener('click', () => {
                         if (this.answered) return
                         const missing = q.classes
-                            .filter((c) => !this.found.has(c))
+                            .filter((c) => !state.found.includes(c))
                             .map((c) => NOTES[c]!)
                         this.finish(q, false, feedback, actions, `Missing: ${missing.join(' ')}.`)
                     })

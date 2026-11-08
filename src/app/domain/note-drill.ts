@@ -618,3 +618,71 @@ export function scaleOfName(name: string): string | null {
     const root = `${m[1]!.toUpperCase()}${m[2] ? (m[2].toLowerCase() === 'sharp' ? '#' : 'b') : ''}`
     return scaleOf(root, m[3]!)
 }
+
+/** A pick on the drawing, as the library gives it. */
+export interface DrawnPick {
+    string: number | null
+    fret: number | null
+    pitch: number
+}
+
+/** A mark to draw: on a place (fretboards) or on every target of a pitch (keyboards). */
+export interface DrillMark {
+    at: { string: number; fret: number } | { pitch: number }
+    result: 'right' | 'wrong'
+}
+
+const placeOf = (pick: DrawnPick): DrillMark['at'] =>
+    pick.string !== null && pick.fret !== null
+        ? { string: pick.string, fret: pick.fret }
+        : { pitch: pick.pitch }
+
+/**
+ * A find-fret or find-key question after one pick: right or wrong, and the marks to draw (after a
+ * miss, every right place too: each fret of the note on the string in `frets`, or the right key).
+ */
+export function afterPick(
+    question: Question,
+    pick: DrawnPick,
+    frets: [number, number]
+): { right: boolean; done: boolean; marks: DrillMark[] } {
+    const right = isRight(question, pick)
+    const marks: DrillMark[] = [{ at: placeOf(pick), result: right ? 'right' : 'wrong' }]
+    if (!right && question.type === 'find-fret')
+        for (let f = frets[0]; f <= frets[1]; f++)
+            if ((STRINGS[question.string - 1]! + f) % 12 === question.pitch % 12)
+                marks.push({ at: { string: question.string, fret: f }, result: 'right' })
+    if (!right && question.type === 'find-key')
+        marks.push({ at: { pitch: question.pitch }, result: 'right' })
+    return { right, done: true, marks }
+}
+
+/** A find-scale question in progress: the notes found (pitch classes) and the wrong picks. */
+export interface ScaleState {
+    found: number[]
+    misses: number
+}
+
+export const startScale = (): ScaleState => ({ found: [], misses: 0 })
+
+/** A find-scale question after one pick: done once every note is found, right only without a miss. */
+export function scalePick(
+    question: Question,
+    state: ScaleState,
+    pick: DrawnPick
+): { state: ScaleState; done: boolean; right: boolean; marks: DrillMark[] } {
+    const classes = question.type === 'find-scale' ? question.classes : []
+    const ok = classes.includes(pick.pitch % 12)
+    const found =
+        ok && !state.found.includes(pick.pitch % 12)
+            ? [...state.found, pick.pitch % 12].sort((a, b) => a - b)
+            : state.found
+    const next = { found, misses: state.misses + (ok ? 0 : 1) }
+    const done = classes.length > 0 && classes.every((c) => found.includes(c))
+    return {
+        state: next,
+        done,
+        right: done && next.misses === 0,
+        marks: [{ at: placeOf(pick), result: ok ? 'right' : 'wrong' }]
+    }
+}
