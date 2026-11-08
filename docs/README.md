@@ -19,6 +19,7 @@ Learn an instrument in Obsidian: log practice in under a minute, run a practice 
 - Mastery levels with a rubric, and a light spaced-review system.
 - A [practice panel](usage.md#practice-panel) with your session list and a [metronome](usage.md#metronome): count-in, beat flash, speed trainer, and the time signature of the piece.
 - [Chord change drills](usage.md#chord-change-drills), and the [key and scales of a piece](usage.md#key-and-scales-of-a-piece).
+- [Note, chord and scale drills](usage.md#note-chord-and-scale-drills): notes on the fretboard and the keyboard, chord names, scale shapes, with your weak spots asked most.
 - [Progressions in time](usage.md#progressions-in-time): a song's chords as a backing loop, and [tab exercises](usage.md#tab-exercises) of your scales and arpeggios.
 - [Shortcuts from outside Obsidian](usage.md#shortcuts-from-outside-obsidian): start the timer, log or plan from a phone, a Stream Deck or an NFC tag.
 - Works with the Obsidian Starter Kit, or on its own.

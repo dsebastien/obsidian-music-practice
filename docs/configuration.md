@@ -45,16 +45,20 @@ Each diagram's bar can change the speed, volume and sound for that diagram.
 
 ## Metronome
 
-| Setting                   | Default       | What it does                                                                                                               |
-| ------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Beats per bar             | 4             | From 2 to 12; the first is accented.                                                                                       |
-| Clicks                    | Quarter notes | Per beat: quarter notes, eighths, triplets, sixteenths.                                                                    |
-| Volume                    | 0.7           | From 0 to 1.                                                                                                               |
-| Speed trainer step        | 2             | BPM added at each step.                                                                                                    |
-| Speed trainer bars        | 4             | Bars between two steps.                                                                                                    |
-| Count-in                  | 1             | Bars of clicks before the first bar, from 0 (none) to 4. With it on, a chord change drill counts 3, 2, 1 before it starts. |
-| Flash on each beat        | Off           | A light that flashes on each beat, beat one in another color: for noisy rooms.                                             |
-| Chord change drill length | 60            | Seconds, from 10 to 600.                                                                                                   |
+| Setting                            | Default       | What it does                                                                                                               |
+| ---------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Beats per bar                      | 4             | From 2 to 12; the first is accented.                                                                                       |
+| Clicks                             | Quarter notes | Per beat: quarter notes, eighths, triplets, sixteenths.                                                                    |
+| Volume                             | 0.7           | From 0 to 1.                                                                                                               |
+| Speed trainer step                 | 2             | BPM added at each step.                                                                                                    |
+| Speed trainer bars                 | 4             | Bars between two steps.                                                                                                    |
+| Count-in                           | 1             | Bars of clicks before the first bar, from 0 (none) to 4. With it on, a chord change drill counts 3, 2, 1 before it starts. |
+| Flash on each beat                 | Off           | A light that flashes on each beat, beat one in another color: for noisy rooms.                                             |
+| Chord change drill length          | 60            | Seconds, from 10 to 600.                                                                                                   |
+| Questions per drill                | 20            | Note, chord and scale drills: questions in one drill, from 1 to 100.                                                       |
+| Weak spots share                   | 60            | Percent of the questions about your weak spots, from 0 to 100.                                                             |
+| Right answers to clear a weak spot | 3             | Right answers in a row, each faster than the fast answer, from 1 to 10.                                                    |
+| Fast answer                        | 2             | Seconds, from 0.5 to 10.                                                                                                   |
 
 ## Play-along
 
@@ -90,6 +94,7 @@ Pieces, strumming and picking patterns have their own:
 - **Strumming pattern** (`strum_pattern`), for strumming patterns: "D DU UDU".
 - **Feel** (`strum_feel`), for strumming patterns: "straight", "swing" or a swing ratio ("60%").
 - **Picking pattern** (`picking_pattern`), for fingerpicking patterns: a name ("travis", "alternate bass", "1-2-3-4") or the fingers of each slot ("p i m a").
+- **Drill kind**, **Drill setting**, **Drill weak spots** (`drill_kind`, `drill_setting`, `drill_stats`), for the drill notes of [note, chord and scale drills](usage.md#note-chord-and-scale-drills). Save checks that the exercise type has them, and names the one that's missing.
 
 When the Kanban Action Planner is installed, its time-tracking and review property names are used, so both plugins write the same properties. Empty notation blocks in chord, scale, arpeggio, strumming pattern and fingerpicking pattern notes draw from these names ([Notation](notation.md#notes-draw-their-own-diagram)).
 
