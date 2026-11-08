@@ -62,6 +62,8 @@ export class VoicingsModal extends Modal {
     private busy = false
     /** The fretboard to click a chord on, when none is given (#76). */
     private clicks: ClickInput | null = null
+    /** Its near matches. */
+    private nearEl: HTMLElement | null = null
 
     constructor(
         app: App,
@@ -85,7 +87,12 @@ export class VoicingsModal extends Modal {
                 this.setTitle(this.symbol ? `Voicings of ${this.symbol}` : 'Voicings of a chord')
                 this.refresh()
             }
-            input.addEventListener('input', typed)
+            input.addEventListener('input', () => {
+                typed()
+                // A chord typed replaces the frets clicked.
+                this.clicks?.set(valueOfText('', 'guitar'))
+                if (this.nearEl) this.nearEl.empty()
+            })
             // Or click the frets: the chord they make fills the field; when they make none, the
             // chords that hold them, to pick one (#76).
             const click = this.options.click
@@ -93,6 +100,7 @@ export class VoicingsModal extends Modal {
                 el.createDiv({ cls: 'mp-muted', text: 'Or click the frets of the chord:' })
                 const host = el.createDiv()
                 const near = el.createDiv({ cls: 'mp-click-near-box' })
+                this.nearEl = near
                 this.clicks = new ClickInput(host, {
                     instrument: 'guitar',
                     layout: click.layout,
@@ -107,8 +115,11 @@ export class VoicingsModal extends Modal {
                         renderNearMatches(near, read.near, {
                             mark: (m) => this.clicks?.showNear(m),
                             pick: (symbol) => {
+                                // The chord replaces the frets clicked.
                                 input.value = symbol
                                 typed()
+                                this.clicks?.set(valueOfText('', 'guitar'))
+                                near.empty()
                             }
                         })
                     }

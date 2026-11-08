@@ -844,8 +844,10 @@ export class AddNoteModal extends Modal {
             renderNearMatches(nearEl, near, {
                 mark: (missing) => this.clicks?.showNear(missing),
                 pick: (symbol) => {
+                    // The chord replaces the notes clicked: the drawing shows none now.
                     input.value = symbol
                     typedText(symbol)
+                    this.clicks?.set(valueOfText(symbol, clickInstrument))
                 }
             })
         }
