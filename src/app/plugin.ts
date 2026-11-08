@@ -93,6 +93,9 @@ import { PRACTICE_PANEL_VIEW, PracticePanelView } from './ui/practice-panel-view
 import { confirm } from './ui/confirm-modal'
 import { DrillModal } from './ui/drill-modal'
 import { DrillService } from './services/drill.service'
+import { NoteDrillService } from './services/note-drill.service'
+import { NoteDrillModal } from './ui/note-drill-modal'
+import type { DrillSetting } from './domain/note-drill'
 import { VoicingNotesService } from './services/voicing-notes.service'
 import { VoicingsModal } from './ui/voicings-modal'
 import { TriadsModal } from './ui/triads-modal'
@@ -134,7 +137,14 @@ import { learningTypeOf } from './domain/item-reader'
 import { safeTitle } from './domain/chord'
 import { propertyNamesOf, chordFromNotes, formatFrets, withAlias } from './domain/notation-note'
 import { ChooseChordModal } from './ui/choose-chord-modal'
-import { parseChord, parseFrets, readChord } from '@dsebastien/music-notation'
+import {
+    midiOf,
+    parseChord,
+    parseFingers,
+    parseFrets,
+    pianoVoicing,
+    readChord
+} from '@dsebastien/music-notation'
 import type { GeneratedVoicing } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
 import type { NotationStatus } from './services/notation.service'
@@ -164,6 +174,7 @@ export class MusicPracticePlugin extends Plugin {
     private timerEl: HTMLElement | null = null
     private metronomeEl: HTMLElement | null = null
     private drills!: DrillService
+    private noteDrills!: NoteDrillService
     private voicingNotes!: VoicingNotesService
     /** One metronome for the panel, the modal and the commands. */
     metronome!: Metronome
@@ -453,6 +464,19 @@ export class MusicPracticePlugin extends Plugin {
             () => this.settings.rules,
             (type, spec) => this.noteCreator.create(type, spec)
         )
+        this.noteDrills = new NoteDrillService(this.app, {
+            model: () => this.ensureModel(),
+            items: () => this.items.items(),
+            fields: () => this.effective().fields,
+            rules: () => this.settings.rules,
+            drillRules: () => ({
+                ...this.settings.drills,
+                weakShare: this.settings.drills.weakShare / 100
+            }),
+            create: (type, spec) => this.noteCreator.create(type, spec),
+            today: () => isoDate(),
+            blocksOn: (language) => this.notation?.status(language) === 'on'
+        })
         this.api = createApi({
             model: () => this.noteModel.refresh(),
             rules: () => this.settings.rules,
@@ -1206,6 +1230,22 @@ export class MusicPracticePlugin extends Plugin {
             }
         })
         this.addCommand({
+            id: 'note-drill',
+            name: 'Drill notes, chords or scales',
+            callback: () => this.openNoteDrill()
+        })
+        this.addCommand({
+            id: 'note-drill-current',
+            name: 'Drill notes, chords or scales: this drill note',
+            checkCallback: (checking) => {
+                const active = this.activeLearningNote()
+                const setting = active ? this.noteDrills.drillOf(active.file.path) : null
+                if (!setting) return false
+                if (!checking) this.openNoteDrill(setting)
+                return true
+            }
+        })
+        this.addCommand({
             id: 'identify-chord',
             name: 'Identify this chord',
             checkCallback: (checking) => {
@@ -1451,6 +1491,7 @@ export class MusicPracticePlugin extends Plugin {
             logSession: () => this.logPanelSession(),
             planIntoPanel: () => this.openPlan(),
             drill: () => this.openDrill(),
+            noteDrill: () => this.openNoteDrill(),
             metronome: this.metronome,
             metronomeDeps: () => this.metronomeDeps(),
             meterOf: (path) => {
@@ -1497,6 +1538,75 @@ export class MusicPracticePlugin extends Plugin {
                 easiestWay: (p) => this.openEasiestWay(p.a, p.b)
             },
             pair
+        ).open()
+    }
+
+    /** A note, chord or scale drill (#73): from its setting form, or on a given setting. */
+    openNoteDrill(setting: DrillSetting | null = null): void {
+        const fields = this.effective().fields
+        const fm = (path: string | null) => {
+            const file = path ? this.app.vault.getFileByPath(path) : null
+            return (file && this.app.metadataCache.getFileCache(file)?.frontmatter) || {}
+        }
+        new NoteDrillModal(
+            this.app,
+            {
+                notes: () => this.noteDrills.drillNotes(),
+                noteFor: (s) => this.noteDrills.noteFor(s),
+                statsOf: (path) => this.noteDrills.statsOf(path).stats,
+                pool: (s) => this.noteDrills.pool(s),
+                noteOf: (kind, name, instrument) => this.noteDrills.noteOf(kind, name, instrument),
+                createNote: (kind, name, instrument) =>
+                    this.noteDrills.createNote(kind, name, instrument),
+                grip: (symbol, note) => {
+                    const data = fm(note)
+                    const raw: unknown = data[fields.frets]
+                    const frets =
+                        typeof raw === 'string' || typeof raw === 'number'
+                            ? parseFrets(String(raw).padStart(6, '0'))
+                            : null
+                    if (frets) {
+                        const rawFingers: unknown = data[fields.fingers]
+                        const fingers =
+                            typeof rawFingers === 'string' || typeof rawFingers === 'number'
+                                ? parseFingers(String(rawFingers).padStart(6, '0'))
+                                : frets.map(() => null)
+                        return { frets, fingers }
+                    }
+                    return lookupGuitarVoicing(symbol, 0)
+                },
+                keys: (symbol, note) => {
+                    const raw: unknown = fm(note)[fields.pitches]
+                    const pitches =
+                        typeof raw === 'string'
+                            ? raw
+                                  .split(/[\s,]+/)
+                                  .map((p) => midiOf(p))
+                                  .filter((p): p is number => p !== null)
+                            : []
+                    return pitches.length ? pitches : (pianoVoicing(symbol)?.pitches ?? null)
+                },
+                layout: () => {
+                    const layout = layoutDefaults(this.settings.notationLayout)
+                    return {
+                        hand: layout.hand ?? 'right',
+                        fretboard: layout.orientation?.fretboard ?? 'horizontal',
+                        keyboard: layout.orientation?.keyboard ?? 'horizontal'
+                    }
+                },
+                play: () => this.playOptions(),
+                rules: () => ({
+                    ...this.settings.drills,
+                    weakShare: this.settings.drills.weakShare / 100
+                }),
+                save: (s, answers) => this.noteDrills.save(s, answers),
+                addToPanel: (path) => {
+                    if (this.settings.panelItems.some((i) => i.path === path)) return
+                    void this.setPanelItems((items) => withPaths(items, [path]))
+                },
+                log: (path, note) => this.openLogPractice({ paths: [path], note })
+            },
+            setting
         ).open()
     }
 

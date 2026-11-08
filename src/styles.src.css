@@ -617,6 +617,82 @@
     font-size: 1.6em;
 }
 
+/* Note, chord and scale drills (#73). */
+.mp-note-drill-form {
+    @apply flex flex-wrap items-end gap-3;
+}
+
+.mp-note-drill-strings label {
+    @apply inline-flex items-center gap-1;
+    margin-inline-end: 0.5rem;
+}
+
+.mp-note-drill-drawing {
+    @apply flex justify-center;
+    margin: 0.75rem 0;
+    overflow-x: auto;
+}
+
+.mp-note-drill-notes,
+.mp-note-drill-choices {
+    @apply flex flex-wrap justify-center gap-2;
+}
+
+.mp-note-drill-notes button {
+    min-width: 3em;
+}
+
+.mp-note-drill-feedback {
+    min-height: 1.6em;
+    margin: 0.5rem 0;
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Right and wrong say so in words too; the color follows the library's marks. */
+.mp-note-drill-right {
+    color: var(--mn-right, #15803d);
+}
+
+.mp-note-drill-wrong {
+    color: var(--mn-wrong, #b91c1c);
+}
+
+/* The weak-spot heat map: each spot from red (all missed) to green (all right). */
+.mp-note-drill-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--mp-columns), minmax(2.2em, 1fr));
+    gap: 2px;
+    margin: 0.75rem 0;
+    font-size: 0.85em;
+    text-align: center;
+}
+
+.mp-note-drill-keys,
+.mp-note-drill-list {
+    @apply flex flex-wrap gap-1;
+    margin: 0.75rem 0;
+    font-size: 0.85em;
+}
+
+.mp-note-drill-cell {
+    padding: 0.2em 0.4em;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    color: #fff;
+    background: hsl(calc(var(--mp-share, 0) * 120) 60% 35%);
+}
+
+.mp-note-drill-cell.mp-note-drill-unasked {
+    color: var(--text-muted);
+    background: var(--background-secondary);
+}
+
+/* A slow spot: a dashed edge, so it doesn't rest on color alone. */
+.mp-note-drill-cell.mp-note-drill-slow {
+    border: 2px dashed var(--text-normal);
+}
+
 /* Practice a progression in time (#69): the chords, one a bar, the one playing lit. */
 .mp-backing-chords {
     display: flex;

@@ -1,4 +1,4 @@
-import { FuzzySuggestModal, ItemView } from 'obsidian'
+import { FuzzySuggestModal, ItemView, Menu } from 'obsidian'
 import type { App, WorkspaceLeaf } from 'obsidian'
 import type { NoteModel } from '../domain/note-model'
 import { withPaths, type PanelItem } from '../domain/panel'
@@ -26,6 +26,8 @@ export interface PracticePanelDeps {
     logSession: () => void
     planIntoPanel: () => void
     drill: () => void
+    /** Note, chord and scale drills (#73). */
+    noteDrill: () => void
     metronome: Metronome
     /** A learning note's time signature, as the metronome counts it (#77). */
     meterOf?: (path: string) => ItemMeter | null
@@ -81,8 +83,24 @@ export class PracticePanelView extends ItemView {
             .createEl('button', { text: 'Plan' })
             .addEventListener('click', () => this.deps.planIntoPanel())
         tools
-            .createEl('button', { text: 'Drill', attr: { 'aria-label': 'Chord change drill' } })
-            .addEventListener('click', () => this.deps.drill())
+            .createEl('button', { text: 'Drill', attr: { 'aria-label': 'Drills' } })
+            .addEventListener('click', (event) => {
+                // Two kinds of drills (#73): chord changes, and notes, chords and scales.
+                const menu = new Menu()
+                menu.addItem((item) =>
+                    item
+                        .setTitle('Chord changes')
+                        .setIcon('repeat')
+                        .onClick(() => this.deps.drill())
+                )
+                menu.addItem((item) =>
+                    item
+                        .setTitle('Notes, chords and scales')
+                        .setIcon('target')
+                        .onClick(() => this.deps.noteDrill())
+                )
+                menu.showAtMouseEvent(event)
+            })
         tools
             .createEl('button', { text: 'Clear' })
             .addEventListener('click', () => void this.deps.setList(() => []))

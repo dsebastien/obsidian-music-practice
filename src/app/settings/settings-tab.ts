@@ -281,6 +281,26 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         'drillSeconds',
                         'Chord change drill length',
                         'Seconds, from 10 to 600 (a minute is the classic drill).'
+                    ),
+                    this.num(
+                        'drills.questions',
+                        'Questions per drill',
+                        'Note, chord and scale drills: questions in one drill, from 1 to 100.'
+                    ),
+                    this.num(
+                        'drills.weakShare',
+                        'Weak spots share',
+                        'Percent of the questions asked about your weak spots (most misses, slowest answers), from 0 to 100.'
+                    ),
+                    this.num(
+                        'drills.clearStreak',
+                        'Right answers to clear a weak spot',
+                        'Right answers in a row, each faster than the time below, after which a spot is no longer weak (1 to 10).'
+                    ),
+                    this.num(
+                        'drills.fastSeconds',
+                        'Fast answer',
+                        'Seconds: a right answer faster than this counts toward clearing a weak spot (0.5 to 10).'
                     )
                 ]
             },
@@ -548,6 +568,21 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                                 'fields.changesLast',
                                 'Last changes',
                                 'Chord change drills: changes in the last drill.'
+                            ),
+                            this.text(
+                                'fields.drillKind',
+                                'Drill kind',
+                                'Note drills: what the drill note drills (Fretboard notes, Keyboard notes, Chord names, Scale shapes).'
+                            ),
+                            this.text(
+                                'fields.drillSetting',
+                                'Drill setting',
+                                'Note drills: the setting in words ("string 5, frets 0-5").'
+                            ),
+                            this.text(
+                                'fields.drillStats',
+                                'Drill weak spots',
+                                'Note drills: the weak-spot map ("s5f3 C: 7/9 1.8s").'
                             ),
                             this.text('fields.scaleRoot', 'Scale root', 'Scales: "A".'),
                             this.text(
