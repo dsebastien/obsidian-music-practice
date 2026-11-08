@@ -37,7 +37,7 @@ import { triadDetail } from '../domain/triads'
 import type { StringSet } from '../domain/triads'
 import type { TriadPick } from './triads-modal'
 import { alignGrid } from './voicing-cell'
-import { formatKeys, parseKeys, readValue, textOfValue, valueOfText } from '../domain/click-input'
+import { readValue, textOfValue, typedKeysOf, valueOfText } from '../domain/click-input'
 import { ClickInput, renderNearMatches } from './click-input'
 
 /** voicingIndex of a voicing picked from every way to play the chord (#54). */
@@ -155,7 +155,17 @@ export class AddNoteModal extends Modal {
     /** Piano chords typed (or clicked) as keys with their octaves ("C4 E4 G4"), low to high (#76). */
     private typedKeys(): number[] | null {
         if (this.type.kind !== 'chord' || this.instrument() !== 'piano') return null
-        return parseKeys(this.text.trim())
+        // One token is a chord first (G7, C7): keys need two tokens or more (#76).
+        return typedKeysOf(this.text.trim())
+    }
+
+    /** The keys as typed (or as the clicks wrote them, spelled by their chord): Bb3 stays Bb3. */
+    private keysText(): string {
+        return this.text
+            .trim()
+            .split(/[\s,]+/)
+            .filter(Boolean)
+            .join(' ')
     }
 
     /** The chord typed: a symbol ("Am7"), words ("A Minor 7"), or recognized from frets or keys. */
@@ -214,8 +224,10 @@ export class AddNoteModal extends Modal {
         const symbol = this.symbol()
         const instrument = this.instrument()
         if (!symbol || !instrument || this.type.kind !== 'chord') return null
-        const block = chordBlock(symbol, instrument, this.voicing())
-        if (!block) return null
+        const chordLines = chordBlock(symbol, instrument, this.voicing())
+        if (!chordLines) return null
+        // Piano chords entered as keys: the preview draws those keys (#76).
+        const block = this.typedKeys() ? `${chordLines}\npitches: ${this.keysText()}` : chordLines
         const probe = renderBlock('chord', blockSource(block), createDiv())
         probe.destroy()
         return probe.ok ? block : null
@@ -335,7 +347,7 @@ export class AddNoteModal extends Modal {
         const keys = this.typedKeys()
         const pitches =
             keys && this.type.fields.has(this.fields.pitches)
-                ? { [this.fields.pitches]: formatKeys(keys) }
+                ? { [this.fields.pitches]: this.keysText() }
                 : {}
         const properties = {
             ...pitches,
@@ -848,6 +860,8 @@ export class AddNoteModal extends Modal {
                     input.value = symbol
                     typedText(symbol)
                     this.clicks?.set(valueOfText(symbol, clickInstrument))
+                    // The list is gone with the chord: the focus goes to the field (#76).
+                    input.focus()
                 }
             })
         }

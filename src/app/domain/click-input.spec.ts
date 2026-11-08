@@ -13,8 +13,13 @@ import {
     parseKeys,
     pitchesOfFrets,
     toggleFret,
-    toggleKey
+    toggleKey,
+    typedKeysOf,
+    spellKeys,
+    namedNoteChanges,
+    clickHint
 } from './click-input'
+import { createDefaultFieldNames } from './fields'
 
 const MUTED = [null, null, null, null, null, null]
 
@@ -160,5 +165,156 @@ describe('click input: the value and the drawing', () => {
         expect(textOfValue({ kind: 'frets', frets: [null, 3, 2, 0, 1, 0] })).toBe('x32010')
         expect(textOfValue({ kind: 'frets', frets: MUTED })).toBe('')
         expect(textOfValue({ kind: 'keys', keys: [60, 64] })).toBe('C4 E4')
+    })
+})
+
+describe('click input: review findings', () => {
+    it('reads one token as a chord first: G7 or C7 is a chord, not a key (1)', () => {
+        expect(typedKeysOf('C7')).toBeNull()
+        expect(typedKeysOf('G7')).toBeNull()
+        expect(typedKeysOf('Bb7')).toBeNull()
+        expect(valueOfText('C7', 'piano')).toEqual({ kind: 'keys', keys: [] })
+        expect(valueOfText('E9', 'piano')).toEqual({ kind: 'keys', keys: [] })
+        // Two tokens or more are keys; one that no chord reads is a key.
+        expect(typedKeysOf('C4 E4')).toEqual([60, 64])
+        expect(typedKeysOf('G#3')).toEqual([56])
+        expect(typedKeysOf('Am7')).toBeNull()
+    })
+
+    it('lists each set of notes once, the chord on the bass first, then the family order (2)', () => {
+        const sets = (pitches: number[]) =>
+            nearMatches(pitches).map((m) =>
+                [...new Set([...m.missingClasses, ...pitches.map((p) => p % 12)])]
+                    .sort((a, b) => a - b)
+                    .join(' ')
+            )
+        for (const pitches of [
+            [60, 68],
+            [62, 65],
+            [60, 65],
+            [60, 64]
+        ]) {
+            const all = sets(pitches)
+            expect(new Set(all).size).toBe(all.length)
+        }
+        // C and G#: one augmented chord, the one on C.
+        const aug = nearMatches([60, 68]).filter((m) => m.symbol.endsWith('aug'))
+        expect(aug.map((m) => m.symbol)).toEqual(['Caug'])
+        // D and F: Dm7 (on the bass), not also F6.
+        const dm = nearMatches([62, 65]).map((m) => m.symbol)
+        expect(dm).toContain('Dm7')
+        expect(dm).not.toContain('F6')
+    })
+
+    it('spells keys as their chord does, and keeps flats (5)', () => {
+        expect(spellKeys([58, 62, 65])).toBe('Bb3 D4 F4')
+        expect(textOfValue({ kind: 'keys', keys: [58, 62, 65] })).toBe('Bb3 D4 F4')
+        expect(textOfValue({ kind: 'keys', keys: [61, 65, 68] })).toBe('Db4 F4 Ab4')
+        // No chord: sharps.
+        expect(spellKeys([61, 63])).toBe('C#4 D#4')
+    })
+
+    it('names a chord note: the chord, and the notes clicked with what goes with them (3, 5, 6)', () => {
+        const fields = createDefaultFieldNames()
+        const all = new Set([
+            fields.chordSymbol,
+            fields.chordRoot,
+            fields.chordQuality,
+            fields.frets,
+            fields.fingers,
+            fields.position,
+            fields.pitches,
+            fields.fingering
+        ])
+        const has = (name: string) => all.has(name)
+        // New frets: fingers worked out, the position follows when the note has one.
+        const guitar = namedNoteChanges({
+            fields,
+            has,
+            fm: { frets: 'x02220', fingers: 'x01230', position: 1 },
+            symbol: 'Em',
+            notes: { kind: 'frets', frets: [null, 7, 9, 9, 8, 7] },
+            frets: 'x02220',
+            pitches: ''
+        })
+        expect(guitar.set).toEqual({
+            chord_symbol: 'Em',
+            chord_root: 'E',
+            chord_quality: 'Minor',
+            frets: 'x79987',
+            fingers: 'x13421',
+            position: 7
+        })
+        expect(guitar.remove).toEqual([])
+        // Unchanged frets: only the chord.
+        const same = namedNoteChanges({
+            fields,
+            has,
+            fm: { frets: 'x32010' },
+            symbol: 'C',
+            notes: { kind: 'frets', frets: [null, 3, 2, 0, 1, 0] },
+            frets: 'x32010',
+            pitches: ''
+        })
+        expect(Object.keys(same.set).sort()).toEqual([
+            'chord_quality',
+            'chord_root',
+            'chord_symbol'
+        ])
+        // No position property on the note: none added.
+        expect(
+            'position' in
+                namedNoteChanges({
+                    fields,
+                    has,
+                    fm: {},
+                    symbol: 'Bm',
+                    notes: { kind: 'frets', frets: [null, 2, 4, 4, 3, 2] },
+                    frets: '',
+                    pitches: ''
+                }).set
+        ).toBe(false)
+        // New keys: spelled by the chord, the list shape kept, the old fingering cleared.
+        const piano = namedNoteChanges({
+            fields,
+            has,
+            fm: { pitches: ['C4', 'E4'], fingering: '1 3' },
+            symbol: 'Bb',
+            notes: { kind: 'keys', keys: [58, 62, 65] },
+            frets: '',
+            pitches: 'C4 E4'
+        })
+        expect(piano.set['pitches']).toEqual(['Bb3', 'D4', 'F4'])
+        expect(piano.remove).toEqual(['fingering'])
+        const text = namedNoteChanges({
+            fields,
+            has,
+            fm: {},
+            symbol: 'Bb',
+            notes: { kind: 'keys', keys: [58, 62, 65] },
+            frets: '',
+            pitches: ''
+        })
+        expect(text.set['pitches']).toBe('Bb3 D4 F4')
+        // Only properties the type defines.
+        const bare = namedNoteChanges({
+            fields,
+            has: (name) => name === fields.chordSymbol,
+            fm: {},
+            symbol: 'Bm',
+            notes: { kind: 'frets', frets: [null, 2, 4, 4, 3, 2] },
+            frets: '',
+            pitches: ''
+        })
+        expect(bare.set).toEqual({ chord_symbol: 'Bm' })
+    })
+
+    it('says why nothing shows: too few notes, or no chord holds them (9)', () => {
+        expect(clickHint([], [])).toBe('Click two notes or more: the chord they make shows here.')
+        expect(clickHint([60], [])).toBe('Click two notes or more: the chord they make shows here.')
+        expect(clickHint([60, 61, 62, 63], [])).toBe(
+            'No common chord holds all these notes: take one away.'
+        )
+        expect(clickHint([60, 64], nearMatches([60, 64]))).toBe('')
     })
 })

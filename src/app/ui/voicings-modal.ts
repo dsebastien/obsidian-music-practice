@@ -108,10 +108,9 @@ export class VoicingsModal extends Modal {
                     value: valueOfText('', 'guitar'),
                     onChange: (value) => {
                         const read = readValue(value)
-                        if (read.detected) {
-                            input.value = read.detected.symbol
-                            typed()
-                        }
+                        // The field follows the frets: their chord, or nothing when they make none.
+                        input.value = read.detected?.symbol ?? ''
+                        typed()
                         renderNearMatches(near, read.near, {
                             mark: (m) => this.clicks?.showNear(m),
                             pick: (symbol) => {
@@ -120,6 +119,8 @@ export class VoicingsModal extends Modal {
                                 typed()
                                 this.clicks?.set(valueOfText('', 'guitar'))
                                 near.empty()
+                                // The list is gone: the focus goes to the field.
+                                input.focus()
                             }
                         })
                     }

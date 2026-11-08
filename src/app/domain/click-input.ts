@@ -3,14 +3,19 @@
  * chords that hold the notes when they make no chord the library detects (near matches).
  */
 import {
+    baseFretOf,
     chordNoteSet,
     detectChordFromFrets,
     detectChordFromPitches,
+    fingerVoicing,
     midiOf,
-    parseFrets
+    parseChord,
+    parseFrets,
+    readChord
 } from '@dsebastien/music-notation'
 import type { DetectedChord } from '@dsebastien/music-notation'
-import { formatFrets } from './notation-note'
+import type { FieldNames } from './fields'
+import { formatFingers, formatFrets } from './notation-note'
 
 /** Standard tuning, lowest string first (MIDI). */
 export const STANDARD_TUNING = [40, 45, 50, 55, 59, 64]
@@ -100,7 +105,8 @@ export interface NearMatch {
 /**
  * The chords that hold every note played (2 pitch classes at least), fewest missing notes first,
  * then those on the lowest note, then the most common families; at most `limit`. A chord with
- * nothing missing is the chord itself (detection names it): left out.
+ * nothing missing is the chord itself (detection names it): left out. Chords of the same notes
+ * (Caug, Eaug, Abaug; Dm7 and F6) are listed once: the first in that order.
  */
 export function nearMatches(pitches: readonly number[], limit = 6): NearMatch[] {
     const classes = [...new Set(pitches.map(chroma))]
@@ -124,6 +130,7 @@ export function nearMatches(pitches: readonly number[], limit = 6): NearMatch[] 
             })
         }
     })
+    const seen = new Set<string>()
     return found
         .sort(
             (a, b) =>
@@ -131,6 +138,14 @@ export function nearMatches(pitches: readonly number[], limit = 6): NearMatch[] 
                 Number(b.onBass) - Number(a.onBass) ||
                 a.order - b.order
         )
+        .filter((m) => {
+            const notes = [...new Set([...classes, ...m.missingClasses])]
+                .sort((x, y) => x - y)
+                .join(' ')
+            if (seen.has(notes)) return false
+            seen.add(notes)
+            return true
+        })
         .slice(0, limit)
         .map(({ symbol, missing, missingClasses }) => ({ symbol, missing, missingClasses }))
 }
@@ -222,13 +237,131 @@ export function nearTargets(
 
 /** The value a text field holds: six frets (`x32010`) or keys (`C4 E4 G4`); none chosen otherwise. */
 export function valueOfText(text: string, instrument: 'guitar' | 'piano'): ClickValue {
-    if (instrument === 'piano') return { kind: 'keys', keys: parseKeys(text.trim()) ?? [] }
+    if (instrument === 'piano') return { kind: 'keys', keys: typedKeysOf(text.trim()) ?? [] }
     const frets = parseFrets(text.trim())
     return { kind: 'frets', frets: frets?.length === 6 ? frets : [...MUTED] }
 }
 
 /** The value as the text field writes it; empty when nothing is chosen. */
 export function textOfValue(value: ClickValue): string {
-    if (value.kind === 'keys') return formatKeys(value.keys)
+    if (value.kind === 'keys') return spellKeys(value.keys)
     return value.frets.every((f) => f === null) ? '' : formatFrets(value.frets)
+}
+
+/**
+ * Keys typed in a chord field: one token is a chord first ("C7", "G7", "E9" are chords, not
+ * keys); keys need two tokens or more, or one that no chord reads ("G#3").
+ */
+export function typedKeysOf(text: string): number[] | null {
+    const tokens = text.split(/[\s,]+/).filter(Boolean)
+    if (tokens.length === 1 && readChord(tokens[0]!)) return null
+    return parseKeys(text)
+}
+
+const ENHARMONIC: Record<string, string> = {
+    'C#': 'Db',
+    'Db': 'C#',
+    'D#': 'Eb',
+    'Eb': 'D#',
+    'F#': 'Gb',
+    'Gb': 'F#',
+    'G#': 'Ab',
+    'Ab': 'G#',
+    'A#': 'Bb',
+    'Bb': 'A#'
+}
+
+/** How awkward a spelling reads: E#, B#, Cb, Fb and double accidentals weigh most, then accidentals. */
+const awkwardness = (names: readonly string[]) =>
+    names.reduce(
+        (score, n) => score + (/^(E#|B#|Cb|Fb)$|##|bb/.test(n) ? 10 : 0) + (n.length > 1 ? 1 : 0),
+        0
+    )
+
+/**
+ * Keys spelled as the chord they make spells its notes (Bb3 D4 F4), its root taken on the
+ * enharmonic side that reads more simply (Db F Ab, not C# E# G#); else in sharps.
+ */
+export function spellKeys(keys: readonly number[]): string {
+    const detected = keys.length ? detectChordFromPitches([...keys]) : null
+    let members: { chroma: number; name: string }[] = []
+    if (detected) {
+        const root = /^[A-G][#b]?/.exec(detected.symbol)?.[0] ?? ''
+        const other = ENHARMONIC[root]
+        const candidates = [
+            detected.symbol,
+            ...(other ? [other + detected.symbol.slice(root.length)] : [])
+        ]
+        members = candidates
+            .map((symbol) => chordNoteSet(symbol)?.members ?? [])
+            .filter((m) => m.length)
+            .reduce<{ chroma: number; name: string }[]>(
+                (best, m) =>
+                    !best.length ||
+                    awkwardness(m.map((x) => x.name)) < awkwardness(best.map((x) => x.name))
+                        ? m
+                        : best,
+                []
+            )
+    }
+    const names = new Map(members.map((m) => [m.chroma, m.name]))
+    return keys
+        .map((p) => `${names.get(chroma(p)) ?? SHARPS[chroma(p)]}${Math.floor(p / 12) - 1}`)
+        .join(' ')
+}
+
+/**
+ * The frontmatter changes that name a chord note (Identify this chord): the chord's symbol, root
+ * and quality; and when the notes clicked differ from the note's, the new frets with their fingers
+ * worked out (and the position, when the note has one), or the new keys (spelled by the chord, in
+ * the shape the note stores them: a list stays a list) with the old piano fingering taken away.
+ * Only properties the type defines (`has`).
+ */
+export function namedNoteChanges(input: {
+    fields: FieldNames
+    has: (name: string) => boolean
+    fm: Record<string, unknown>
+    symbol: string
+    notes?: ClickValue
+    /** The note's frets and pitches as text, to tell whether the clicks changed them. */
+    frets: string
+    pitches: string
+}): { set: Record<string, unknown>; remove: string[] } {
+    const { fields, has, fm, notes } = input
+    const set: Record<string, unknown> = {}
+    const remove: string[] = []
+    const put = (name: string, value: unknown) => {
+        if (has(name)) set[name] = value
+    }
+    const chord = parseChord(input.symbol)
+    if (chord) {
+        put(fields.chordSymbol, chord.symbol)
+        put(fields.chordRoot, chord.root)
+        put(fields.chordQuality, chord.quality)
+    }
+    if (notes?.kind === 'frets') {
+        const text = textOfValue(notes)
+        if (text && text !== input.frets) {
+            put(fields.frets, text)
+            const fingers = fingerVoicing(notes.frets) ?? notes.frets.map(() => null)
+            put(fields.fingers, formatFingers({ frets: notes.frets, fingers }))
+            if (fields.position in fm) put(fields.position, baseFretOf(notes.frets))
+        }
+    }
+    if (notes?.kind === 'keys' && notes.keys.length) {
+        const text = spellKeys(notes.keys)
+        if (text !== input.pitches) {
+            put(fields.pitches, Array.isArray(fm[fields.pitches]) ? text.split(' ') : text)
+            if (has(fields.fingering) && fields.fingering in fm) remove.push(fields.fingering)
+        }
+    }
+    return { set, remove }
+}
+
+/** What to say under the drawing when no chord and no near match shows. */
+export function clickHint(pitches: readonly number[], near: readonly NearMatch[]): string {
+    if (near.length) return ''
+    if (new Set(pitches.map(chroma)).size < 2)
+        return 'Click two notes or more: the chord they make shows here.'
+    return 'No common chord holds all these notes: take one away.'
 }

@@ -6,7 +6,7 @@
 import { Modal, Notice } from 'obsidian'
 import type { App } from 'obsidian'
 import type { Hand, Orientation, PlayOptions } from '@dsebastien/music-notation'
-import { readValue, type ClickValue } from '../domain/click-input'
+import { clickHint, pitchesOfFrets, readValue, type ClickValue } from '../domain/click-input'
 import { ClickInput, renderNearMatches } from './click-input'
 
 export interface IdentifyChordOptions {
@@ -15,7 +15,7 @@ export interface IdentifyChordOptions {
     value: ClickValue
     layout: () => { hand: Hand; fretboard: Orientation; keyboard: Orientation }
     play: () => PlayOptions | false
-    /** Names the note with this chord, and keeps the notes clicked. */
+    /** Names the note with this chord, and keeps the notes clicked; rejects when it can't. */
     name: (symbol: string, value: ClickValue) => Promise<void>
 }
 
@@ -65,16 +65,21 @@ export class IdentifyChordModal extends Modal {
                             .name(reading, value)
                             .then(() => this.close())
                             .catch((error: unknown) => {
+                                // Nothing written: the modal stays open and says why.
                                 button.disabled = false
-                                new Notice(error instanceof Error ? error.message : String(error))
+                                const message =
+                                    error instanceof Error ? error.message : String(error)
+                                result.setText(`Couldn't name the chord: ${message}`)
+                                new Notice(`Couldn't name the chord: ${message}`)
                             })
                     })
                 }
             } else
                 result.setText(
-                    read.near.length
-                        ? ''
-                        : 'Click two notes or more: the chord they make shows here.'
+                    clickHint(
+                        value.kind === 'keys' ? value.keys : pitchesOfFrets(value.frets),
+                        read.near
+                    )
                 )
             renderNearMatches(near, read.near, { mark: (m) => this.clicks?.showNear(m) })
         }

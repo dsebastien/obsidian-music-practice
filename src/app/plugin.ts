@@ -138,7 +138,7 @@ import { parseChord, parseFrets, readChord } from '@dsebastien/music-notation'
 import type { GeneratedVoicing } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
 import type { Hand, Orientation } from '@dsebastien/music-notation'
-import { textOfValue, valueOfText, type ClickValue } from './domain/click-input'
+import { namedNoteChanges, valueOfText, type ClickValue } from './domain/click-input'
 import { IdentifyChordModal } from './ui/identify-chord-modal'
 import type { NotationStatus } from './services/notation.service'
 
@@ -226,44 +226,53 @@ export class MusicPracticePlugin extends Plugin {
         const fretsText = text(fields.frets, 6)
         const pitchesText = text(fields.pitches)
         const detected = chordFromNotes(fretsText, pitchesText, type.subject)
-        /** Writes the chord; with `notes`, also the frets or keys clicked when they changed (#76). */
-        const apply = async (symbol: string, notes?: ClickValue): Promise<void> => {
+        /**
+         * Writes the chord; with `notes`, also the frets (with their fingers and position) or keys
+         * clicked, when they changed (#76). Throws when it can't: the click modal stays open.
+         */
+        const write = async (symbol: string, notes?: ClickValue): Promise<void> => {
             const chord = parseChord(symbol)
-            if (!chord) return
+            if (!chord) throw new Error(`"${symbol}" is not a chord the library reads.`)
+            await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+                const changes = namedNoteChanges({
+                    fields,
+                    has: (name) => type.fields.has(name),
+                    fm,
+                    symbol: chord.symbol,
+                    ...(notes ? { notes } : {}),
+                    frets: fretsText,
+                    pitches: pitchesText
+                })
+                Object.assign(fm, changes.set)
+                for (const name of changes.remove) delete fm[name]
+                fm['aliases'] = withAlias(fm['aliases'], chord.symbol)
+            })
+            new Notice(`This chord is ${chord.name} (${chord.symbol}).`)
+        }
+        const apply = async (symbol: string): Promise<void> => {
             try {
-                await this.app.fileManager.processFrontMatter(
-                    file,
-                    (fm: Record<string, unknown>) => {
-                        const put = (name: string, value: string) => {
-                            if (type.fields.has(name)) fm[name] = value
-                        }
-                        put(fields.chordSymbol, chord.symbol)
-                        put(fields.chordRoot, chord.root)
-                        put(fields.chordQuality, chord.quality)
-                        fm['aliases'] = withAlias(fm['aliases'], chord.symbol)
-                        const clicked = notes ? textOfValue(notes) : ''
-                        if (notes?.kind === 'frets' && clicked && clicked !== fretsText)
-                            put(fields.frets, clicked)
-                        if (notes?.kind === 'keys' && clicked && clicked !== pitchesText)
-                            put(fields.pitches, clicked)
-                    }
-                )
-                new Notice(`This chord is ${chord.name} (${chord.symbol}).`)
+                await write(symbol)
             } catch (error: unknown) {
                 new Notice(
                     `Couldn't name the chord: ${error instanceof Error ? error.message : String(error)}`
                 )
             }
         }
-        // No notes, or notes that make no chord: click them on a fretboard or keyboard (#76).
+        // No notes, or notes that make no chord: click them on a fretboard or keyboard (#76),
+        // for guitar and piano chords; other instruments keep the message.
         if (!detected) {
-            const instrument = type.subject === 'piano' ? 'piano' : 'guitar'
+            const instrument =
+                type.subject === 'piano' ? 'piano' : type.subject === 'guitar' ? 'guitar' : null
+            if (!instrument) {
+                new Notice(`No chord found: add six frets to "${fields.frets}" (x02220).`)
+                return
+            }
             new IdentifyChordModal(this.app, {
                 instrument,
                 value: valueOfText(instrument === 'piano' ? pitchesText : fretsText, instrument),
                 layout: () => this.clickLayout(),
                 play: () => this.playOptions(),
-                name: (symbol, value) => apply(symbol, value)
+                name: (symbol, value) => write(symbol, value)
             }).open()
             return
         }

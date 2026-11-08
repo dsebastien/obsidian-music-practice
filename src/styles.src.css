@@ -805,6 +805,12 @@
     font-weight: 600;
 }
 
+/* The click drawings keep their size: the preview's 180px cap made a vertical fretboard or
+   keyboard too small to click. */
+.mp-click-input.mp-notation-preview .mn-svg {
+    max-height: none;
+}
+
 /* A near match's missing notes: dashed rings. */
 .mp-click-input .mp-click-near-ring {
     fill: none;

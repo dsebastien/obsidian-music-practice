@@ -140,9 +140,10 @@ export class ClickInput {
     private draw(): void {
         this.dots?.remove()
         this.showNear(null)
+        // Every target says whether it is chosen: false first, true for the chosen ones.
         this.svg
-            .querySelectorAll('.mn-pick[aria-pressed]')
-            .forEach((target) => target.removeAttribute('aria-pressed'))
+            .querySelectorAll('.mn-pick')
+            .forEach((target) => target.setAttribute('aria-pressed', 'false'))
         this.dots = this.group('mp-click-dots')
         for (const at of chosen(this.value)) {
             const target = this.svg.querySelector(selectorOf(at))
