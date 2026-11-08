@@ -1,7 +1,16 @@
 import { Modal } from 'obsidian'
 import type { App } from 'obsidian'
 import { generateVoicings, readChord, renderBlock } from '@dsebastien/music-notation'
-import type { GeneratedVoicing, RenderOptions, RenderResult } from '@dsebastien/music-notation'
+import type {
+    GeneratedVoicing,
+    Hand,
+    Orientation,
+    PlayOptions,
+    RenderOptions,
+    RenderResult
+} from '@dsebastien/music-notation'
+import { readValue, valueOfText } from '../domain/click-input'
+import { ClickInput, renderNearMatches } from './click-input'
 import { formatFingers, formatFrets } from '../domain/notation-note'
 import { alignGrid, selectCell, voicingCell } from './voicing-cell'
 import {
@@ -31,6 +40,11 @@ export interface VoicingsModalOptions {
     use?: (voicing: GeneratedVoicing, symbol: string) => Promise<void>
     /** Why this voicing can't be the note's (another shape: its own note); null when it can. */
     cantUse?: (voicing: GeneratedVoicing, symbol: string) => string | null
+    /** No chord given: a fretboard to click the chord's frets on (#76). */
+    click?: {
+        layout: () => { hand: Hand; fretboard: Orientation; keyboard: Orientation }
+        play: () => PlayOptions | false
+    }
 }
 
 /** Every playable voicing of a chord, easiest first, filtered by neck area and root string (#54). */
@@ -46,6 +60,8 @@ export class VoicingsModal extends Modal {
     private noteEl: HTMLElement | null = null
     /** An action is running. */
     private busy = false
+    /** The fretboard to click a chord on, when none is given (#76). */
+    private clicks: ClickInput | null = null
 
     constructor(
         app: App,
@@ -63,12 +79,41 @@ export class VoicingsModal extends Modal {
         if (!this.options.symbol) {
             const field = el.createEl('label', { cls: 'mp-field', text: 'Chord' })
             const input = field.createEl('input', { type: 'text', attr: { placeholder: 'Am7' } })
-            input.addEventListener('input', () => {
+            const typed = () => {
                 this.symbol = readChord(input.value.trim())?.symbol ?? null
                 this.selected = null
                 this.setTitle(this.symbol ? `Voicings of ${this.symbol}` : 'Voicings of a chord')
                 this.refresh()
-            })
+            }
+            input.addEventListener('input', typed)
+            // Or click the frets: the chord they make fills the field; when they make none, the
+            // chords that hold them, to pick one (#76).
+            const click = this.options.click
+            if (click) {
+                el.createDiv({ cls: 'mp-muted', text: 'Or click the frets of the chord:' })
+                const host = el.createDiv()
+                const near = el.createDiv({ cls: 'mp-click-near-box' })
+                this.clicks = new ClickInput(host, {
+                    instrument: 'guitar',
+                    layout: click.layout,
+                    play: click.play,
+                    value: valueOfText('', 'guitar'),
+                    onChange: (value) => {
+                        const read = readValue(value)
+                        if (read.detected) {
+                            input.value = read.detected.symbol
+                            typed()
+                        }
+                        renderNearMatches(near, read.near, {
+                            mark: (m) => this.clicks?.showNear(m),
+                            pick: (symbol) => {
+                                input.value = symbol
+                                typed()
+                            }
+                        })
+                    }
+                })
+            }
             window.setTimeout(() => input.focus(), 0)
         }
         const filters = el.createDiv({ cls: 'mp-form-row' })
@@ -238,6 +283,8 @@ export class VoicingsModal extends Modal {
     }
 
     override onClose(): void {
+        this.clicks?.destroy()
+        this.clicks = null
         for (const diagram of this.diagrams) diagram.destroy()
         this.diagrams = []
         this.contentEl.empty()

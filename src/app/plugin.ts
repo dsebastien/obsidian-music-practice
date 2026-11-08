@@ -137,6 +137,9 @@ import { ChooseChordModal } from './ui/choose-chord-modal'
 import { parseChord, parseFrets, readChord } from '@dsebastien/music-notation'
 import type { GeneratedVoicing } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
+import type { Hand, Orientation } from '@dsebastien/music-notation'
+import { textOfValue, valueOfText, type ClickValue } from './domain/click-input'
+import { IdentifyChordModal } from './ui/identify-chord-modal'
 import type { NotationStatus } from './services/notation.service'
 
 /** A timer running longer than this is probably forgotten: the log asks to check the minutes. */
@@ -220,16 +223,11 @@ export class MusicPracticePlugin extends Plugin {
             )
             return
         }
-        const detected = chordFromNotes(text(fields.frets, 6), text(fields.pitches), type.subject)
-        if (!detected) {
-            new Notice(
-                type.subject === 'piano'
-                    ? `No chord found: add the notes to "${fields.pitches}" (A3 C#4 E4).`
-                    : `No chord found: add six frets to "${fields.frets}" (x02220).`
-            )
-            return
-        }
-        const apply = async (symbol: string) => {
+        const fretsText = text(fields.frets, 6)
+        const pitchesText = text(fields.pitches)
+        const detected = chordFromNotes(fretsText, pitchesText, type.subject)
+        /** Writes the chord; with `notes`, also the frets or keys clicked when they changed (#76). */
+        const apply = async (symbol: string, notes?: ClickValue): Promise<void> => {
             const chord = parseChord(symbol)
             if (!chord) return
             try {
@@ -243,6 +241,11 @@ export class MusicPracticePlugin extends Plugin {
                         put(fields.chordRoot, chord.root)
                         put(fields.chordQuality, chord.quality)
                         fm['aliases'] = withAlias(fm['aliases'], chord.symbol)
+                        const clicked = notes ? textOfValue(notes) : ''
+                        if (notes?.kind === 'frets' && clicked && clicked !== fretsText)
+                            put(fields.frets, clicked)
+                        if (notes?.kind === 'keys' && clicked && clicked !== pitchesText)
+                            put(fields.pitches, clicked)
                     }
                 )
                 new Notice(`This chord is ${chord.name} (${chord.symbol}).`)
@@ -252,8 +255,30 @@ export class MusicPracticePlugin extends Plugin {
                 )
             }
         }
+        // No notes, or notes that make no chord: click them on a fretboard or keyboard (#76).
+        if (!detected) {
+            const instrument = type.subject === 'piano' ? 'piano' : 'guitar'
+            new IdentifyChordModal(this.app, {
+                instrument,
+                value: valueOfText(instrument === 'piano' ? pitchesText : fretsText, instrument),
+                layout: () => this.clickLayout(),
+                play: () => this.playOptions(),
+                name: (symbol, value) => apply(symbol, value)
+            }).open()
+            return
+        }
         if (detected.readings.length === 1) void apply(detected.symbol)
         else new ChooseChordModal(this.app, detected.readings, (s) => void apply(s)).open()
+    }
+
+    /** The layout's hand and orientations, for the click-to-enter drawings (#76). */
+    private clickLayout(): { hand: Hand; fretboard: Orientation; keyboard: Orientation } {
+        const layout = layoutDefaults(this.settings.notationLayout)
+        return {
+            hand: layout.hand ?? 'right',
+            fretboard: layout.orientation?.fretboard ?? 'horizontal',
+            keyboard: layout.orientation?.keyboard ?? 'horizontal'
+        }
     }
 
     /**
@@ -988,7 +1013,8 @@ export class MusicPracticePlugin extends Plugin {
                         this.voicingNotes.existingName(
                             type,
                             this.triadNoteTitle(type, chordName, set, 0)
-                        )
+                        ),
+                    () => this.playOptions()
                 ).open()
             }
         })
@@ -2097,6 +2123,8 @@ export class MusicPracticePlugin extends Plugin {
             symbol,
             current,
             renderOptions: () => this.modalRenderOptions(),
+            // No chord given: its frets can be clicked on a fretboard (#76).
+            click: { layout: () => this.clickLayout(), play: () => this.playOptions() },
             ...(target.pick ? { pick: (voicing) => target.pick!(voicing) } : {}),
             ...(type && holds && !target.pick
                 ? {

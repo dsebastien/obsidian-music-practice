@@ -786,3 +786,57 @@
 .mp-section-name {
     @apply w-full mb-3;
 }
+
+/* ========================================
+   Click to enter notes (#76)
+   ======================================== */
+
+/* The notes chosen on the fretboard or keyboard: dots drawn by the plugin over the library's
+   targets (they ignore the pointer), with the note's name. */
+.mp-click-input .mp-click-dot {
+    fill: var(--interactive-accent);
+    stroke: var(--background-primary);
+    stroke-width: 1.5;
+}
+
+.mp-click-input .mp-click-dot-text {
+    fill: var(--text-on-accent);
+    font-size: 9px;
+    font-weight: 600;
+}
+
+/* A near match's missing notes: dashed rings. */
+.mp-click-input .mp-click-near-ring {
+    fill: none;
+    stroke: var(--interactive-accent);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 2;
+}
+
+.mp-click-near-list {
+    @apply flex flex-wrap gap-2 mt-1 mb-2;
+}
+
+.mp-click-near-match[aria-pressed='true'] {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.mp-click-result {
+    @apply mt-2;
+}
+
+@media (forced-colors: active) {
+    .mp-click-input .mp-click-dot {
+        fill: Highlight;
+        stroke: Canvas;
+    }
+
+    .mp-click-input .mp-click-dot-text {
+        fill: HighlightText;
+    }
+
+    .mp-click-input .mp-click-near-ring {
+        stroke: CanvasText;
+    }
+}

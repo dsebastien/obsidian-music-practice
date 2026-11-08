@@ -7,6 +7,7 @@ import type { LearningType } from '../domain/note-model'
 import type { NewLearningNote } from '../services/note-creator.service'
 import {
     detectChordFromFrets,
+    detectChordFromPitches,
     fingerVoicing,
     parseChord,
     parseFrets,
@@ -18,6 +19,7 @@ import type {
     GeneratedVoicing,
     NotationLanguage,
     ParsedChord,
+    PlayOptions,
     RenderOptions,
     RenderResult
 } from '@dsebastien/music-notation'
@@ -35,6 +37,8 @@ import { triadDetail } from '../domain/triads'
 import type { StringSet } from '../domain/triads'
 import type { TriadPick } from './triads-modal'
 import { alignGrid } from './voicing-cell'
+import { formatKeys, parseKeys, readValue, textOfValue, valueOfText } from '../domain/click-input'
+import { ClickInput, renderNearMatches } from './click-input'
 
 /** voicingIndex of a voicing picked from every way to play the chord (#54). */
 const PICKED = -2
@@ -87,6 +91,8 @@ export class AddNoteModal extends Modal {
     private formEl: HTMLElement | null = null
     /** The previews: one diagram, or a row of voicings to pick from. */
     private diagrams: RenderResult[] = []
+    /** Chord types: the fretboard or keyboard whose clicks enter the frets or keys (#76). */
+    private clicks: ClickInput | null = null
 
     constructor(
         app: App,
@@ -109,7 +115,9 @@ export class AddNoteModal extends Modal {
             type: LearningType,
             chordName: string,
             set: StringSet
-        ) => string | null
+        ) => string | null,
+        /** Settings → Playback, for the sound of each click on the fretboard or keyboard (#76). */
+        private readonly play: () => PlayOptions | false = () => false
     ) {
         super(app)
         this.type = types[0]!
@@ -144,12 +152,23 @@ export class AddNoteModal extends Modal {
         return frets?.length === 6 ? frets : null
     }
 
-    /** The chord typed: a symbol ("Am7"), words ("A Minor 7"), or recognized from frets. */
+    /** Piano chords typed (or clicked) as keys with their octaves ("C4 E4 G4"), low to high (#76). */
+    private typedKeys(): number[] | null {
+        if (this.type.kind !== 'chord' || this.instrument() !== 'piano') return null
+        return parseKeys(this.text.trim())
+    }
+
+    /** The chord typed: a symbol ("Am7"), words ("A Minor 7"), or recognized from frets or keys. */
     private chord(): ParsedChord | null {
         if (this.type.kind !== 'chord' && !this.arpeggio()) return null
         const frets = this.typedFrets()
         if (frets) {
             const detected = detectChordFromFrets(frets)
+            return detected ? parseChord(detected.symbol) : null
+        }
+        const keys = this.typedKeys()
+        if (keys) {
+            const detected = detectChordFromPitches(keys)
             return detected ? parseChord(detected.symbol) : null
         }
         return readChord(this.text.trim())
@@ -296,8 +315,8 @@ export class AddNoteModal extends Modal {
         if (this.scaleFields() && !scale) return null
         if (!scale && !input) return null
         const chord = this.chord()
-        // Frets the library doesn't recognize name nothing: type the chord instead.
-        if (this.typedFrets() && !chord) return null
+        // Frets or keys the library doesn't recognize name nothing: type the chord instead.
+        if ((this.typedFrets() || this.typedKeys()) && !chord) return null
         const title = safeTitle(
             chord
                 ? this.triadDetail && this.voicingIndex === PICKED
@@ -312,7 +331,14 @@ export class AddNoteModal extends Modal {
         if (!title) return null
         const block = this.block()
         const prerequisite = chord ? this.triadPrerequisite(chord) : null
+        // Piano chords entered as keys keep them as the note's pitches (#76).
+        const keys = this.typedKeys()
+        const pitches =
+            keys && this.type.fields.has(this.fields.pitches)
+                ? { [this.fields.pitches]: formatKeys(keys) }
+                : {}
         const properties = {
+            ...pitches,
             ...scale,
             ...this.strumProperties(),
             ...this.pickingProperties(),
@@ -418,11 +444,13 @@ export class AddNoteModal extends Modal {
                   cls: 'mp-field',
                   text: guitarChord
                       ? 'Chord (F#m7, A Major) or frets (x02220)'
-                      : isChord
-                        ? 'Chord (F#m7, A Major)'
-                        : isArpeggio
-                          ? 'Chord of the arpeggio (Am7, A Minor 7)'
-                          : 'Name'
+                      : isChord && this.instrument() === 'piano'
+                        ? 'Chord (F#m7, A Major) or keys (C4 E4 G4)'
+                        : isChord
+                          ? 'Chord (F#m7, A Major)'
+                          : isArpeggio
+                            ? 'Chord of the arpeggio (Am7, A Minor 7)'
+                            : 'Name'
               })
         const input = (nameField ?? createDiv()).createEl('input', {
             type: 'text',
@@ -431,6 +459,13 @@ export class AddNoteModal extends Modal {
             }
         })
         input.value = this.text
+        // Chords: click the frets or keys on a fretboard or keyboard (#76), with the chords that
+        // hold the notes when they make none.
+        this.clicks?.destroy()
+        this.clicks = null
+        const clickInstrument = isChord ? this.instrument() : null
+        const clickHost = clickInstrument ? el.createDiv() : null
+        const nearEl = clickInstrument ? el.createDiv({ cls: 'mp-click-near-box' }) : null
 
         // Strumming patterns: the pattern, its time signature and its feel (the type's values
         // when it lists them).
@@ -790,8 +825,8 @@ export class AddNoteModal extends Modal {
                 spec
                     ? `Note: ${spec.title}${spec.chordSymbol ? ` (alias ${spec.chordSymbol})` : ''}`
                     : isChord || isArpeggio
-                      ? this.typedFrets()
-                          ? 'These frets make no chord the library knows: type the chord instead.'
+                      ? this.typedFrets() || this.typedKeys()
+                          ? `These ${this.typedFrets() ? 'frets' : 'keys'} make no chord the library knows: type the chord instead.`
                           : 'Type a chord: its name is spelled out, the symbol becomes an alias.'
                       : isScale
                         ? 'Pick a root and a scale or mode.'
@@ -799,9 +834,24 @@ export class AddNoteModal extends Modal {
             )
             submit.disabled = !spec
         }
-        input.addEventListener('input', () => {
+        const refreshNear = () => {
+            if (!nearEl || !clickInstrument) return
+            const typed = this.typedFrets() ?? this.typedKeys()
+            const near =
+                typed && !this.chord()
+                    ? readValue(valueOfText(this.text, clickInstrument)).near
+                    : []
+            renderNearMatches(nearEl, near, {
+                mark: (missing) => this.clicks?.showNear(missing),
+                pick: (symbol) => {
+                    input.value = symbol
+                    typedText(symbol)
+                }
+            })
+        }
+        const typedText = (text: string) => {
             const before = this.symbol()
-            this.text = input.value
+            this.text = text
             // A new chord starts over; a space or a different spelling of the same chord doesn't.
             if (this.symbol() !== before) {
                 this.voicingIndex = 0
@@ -812,13 +862,38 @@ export class AddNoteModal extends Modal {
             }
             refreshVoicings()
             refresh()
+            refreshNear()
+        }
+        input.addEventListener('input', () => {
+            typedText(input.value)
+            if (clickInstrument) this.clicks?.set(valueOfText(input.value, clickInstrument))
         })
+        if (clickHost && clickInstrument) {
+            this.clicks = new ClickInput(clickHost, {
+                instrument: clickInstrument,
+                layout: () => {
+                    const o = this.renderOptions()
+                    return {
+                        hand: o.hand === 'left' ? 'left' : 'right',
+                        fretboard: o.orientation?.fretboard ?? 'horizontal',
+                        keyboard: o.orientation?.keyboard ?? 'horizontal'
+                    }
+                },
+                play: this.play,
+                value: valueOfText(this.text, clickInstrument),
+                onChange: (value) => {
+                    input.value = textOfValue(value)
+                    typedText(input.value)
+                }
+            })
+        }
         input.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') void this.submit()
         })
         submit.addEventListener('click', () => void this.submit())
         refreshVoicings()
         refresh()
+        refreshNear()
         // Scales start on the root; everything else on the name.
         if (scaleRow) scaleRow.querySelector('select')?.focus()
         else input.focus()
@@ -850,6 +925,8 @@ export class AddNoteModal extends Modal {
     }
 
     override onClose(): void {
+        this.clicks?.destroy()
+        this.clicks = null
         for (const diagram of this.diagrams) diagram.destroy()
         this.diagrams = []
         this.contentEl.empty()
