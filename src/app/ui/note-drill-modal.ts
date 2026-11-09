@@ -14,11 +14,13 @@ import {
     renderGuitarDiagram,
     renderKeyboard,
     scaleNoteSet,
-    chordNoteSet
+    chordNoteSet,
+    withNaming
 } from '@dsebastien/music-notation'
 import type {
     FrettedVoicing,
     Hand,
+    Naming,
     Orientation,
     PickLayer,
     PlayOptions
@@ -50,6 +52,7 @@ import {
     type SpotStat
 } from '../domain/note-drill'
 import type { DrillNote, SavedDrill } from '../services/note-drill.service'
+import { choiceShown, expectedShown, noteShown, promptShown, spotShown } from '../domain/note-names'
 
 export interface NoteDrillDeps {
     /** The vault's drill notes, to start one again. */
@@ -68,6 +71,8 @@ export interface NoteDrillDeps {
     /** A piano chord's keys: its note's pitches, else the library's voicing. */
     keys: (symbol: string, note: string | null) => number[] | null
     layout: () => { hand: Hand; fretboard: Orientation; keyboard: Orientation }
+    /** Settings → Notation → Note names: how questions, answers and drawings name notes. */
+    naming: () => Naming
     /** Settings → Playback, for the sound of each pick; false when playback is off. */
     play: () => PlayOptions | false
     rules: () => DrillRules
@@ -397,7 +402,11 @@ export class NoteDrillModal extends Modal {
             text: `${drillTitle(this.setting)} · ${this.index + 1} of ${this.list.length}`
         })
         // The prompt is announced: the question changed.
-        el.createDiv({ cls: 'mp-drill-title', text: q.prompt, attr: { 'aria-live': 'polite' } })
+        el.createDiv({
+            cls: 'mp-drill-title',
+            text: promptShown(q, this.deps.naming()),
+            attr: { 'aria-live': 'polite' }
+        })
         const drawing = el.createDiv({ cls: 'mp-notation-preview mp-note-drill-drawing' })
         const answer = el.createDiv({ cls: 'mp-note-drill-answer' })
         const feedback = el.createDiv({
@@ -405,7 +414,8 @@ export class NoteDrillModal extends Modal {
             attr: { 'aria-live': 'polite' }
         })
         const actions = el.createDiv({ cls: 'mp-actions' })
-        this.draw(q, drawing, answer, feedback, actions)
+        // The library's drawings (string names, key labels) name notes as the setting says.
+        withNaming(this.deps.naming(), () => this.draw(q, drawing, answer, feedback, actions))
         // The focus goes to the answer: the drawing's tab stop or the first button.
         if (!this.layer) answer.querySelector('button')?.focus()
         this.started = performance.now()
@@ -427,6 +437,7 @@ export class NoteDrillModal extends Modal {
         this.answered = true
         // What a right answer is: a note for fretboard and keyboard questions, else the spot.
         const expected = 'note' in q ? q.note : q.spot
+        const naming = this.deps.naming()
         // The map keeps the note next to a fretboard spot (`s5f3 C`); a key or a chord is its spot.
         const fret = q.type === 'find-fret' || q.type === 'name-fret'
         this.answers.push({
@@ -435,7 +446,7 @@ export class NoteDrillModal extends Modal {
             right,
             seconds: this.seconds()
         })
-        feedback.setText(right ? 'Right.' : (said ?? `It was ${expected}.`))
+        feedback.setText(right ? 'Right.' : (said ?? `It was ${expectedShown(q, naming)}.`))
         feedback.toggleClass('mp-note-drill-right', right)
         feedback.toggleClass('mp-note-drill-wrong', !right)
         this.offerNote(q, actions)
@@ -483,10 +494,12 @@ export class NoteDrillModal extends Modal {
         cls: string,
         texts: string[],
         right: (text: string) => boolean,
-        onPick: (text: string) => void
+        onPick: (text: string) => void,
+        label: (text: string) => string
     ): void {
         const row = parent.createDiv({ cls })
-        const buttons = texts.map((t) => row.createEl('button', { text: t }))
+        // Each button shows its answer in the naming; answers are compared in letters.
+        const buttons = texts.map((t) => row.createEl('button', { text: label(t) }))
         buttons.forEach((button, i) =>
             button.addEventListener('click', () => {
                 if (this.answered) return
@@ -506,7 +519,8 @@ export class NoteDrillModal extends Modal {
             'mp-note-drill-notes',
             NOTES,
             (n) => isRight(q, { note: n }),
-            onPick
+            onPick,
+            (n) => noteShown(n, this.deps.naming())
         )
     }
 
@@ -520,7 +534,8 @@ export class NoteDrillModal extends Modal {
             'mp-note-drill-choices',
             q.choices,
             (c) => isRight(q, { choice: c }),
-            onPick
+            onPick,
+            (c) => choiceShown(q, c, this.deps.naming())
         )
     }
 
@@ -700,7 +715,7 @@ export class NoteDrillModal extends Modal {
                         if (this.answered) return
                         const missing = q.classes
                             .filter((c) => !state.found.includes(c))
-                            .map((c) => NOTES[c]!)
+                            .map((c) => noteShown(NOTES[c]!, this.deps.naming()))
                         this.finish(q, false, feedback, actions, `Missing: ${missing.join(' ')}.`)
                     })
                 this.layer?.focus()
@@ -771,6 +786,7 @@ export class NoteDrillModal extends Modal {
     /** The weak-spot map as a heat map: each spot colored by its right answers, slow ones marked. */
     private heatMap(el: HTMLElement, stats: Map<string, SpotStat>): void {
         const rules = this.deps.rules()
+        const naming = this.deps.naming()
         // Each cell says its numbers in text, not only in color (orange to blue, color-blind safe).
         const cell = (parent: HTMLElement, text: string, stat: SpotStat | undefined) => {
             const c = parent.createDiv({ cls: 'mp-note-drill-cell', attr: { role: 'listitem' } })
@@ -800,20 +816,24 @@ export class NoteDrillModal extends Modal {
             for (const n of s.strings) {
                 grid.createDiv({ cls: 'mp-muted', text: `S${n}` })
                 for (let f = s.frets[0]; f <= s.frets[1]; f++)
-                    cell(grid, noteName(STRINGS[n - 1]! + f), stats.get(`s${n}f${f}`))
+                    cell(
+                        grid,
+                        noteShown(noteName(STRINGS[n - 1]! + f), naming),
+                        stats.get(`s${n}f${f}`)
+                    )
             }
             return
         }
         if (s.kind === 'keyboard') {
             const row = el.createDiv({ cls: 'mp-note-drill-keys', attr: { role: 'list' } })
             for (let p = s.keys[0]; p <= s.keys[1]; p++)
-                cell(row, keyName(p), stats.get(keyName(p)))
+                cell(row, noteShown(keyName(p), naming), stats.get(keyName(p)))
             return
         }
         const list = el.createDiv({ cls: 'mp-note-drill-list', attr: { role: 'list' } })
         const asked = [...stats.values()].sort(
             (a, b) => a.right / a.asked - b.right / b.asked || b.seconds - a.seconds
         )
-        for (const stat of asked) cell(list, stat.spot, stat)
+        for (const stat of asked) cell(list, spotShown(s.kind, stat.spot, naming), stat)
     }
 }

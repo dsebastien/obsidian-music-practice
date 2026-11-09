@@ -6,17 +6,13 @@ import {
     renderBlock,
     textTabToAlphaTex
 } from '@dsebastien/music-notation'
-import type {
-    LayoutDefaults,
-    NotationLanguage,
-    RenderOptions,
-    RenderResult
-} from '@dsebastien/music-notation'
+import type { NotationLanguage, RenderOptions, RenderResult } from '@dsebastien/music-notation'
 import { lookupGuitarVoicing } from '@dsebastien/music-notation/voicings'
 import { renderTab } from '@dsebastien/music-notation/tab'
 import type { Staves, TabResult } from '@dsebastien/music-notation/tab'
 import type { PlayOptions } from '@dsebastien/music-notation'
 import type { AlphaTabRuntime, AlphaTabWindow } from './alphatab.service'
+import type { RenderDefaults } from '../domain/notation-layout'
 import { textTabView } from '../ui/text-tab-view'
 import type { TextTabView } from '../ui/text-tab-view'
 
@@ -394,7 +390,7 @@ export class NotationBlocks {
     constructor(
         private readonly plugin: NotationHost,
         private readonly toggles: () => NotationToggles,
-        private readonly layout: () => LayoutDefaults = () => ({}),
+        private readonly layout: () => RenderDefaults = () => ({}),
         private readonly exists: (language: string) => boolean | null = processorExists,
         private readonly render: typeof renderBlock = renderBlock,
         private readonly note: (sourcePath: string) => NoteContext | null = () => null,

@@ -149,8 +149,8 @@ import {
 } from '@dsebastien/music-notation'
 import type { GeneratedVoicing } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
-import type { Hand, Orientation } from '@dsebastien/music-notation'
 import { namedNoteChanges, valueOfText, type ClickValue } from './domain/click-input'
+import type { ClickLayout } from './ui/click-input'
 import { IdentifyChordModal } from './ui/identify-chord-modal'
 import type { NotationStatus } from './services/notation.service'
 
@@ -294,12 +294,13 @@ export class MusicPracticePlugin extends Plugin {
     }
 
     /** The layout's hand and orientations, for the click-to-enter drawings (#76). */
-    private clickLayout(): { hand: Hand; fretboard: Orientation; keyboard: Orientation } {
+    private clickLayout(): ClickLayout {
         const layout = layoutDefaults(this.settings.notationLayout)
         return {
             hand: layout.hand ?? 'right',
             fretboard: layout.orientation?.fretboard ?? 'horizontal',
-            keyboard: layout.orientation?.keyboard ?? 'horizontal'
+            keyboard: layout.orientation?.keyboard ?? 'horizontal',
+            naming: this.settings.notationLayout.naming
         }
     }
 
@@ -1630,6 +1631,7 @@ export class MusicPracticePlugin extends Plugin {
                         keyboard: layout.orientation?.keyboard ?? 'horizontal'
                     }
                 },
+                naming: () => this.settings.notationLayout.naming,
                 play: () => this.playOptions(),
                 rules: () => ({
                     ...this.settings.drills,

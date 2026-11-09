@@ -900,7 +900,8 @@ export class AddNoteModal extends Modal {
                     return {
                         hand: o.hand === 'left' ? 'left' : 'right',
                         fretboard: o.orientation?.fretboard ?? 'horizontal',
-                        keyboard: o.orientation?.keyboard ?? 'horizontal'
+                        keyboard: o.orientation?.keyboard ?? 'horizontal',
+                        naming: o.naming ?? 'letters'
                     }
                 },
                 play: this.play,

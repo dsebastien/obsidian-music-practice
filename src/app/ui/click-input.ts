@@ -8,9 +8,11 @@ import {
     attachPick,
     emptyNoteSet,
     renderFretboard,
-    renderKeyboard
+    renderKeyboard,
+    withNaming
 } from '@dsebastien/music-notation'
-import type { Hand, Orientation, PickLayer, PlayOptions } from '@dsebastien/music-notation'
+import type { Hand, Naming, Orientation, PickLayer, PlayOptions } from '@dsebastien/music-notation'
+import { noteShown } from '../domain/note-names'
 import {
     afterPick,
     chosen,
@@ -25,9 +27,17 @@ const SVG_NS = 'http://www.w3.org/2000/svg'
 export const CLICK_FRETS: [number, number] = [0, 12]
 export const CLICK_KEYS: [number, number] = [48, 71]
 
+/** The layout settings a click drawing follows, note names included (display only). */
+export interface ClickLayout {
+    hand: Hand
+    fretboard: Orientation
+    keyboard: Orientation
+    naming: Naming
+}
+
 export interface ClickInputOptions {
     instrument: 'guitar' | 'piano'
-    layout: () => { hand: Hand; fretboard: Orientation; keyboard: Orientation }
+    layout: () => ClickLayout
     /** Settings → Playback: each click sounds its note; false when playback is off. */
     play: () => PlayOptions | false
     value: ClickValue
@@ -47,6 +57,7 @@ export class ClickInput {
     private value: ClickValue
     private dots: SVGElement | null = null
     private near: SVGElement | null = null
+    private readonly naming: Naming
 
     constructor(
         parent: HTMLElement,
@@ -56,7 +67,9 @@ export class ClickInput {
         this.el = parent.createDiv({ cls: 'mp-click-input mp-notation-preview' })
         const doc = this.el.ownerDocument
         const layout = options.layout()
-        this.svg =
+        this.naming = layout.naming
+        // String names and key labels as the setting names notes.
+        this.svg = withNaming(layout.naming, () =>
             options.instrument === 'guitar'
                 ? renderFretboard(doc, emptyNoteSet(), {
                       pick: true,
@@ -71,6 +84,7 @@ export class ClickInput {
                       orientation: layout.keyboard,
                       title: 'Click the keys'
                   })
+        )
         this.el.appendChild(this.svg)
         const play = options.play()
         this.layer = attachPick(this.svg, {
@@ -156,7 +170,13 @@ export class ClickInput {
             text.setAttribute('x', String(x))
             text.setAttribute('y', String(y + 3.5))
             text.setAttribute('text-anchor', 'middle')
-            text.textContent = target.getAttribute('data-mn-note') ?? ''
+            const name = noteShown(target.getAttribute('data-mn-note') ?? '', this.naming)
+            text.textContent = name
+            // Three characters or more (Sol, La♯) are squeezed into the dot, as the library does.
+            if (name.length >= 3) {
+                text.setAttribute('textLength', String(2 * r - 3))
+                text.setAttribute('lengthAdjust', 'spacingAndGlyphs')
+            }
             this.dots.appendChild(text)
         }
     }

@@ -3,14 +3,12 @@ import type { App } from 'obsidian'
 import { generateVoicings, readChord, renderBlock } from '@dsebastien/music-notation'
 import type {
     GeneratedVoicing,
-    Hand,
-    Orientation,
     PlayOptions,
     RenderOptions,
     RenderResult
 } from '@dsebastien/music-notation'
 import { readValue, valueOfText } from '../domain/click-input'
-import { ClickInput, renderNearMatches } from './click-input'
+import { ClickInput, renderNearMatches, type ClickLayout } from './click-input'
 import { formatFingers, formatFrets } from '../domain/notation-note'
 import { alignGrid, selectCell, voicingCell } from './voicing-cell'
 import {
@@ -42,7 +40,7 @@ export interface VoicingsModalOptions {
     cantUse?: (voicing: GeneratedVoicing, symbol: string) => string | null
     /** No chord given: a fretboard to click the chord's frets on (#76). */
     click?: {
-        layout: () => { hand: Hand; fretboard: Orientation; keyboard: Orientation }
+        layout: () => ClickLayout
         play: () => PlayOptions | false
     }
 }

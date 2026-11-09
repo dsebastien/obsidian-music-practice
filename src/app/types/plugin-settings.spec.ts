@@ -85,8 +85,21 @@ describe('layout settings from data.json', () => {
             leftHanded: true,
             chord: 'horizontal',
             fretboard: 'horizontal',
-            keyboard: 'horizontal'
+            keyboard: 'horizontal',
+            naming: 'letters'
         })
+    })
+
+    it('keeps a valid note naming and falls back to letters on anything else', () => {
+        const naming = (value: unknown) =>
+            settingsFrom({ notationLayout: { naming: value } }).notationLayout.naming
+        expect(naming('solfege')).toBe('solfege')
+        expect(naming('german')).toBe('german')
+        expect(naming('letters')).toBe('letters')
+        expect(naming('Solfège')).toBe('letters')
+        expect(naming('french')).toBe('letters')
+        expect(naming(3)).toBe('letters')
+        expect(settingsFrom({}).notationLayout.naming).toBe('letters')
     })
 
     it('defaults when data.json has none (older versions)', () => {

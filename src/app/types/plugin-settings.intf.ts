@@ -6,6 +6,7 @@ import type { LocalModelSettings } from '../domain/local-model'
 import { createDefaultRubric } from '../domain/rubric'
 import type { RubricSettings } from '../domain/rubric'
 import type { PracticeRules } from '../domain/rules'
+import { NAMINGS } from '@dsebastien/music-notation'
 import { ORIENTATIONS } from '../domain/notation-layout'
 import type { NotationLayout } from '../domain/notation-layout'
 import type { NotationToggles } from '../services/notation.service'
@@ -123,7 +124,8 @@ export function createDefaultSettings(): PluginSettings {
             leftHanded: false,
             chord: 'vertical',
             fretboard: 'horizontal',
-            keyboard: 'horizontal'
+            keyboard: 'horizontal',
+            naming: 'letters'
         },
         lastLog: null,
         metronome: createDefaultMetronomeSettings(),
@@ -223,6 +225,8 @@ export function settingsFrom(loaded: unknown): PluginSettings {
     for (const key of ['chord', 'fretboard', 'keyboard'] as const) {
         if (!ORIENTATIONS.includes(layout[key])) layout[key] = DEFAULT_SETTINGS.notationLayout[key]
     }
+    // Note names: only the library's three values, exactly as stored by the dropdown.
+    if (!NAMINGS.includes(layout.naming)) layout.naming = DEFAULT_SETTINGS.notationLayout.naming
     // A property name added in a newer version may already be used by another setting in an older
     // data.json: rename the new one ("frets" → "mp_frets") instead of failing the duplicate check.
     const loadedFields = isRecord(loaded) && isRecord(loaded['fields']) ? loaded['fields'] : null

@@ -8,6 +8,7 @@ import { parseSetting, readSetting, validateSetting, writeSetting } from './sett
 import { BLOCK_LANGUAGES } from '../services/notation.service'
 import type { BlockLanguage } from '../services/notation.service'
 import { ORIENTATIONS } from '../domain/notation-layout'
+import { NAMING_LABELS } from '../domain/note-names'
 
 /**
  * Settings tab, declared rather than rendered (Obsidian 1.13+).
@@ -180,6 +181,15 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         'Keyboard orientation',
                         'Horizontal: low notes on the left. Vertical: low notes at the bottom. Piano chords follow it.'
                     ),
+                    {
+                        name: 'Note names',
+                        desc: 'How diagrams and drills show note names: C D E, Do Ré Mi, or German (H is B, B is B flat). Display only: blocks are read as you wrote them, and notes keep letters in their names and properties. A block can say otherwise with "naming:".',
+                        control: {
+                            type: 'dropdown',
+                            key: 'notationLayout.naming',
+                            options: NAMING_LABELS
+                        }
+                    },
                     {
                         name: 'Status',
                         desc: '',

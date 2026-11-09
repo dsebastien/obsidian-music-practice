@@ -5,15 +5,15 @@
  */
 import { Modal, Notice } from 'obsidian'
 import type { App } from 'obsidian'
-import type { Hand, Orientation, PlayOptions } from '@dsebastien/music-notation'
+import type { PlayOptions } from '@dsebastien/music-notation'
 import { clickHint, pitchesOfFrets, readValue, type ClickValue } from '../domain/click-input'
-import { ClickInput, renderNearMatches } from './click-input'
+import { ClickInput, renderNearMatches, type ClickLayout } from './click-input'
 
 export interface IdentifyChordOptions {
     instrument: 'guitar' | 'piano'
     /** The note's frets or keys (none chosen when it has none). */
     value: ClickValue
-    layout: () => { hand: Hand; fretboard: Orientation; keyboard: Orientation }
+    layout: () => ClickLayout
     play: () => PlayOptions | false
     /** Names the note with this chord, and keeps the notes clicked; rejects when it can't. */
     name: (symbol: string, value: ClickValue) => Promise<void>

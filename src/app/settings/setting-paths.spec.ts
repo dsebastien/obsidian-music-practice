@@ -79,6 +79,17 @@ describe('layout settings', () => {
         })
         expect(parseSetting('notationLayout.leftHanded', true)).toEqual({ ok: true, value: true })
     })
+
+    it('accepts only the three note namings', () => {
+        expect(parseSetting('notationLayout.naming', 'solfege')).toEqual({
+            ok: true,
+            value: 'solfege'
+        })
+        expect(parseSetting('notationLayout.naming', 'french')).toEqual({
+            ok: false,
+            error: 'Choose letters, solfege or german.'
+        })
+    })
 })
 
 describe('play-along settings (#75)', () => {

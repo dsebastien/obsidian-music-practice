@@ -7,11 +7,25 @@ describe('layoutDefaults', () => {
             leftHanded: false,
             chord: 'vertical',
             fretboard: 'horizontal',
-            keyboard: 'vertical'
+            keyboard: 'vertical',
+            naming: 'letters'
         } as const
         expect(layoutDefaults(layout)).toEqual({
             orientation: { chord: 'vertical', fretboard: 'horizontal', keyboard: 'vertical' }
         })
         expect(layoutDefaults({ ...layout, leftHanded: true }).hand).toBe('left')
+    })
+
+    it('passes the note names only when they are not letters (letters output unchanged)', () => {
+        const layout = {
+            leftHanded: false,
+            chord: 'vertical',
+            fretboard: 'horizontal',
+            keyboard: 'horizontal',
+            naming: 'letters'
+        } as const
+        expect('naming' in layoutDefaults(layout)).toBe(false)
+        expect(layoutDefaults({ ...layout, naming: 'solfege' }).naming).toBe('solfege')
+        expect(layoutDefaults({ ...layout, naming: 'german' }).naming).toBe('german')
     })
 })

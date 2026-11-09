@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS } from '../types/plugin-settings.intf'
 import type { PluginSettings } from '../types/plugin-settings.intf'
+import { NAMINGS } from '@dsebastien/music-notation'
 import { ORIENTATIONS } from '../domain/notation-layout'
 import { PLAYBACK_ENGINES } from '../domain/playback'
 
@@ -92,11 +93,18 @@ const MAXIMUMS: Record<string, number> = {
 const OPTIONAL_TEXT =
     /^(rubric\.|local\.(startedField|masteredField|sessionTemplate|sessionSuffix)$)/
 
+/** Values in words: "a or b", "a, b or c". */
+const inWords = (values: readonly string[]): string =>
+    values.length < 3
+        ? values.join(' or ')
+        : `${values.slice(0, -1).join(', ')} or ${values.at(-1)}`
+
 /** Text settings limited to a few values (dropdowns). */
 const CHOICES: Record<string, readonly string[]> = {
     'notationLayout.chord': ORIENTATIONS,
     'notationLayout.fretboard': ORIENTATIONS,
     'notationLayout.keyboard': ORIENTATIONS,
+    'notationLayout.naming': NAMINGS,
     'playback.engine': PLAYBACK_ENGINES
 }
 
@@ -125,7 +133,7 @@ export function parseSetting(key: string, raw: unknown): Parsed {
         const text = raw.trim()
         const choices = CHOICES[key]
         if (choices && !choices.includes(text))
-            return { ok: false, error: `Choose ${choices.join(' or ')}.` }
+            return { ok: false, error: `Choose ${inWords(choices)}.` }
         if (!text && !OPTIONAL_TEXT.test(key))
             return { ok: false, error: 'This setting needs a value.' }
         return { ok: true, value: text }
