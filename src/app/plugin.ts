@@ -98,7 +98,7 @@ import { DrillModal } from './ui/drill-modal'
 import { DrillService } from './services/drill.service'
 import { NoteDrillService } from './services/note-drill.service'
 import { NoteDrillModal } from './ui/note-drill-modal'
-import type { DrillSetting } from './domain/note-drill'
+import { pianoKeys, type DrillSetting } from './domain/note-drill'
 import { VoicingNotesService } from './services/voicing-notes.service'
 import { VoicingsModal } from './ui/voicings-modal'
 import { TriadsModal } from './ui/triads-modal'
@@ -141,7 +141,6 @@ import { safeTitle } from './domain/chord'
 import { propertyNamesOf, chordFromNotes, formatFrets, withAlias } from './domain/notation-note'
 import { ChooseChordModal } from './ui/choose-chord-modal'
 import {
-    midiOf,
     parseChord,
     parseFingers,
     parseFrets,
@@ -1584,14 +1583,8 @@ export class MusicPracticePlugin extends Plugin {
                     return lookupGuitarVoicing(symbol, 0)
                 },
                 keys: (symbol, note) => {
-                    const raw: unknown = fm(note)[fields.pitches]
-                    const pitches =
-                        typeof raw === 'string'
-                            ? raw
-                                  .split(/[\s,]+/)
-                                  .map((p) => midiOf(p))
-                                  .filter((p): p is number => p !== null)
-                            : []
+                    // As Identify this chord reads them: exact keys, a list, or pitch classes.
+                    const pitches = pianoKeys(fm(note)[fields.pitches])
                     return pitches.length ? pitches : (pianoVoicing(symbol)?.pitches ?? null)
                 },
                 layout: () => {

@@ -649,16 +649,17 @@
     text-align: center;
 }
 
-/* Right and wrong say so in words too; the color follows the library's marks. */
+/* Right and wrong say so in words too; the colors are the theme's. */
 .mp-note-drill-right {
-    color: var(--mn-right, #15803d);
+    color: var(--text-success);
 }
 
 .mp-note-drill-wrong {
-    color: var(--mn-wrong, #b91c1c);
+    color: var(--text-error);
 }
 
-/* The weak-spot heat map: each spot from red (all missed) to green (all right). */
+/* The weak-spot heat map: each spot from orange (all missed) to blue (all right), a pair that
+   color-blind eyes tell apart, with its right answers written in it. */
 .mp-note-drill-grid {
     display: grid;
     grid-template-columns: repeat(var(--mp-columns), minmax(2.2em, 1fr));
@@ -680,7 +681,12 @@
     border: 2px solid transparent;
     border-radius: 4px;
     color: #fff;
-    background: hsl(calc(var(--mp-share, 0) * 120) 60% 35%);
+    background: hsl(calc(30 + var(--mp-share, 0) * 180) 65% 35%);
+}
+
+.mp-note-drill-count {
+    font-size: 0.85em;
+    font-variant-numeric: tabular-nums;
 }
 
 .mp-note-drill-cell.mp-note-drill-unasked {

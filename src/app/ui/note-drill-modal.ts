@@ -105,18 +105,29 @@ export class NoteDrillModal extends Modal {
         start: DrillSetting | null = null
     ) {
         super(app)
-        this.setting = start ?? DEFAULTS.fretboard
+        this.setting = structuredClone(start ?? DEFAULTS.fretboard)
         this.startNow = start !== null
     }
 
     private readonly startNow: boolean
+    /** Counts the drills started: a pool that resolves after another start, or after close, is dropped. */
+    private run = 0
+    private closed = false
 
     override onOpen(): void {
         this.setTitle('Drill notes, chords or scales')
         this.contentEl.addClass('mp-modal', 'mp-note-drill')
         // Enter moves on once a question is answered.
-        this.scope.register([], 'Enter', () => {
+        this.scope.register([], 'Enter', (event) => {
             if (!this.next) return true
+            // Enter on another button (Create note) is that button's.
+            const target = event.target
+            if (
+                target instanceof HTMLElement &&
+                target.tagName === 'BUTTON' &&
+                !target.hasClass('mp-note-drill-next')
+            )
+                return true
             this.next()
             return false
         })
@@ -125,7 +136,11 @@ export class NoteDrillModal extends Modal {
     }
 
     override onClose(): void {
+        // A drill still loading its questions stops here.
+        this.run++
+        this.closed = true
         this.layer?.destroy()
+        this.layer = null
         this.contentEl.empty()
     }
 
@@ -157,7 +172,7 @@ export class NoteDrillModal extends Modal {
         const form = el.createDiv({ cls: 'mp-note-drill-form' })
         const kind = this.select(form, 'Kind', Object.entries(KIND_LABELS), this.setting.kind)
         kind.addEventListener('change', () => {
-            this.setting = DEFAULTS[kind.value as DrillKind]
+            this.setting = structuredClone(DEFAULTS[kind.value as DrillKind])
             this.renderSetup()
         })
         const s = this.setting
@@ -320,8 +335,16 @@ export class NoteDrillModal extends Modal {
     // The questions ------------------------------------------------------------------------------
 
     private async begin(): Promise<void> {
-        const setting = this.setting
-        this.pool = await this.deps.pool(setting)
+        const run = ++this.run
+        // The drill keeps its own copy: the form can't change it while it runs.
+        const setting = structuredClone(this.setting)
+        this.setting = setting
+        this.next = null
+        this.contentEl.empty()
+        this.contentEl.createDiv({ cls: 'mp-muted', text: 'Preparing the questions…' })
+        const pool = await this.deps.pool(setting)
+        if (run !== this.run || this.closed) return
+        this.pool = pool
         const note = this.deps.noteFor(setting)
         this.list = questions(setting, {
             stats: note ? this.deps.statsOf(note.path) : new Map<string, SpotStat>(),
@@ -357,7 +380,8 @@ export class NoteDrillModal extends Modal {
             cls: 'mp-muted',
             text: `${drillTitle(this.setting)} · ${this.index + 1} of ${this.list.length}`
         })
-        el.createDiv({ cls: 'mp-drill-title', text: q.prompt })
+        // The prompt is announced: the question changed.
+        el.createDiv({ cls: 'mp-drill-title', text: q.prompt, attr: { 'aria-live': 'polite' } })
         const drawing = el.createDiv({ cls: 'mp-notation-preview mp-note-drill-drawing' })
         const answer = el.createDiv({ cls: 'mp-note-drill-answer' })
         const feedback = el.createDiv({
@@ -366,6 +390,8 @@ export class NoteDrillModal extends Modal {
         })
         const actions = el.createDiv({ cls: 'mp-actions' })
         this.draw(q, drawing, answer, feedback, actions)
+        // The focus goes to the answer: the drawing's tab stop or the first button.
+        if (!this.layer) answer.querySelector('button')?.focus()
         this.started = performance.now()
     }
 
@@ -403,7 +429,7 @@ export class NoteDrillModal extends Modal {
             else this.renderResult()
         }
         const button = actions.createEl('button', {
-            cls: 'mod-cta',
+            cls: 'mod-cta mp-note-drill-next',
             text: this.index + 1 < this.list.length ? 'Next' : 'See the score'
         })
         button.addEventListener('click', go)
@@ -694,25 +720,28 @@ export class NoteDrillModal extends Modal {
     /** The weak-spot map as a heat map: each spot colored by its right answers, slow ones marked. */
     private heatMap(el: HTMLElement, stats: Map<string, SpotStat>): void {
         const rules = this.deps.rules()
+        // Each cell says its numbers in text, not only in color (orange to blue, color-blind safe).
         const cell = (parent: HTMLElement, text: string, stat: SpotStat | undefined) => {
-            const c = parent.createDiv({ cls: 'mp-note-drill-cell', text })
+            const c = parent.createDiv({ cls: 'mp-note-drill-cell', attr: { role: 'listitem' } })
+            c.createDiv({ text })
             if (!stat) {
                 c.addClass('mp-note-drill-unasked')
-                c.setAttr('title', `${text}: not asked yet`)
+                c.setAttr('aria-label', `${text}: not asked yet`)
                 return c
             }
-            const share = stat.right / stat.asked
-            c.setCssProps({ '--mp-share': String(share) })
-            c.toggleClass('mp-note-drill-slow', stat.seconds >= rules.fastSeconds)
+            const slow = stat.seconds >= rules.fastSeconds
+            c.createDiv({ cls: 'mp-note-drill-count', text: `${stat.right}/${stat.asked}` })
+            c.setCssProps({ '--mp-share': String(stat.right / stat.asked) })
+            c.toggleClass('mp-note-drill-slow', slow)
             c.setAttr(
-                'title',
-                `${text}: ${stat.right}/${stat.asked} right, ${stat.seconds.toFixed(1)} s`
+                'aria-label',
+                `${text}: ${stat.right} of ${stat.asked} right, ${stat.seconds.toFixed(1)} s${slow ? ', slow' : ''}`
             )
             return c
         }
         const s = this.setting
         if (s.kind === 'fretboard') {
-            const grid = el.createDiv({ cls: 'mp-note-drill-grid' })
+            const grid = el.createDiv({ cls: 'mp-note-drill-grid', attr: { role: 'list' } })
             grid.setCssProps({ '--mp-columns': String(s.frets[1] - s.frets[0] + 2) })
             grid.createDiv()
             for (let f = s.frets[0]; f <= s.frets[1]; f++)
@@ -725,12 +754,12 @@ export class NoteDrillModal extends Modal {
             return
         }
         if (s.kind === 'keyboard') {
-            const row = el.createDiv({ cls: 'mp-note-drill-keys' })
+            const row = el.createDiv({ cls: 'mp-note-drill-keys', attr: { role: 'list' } })
             for (let p = s.keys[0]; p <= s.keys[1]; p++)
                 cell(row, keyName(p), stats.get(keyName(p)))
             return
         }
-        const list = el.createDiv({ cls: 'mp-note-drill-list' })
+        const list = el.createDiv({ cls: 'mp-note-drill-list', attr: { role: 'list' } })
         const asked = [...stats.values()].sort(
             (a, b) => a.right / a.asked - b.right / b.asked || b.seconds - a.seconds
         )

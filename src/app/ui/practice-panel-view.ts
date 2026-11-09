@@ -99,7 +99,11 @@ export class PracticePanelView extends ItemView {
                         .setIcon('target')
                         .onClick(() => this.deps.noteDrill())
                 )
-                menu.showAtMouseEvent(event)
+                // From the keyboard (no pointer), under the button, not at the window's corner.
+                if (event.detail === 0) {
+                    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+                    menu.showAtPosition({ x: rect.left, y: rect.bottom })
+                } else menu.showAtMouseEvent(event)
             })
         tools
             .createEl('button', { text: 'Clear' })
