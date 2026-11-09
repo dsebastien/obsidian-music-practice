@@ -222,6 +222,12 @@ Chord diagrams stand up by default (the nut on top); fretboards and keyboards li
 
 The defaults for every note are settings: **Left-handed**, and the orientation of chord diagrams, fretboards and keyboards (see [Configuration](configuration.md#notation-blocks)). A block's own `orientation` or `hand` wins over them.
 
+## Note names
+
+Letters (C D E) by default. `naming: solfege` in a block shows Do Ré Mi Fa Sol La Si, and lets you write them (`Ré m7`, `Sol 7/Si`, `scale: La mineur`); `naming: german` writes H for B and B for B♭ (`{naming: solfege}` in a chord chart). See the [library's guide](https://dsebastien.github.io/music-notation/blocks.html) for what reads.
+
+To see every diagram in solfège or German without a line in each block, pick **Note names** in the settings (see [Configuration](configuration.md#notation-blocks)). It changes how names show, never how a block is read: a block without its own `naming:` line is still read in letters first, so the notes you already wrote keep their meaning. Drills use it too.
+
 ## Mistakes
 
 A block with a mistake shows what's wrong and what to write instead. The note itself is never changed.
@@ -356,16 +362,17 @@ Music Practice claims its blocks once Obsidian has started, so plugins enabled a
 
 Obsidian Publish doesn't run plugins. ` ```playalong ` blocks show as code there. To draw the other blocks on a Publish site, add the loader from the [library's Publish guide](https://dsebastien.github.io/music-notation/publish.html) to your site's `publish.js`. Pin the library at 0.8.0 or later (0.11.0 for picking patterns, tab exercises, and progressions and chord charts that play in time, 0.12.0 for bars in a chart, tab exercises with a capo and long titles that wrap), and keep `strum`, `picking`, `progression` and `circle` in the loader's list of block languages: without them, those blocks stay code on your site.
 
-Your layout settings (left-handed, orientations) stay in Obsidian. To get the same on your site, set them at the top of `publish.js`, before the loader:
+Your layout settings (left-handed, orientations, note names) stay in Obsidian. To get the same on your site, set them at the top of `publish.js`, before the loader:
 
 ```js
 window.musicNotationOptions = {
     hand: 'left',
-    orientation: { chord: 'vertical', fretboard: 'horizontal', keyboard: 'horizontal' }
+    orientation: { chord: 'vertical', fretboard: 'horizontal', keyboard: 'horizontal' },
+    naming: 'solfege' // music-notation 0.16.0 or later
 }
 ```
 
-Blocks that say `orientation:` or `hand:` look the same everywhere.
+Blocks that say `orientation:`, `hand:` or `naming:` look the same everywhere.
 
 Empty blocks in chord, scale, arpeggio, strumming pattern and fingerpicking pattern notes draw from the note's properties on your site too: give the library the page's properties (Obsidian Publish keeps them in its cache).
 
