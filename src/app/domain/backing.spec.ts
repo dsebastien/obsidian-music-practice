@@ -199,3 +199,15 @@ describe('backingBars', () => {
         expect(backingBars([{ chord: 'G', beats: 2 }], 4)).toBe(1)
     })
 })
+
+describe('progression blocks with their own note names (music-notation #12)', () => {
+    it('gives the block in letters, without its naming line', () => {
+        expect(progressionFences('```progression\nnaming: german\nH7 B E\ntempo: 90\n```')).toEqual(
+            ['B7 Bb E\ntempo: 90\n']
+        )
+        // A wrong naming line: the block as written (the library shows the mistake).
+        expect(progressionFences('```progression\nnaming: klingon\nC G\n```')).toEqual([
+            'naming: klingon\nC G\n'
+        ])
+    })
+})

@@ -12,6 +12,7 @@ import {
     scaleNoteSet
 } from '@dsebastien/music-notation'
 import { progressionOf } from './progression'
+import { progressionFences } from './backing'
 import type { ReviewResult } from './review'
 
 export type DrillKind = 'fretboard' | 'keyboard' | 'chords' | 'scales'
@@ -49,6 +50,23 @@ export interface DrillRules {
     /** Right answers in a row, each faster than `fastSeconds`, that clear a weak spot. */
     clearStreak: number
     fastSeconds: number
+}
+
+/**
+ * A new drill of a kind. On a narrow touch screen (`narrow`) a keyboard drill starts on one octave
+ * (C4-B4): two octaves fit a phone with black keys under 24 px, too small to tap.
+ */
+export function drillDefaults(kind: DrillKind, narrow: boolean): DrillSetting {
+    switch (kind) {
+        case 'fretboard':
+            return { kind: 'fretboard', strings: [6], frets: [0, 5], ask: 'both' }
+        case 'keyboard':
+            return { kind: 'keyboard', keys: narrow ? [60, 71] : [48, 71], ask: 'both' }
+        case 'chords':
+            return { kind: 'chords', instrument: 'guitar', source: 'notes' }
+        case 'scales':
+            return { kind: 'scales', instrument: 'guitar', source: 'notes', ask: 'name' }
+    }
 }
 
 export const DEFAULT_DRILL_RULES: DrillRules = {
@@ -611,12 +629,11 @@ export function chordsOfText(text: string): string[] {
         if (symbol && !out.includes(symbol)) out.push(symbol)
     }
     for (const symbol of progressionOf(text, Number.MAX_SAFE_INTEGER)) add(canonical(symbol))
-    const fence = /^(`{3,}|~{3,})\s*progression\b[^\n]*\n([\s\S]*?)^\1\s*$/gm
-    let m: RegExpExecArray | null
-    while ((m = fence.exec(text))) {
+    // Each block in letters, as the library reads it (its own naming line, #12).
+    for (const block of progressionFences(text)) {
         let key: string | null = null
         const tokens: string[] = []
-        for (const line of m[2]!.split('\n')) {
+        for (const line of block.split('\n')) {
             const kv = /^\s*([a-z-]+)\s*:\s*(.*)$/i.exec(line)
             if (kv) {
                 const name = kv[1]!.toLowerCase()

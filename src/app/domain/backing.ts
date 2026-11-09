@@ -12,6 +12,7 @@ import {
     type ProgressionChordInput
 } from '@dsebastien/music-notation'
 import { chordCharts } from './progression'
+import { inLetters } from './block-letters'
 
 /** The library plays progressions from 20 to 240 counted beats a minute. */
 export const MIN_BACKING_BPM = 20
@@ -34,12 +35,12 @@ export interface BackingSource {
     sound: 'guitar' | 'piano' | null
 }
 
-/** The text of every ```progression (or ~~~progression) block of a note, in order. */
+/** The text of every ```progression (or ~~~progression) block of a note, in order, in letters. */
 export function progressionFences(text: string): string[] {
     const blocks: string[] = []
     const fence = /^(`{3,}|~{3,})\s*progression\b[^\n]*\n([\s\S]*?)^\1\s*$/gm
     let m: RegExpExecArray | null
-    while ((m = fence.exec(text))) blocks.push(m[2]!)
+    while ((m = fence.exec(text))) blocks.push(inLetters('progression', m[2]!))
     return blocks
 }
 

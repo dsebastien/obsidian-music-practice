@@ -9,13 +9,14 @@ import {
     transposeChord,
     transposeKey
 } from '@dsebastien/music-notation'
+import { inLetters } from './block-letters'
 
-/** Chord charts (```chords or ~~~chords fences) in a note's text. */
+/** Chord charts (```chords or ~~~chords fences) in a note's text, in letters. */
 export function chordCharts(text: string): string[] {
     const charts: string[] = []
     const fence = /^(`{3,}|~{3,})\s*chords\b[^\n]*\n([\s\S]*?)^\1\s*$/gm
     let m: RegExpExecArray | null
-    while ((m = fence.exec(text))) charts.push(m[2]!)
+    while ((m = fence.exec(text))) charts.push(inLetters('chords', m[2]!))
     return charts
 }
 

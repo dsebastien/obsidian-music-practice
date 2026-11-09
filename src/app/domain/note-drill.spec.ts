@@ -38,7 +38,8 @@ import {
     weakSpots,
     type Answer,
     type DrillSetting,
-    type SpotStat
+    type SpotStat,
+    drillDefaults
 } from './note-drill'
 
 const fretboard = (over: Partial<Extract<DrillSetting, { kind: 'fretboard' }>> = {}) =>
@@ -557,5 +558,40 @@ describe('review findings (domain)', () => {
             'Keyboard notes, keys C Sharp 3-A Sharp 4'
         )
         expect(drillFileTitle(fretboard())).toBe('Fretboard notes, string 5, frets 0-5')
+    })
+})
+
+describe('new drills on a phone', () => {
+    it('start a keyboard drill on one octave on narrow touch screens, two elsewhere', () => {
+        // Two octaves on a 412 px phone left 18 px black keys: one octave gives 24 px or more.
+        expect(drillDefaults('keyboard', false)).toEqual({
+            kind: 'keyboard',
+            keys: [48, 71],
+            ask: 'both'
+        })
+        expect(drillDefaults('keyboard', true)).toEqual({
+            kind: 'keyboard',
+            keys: [60, 71],
+            ask: 'both'
+        })
+        expect(drillDefaults('fretboard', true)).toEqual(drillDefaults('fretboard', false))
+        // A copy each time: the modal edits it.
+        expect(drillDefaults('chords', false)).not.toBe(drillDefaults('chords', false))
+    })
+})
+
+describe('my pieces in solfège or German (music-notation #12)', () => {
+    it("reads a progression block's own naming", () => {
+        expect(chordsOfText('```progression\nnaming: solfege\nDo Fa Sol7 Ré m7\n```')).toEqual([
+            'C',
+            'F',
+            'G7',
+            'Dm7'
+        ])
+        expect(chordsOfText('```progression\nnaming: german\nH7 B E\n```')).toEqual([
+            'B7',
+            'Bb',
+            'E'
+        ])
     })
 })

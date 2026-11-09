@@ -45,6 +45,7 @@ import {
     type DrillAsk,
     type DrillInstrument,
     type DrillKind,
+    drillDefaults,
     type DrillRules,
     type DrillSetting,
     type DrillSource,
@@ -85,12 +86,8 @@ const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 const STRINGS = [64, 59, 55, 50, 45, 40]
 const keyName = (pitch: number) => `${noteName(pitch)}${Math.floor(pitch / 12) - 1}`
 
-const DEFAULTS: Record<DrillKind, DrillSetting> = {
-    fretboard: { kind: 'fretboard', strings: [6], frets: [0, 5], ask: 'both' },
-    keyboard: { kind: 'keyboard', keys: [48, 71], ask: 'both' },
-    chords: { kind: 'chords', instrument: 'guitar', source: 'notes' },
-    scales: { kind: 'scales', instrument: 'guitar', source: 'notes', ask: 'name' }
-}
+/** A phone or a small tablet held upright: keyboard drills start on one octave there. */
+const NARROW = '(pointer: coarse) and (max-width: 640px)'
 
 /** One drill: its setting, then its questions one at a time, then the score. */
 export class NoteDrillModal extends Modal {
@@ -110,7 +107,7 @@ export class NoteDrillModal extends Modal {
         start: DrillSetting | null = null
     ) {
         super(app)
-        this.setting = structuredClone(start ?? DEFAULTS.fretboard)
+        this.setting = structuredClone(start ?? drillDefaults('fretboard', this.narrow()))
         this.startNow = start !== null
     }
 
@@ -177,7 +174,7 @@ export class NoteDrillModal extends Modal {
         const form = el.createDiv({ cls: 'mp-note-drill-form' })
         const kind = this.select(form, 'Kind', Object.entries(KIND_LABELS), this.setting.kind)
         kind.addEventListener('change', () => {
-            this.setting = structuredClone(DEFAULTS[kind.value as DrillKind])
+            this.setting = drillDefaults(kind.value as DrillKind, this.narrow())
             this.renderSetup()
         })
         const s = this.setting
@@ -421,6 +418,11 @@ export class NoteDrillModal extends Modal {
         // The focus goes to the answer: the drawing's tab stop or the first button.
         if (!this.layer) answer.querySelector('button')?.focus()
         this.started = performance.now()
+    }
+
+    /** A narrow touch screen (a phone): see `drillDefaults`. */
+    private narrow(): boolean {
+        return this.contentEl.ownerDocument.defaultView?.matchMedia(NARROW).matches ?? false
     }
 
     private seconds(): number {

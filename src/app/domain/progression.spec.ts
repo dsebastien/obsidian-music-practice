@@ -32,3 +32,15 @@ describe('progressionOf', () => {
         expect(progressionOf(sharp)).toEqual(['B', 'F#'])
     })
 })
+
+describe('charts with their own note names (music-notation #12)', () => {
+    it('reads a chart with a naming directive in letters', () => {
+        const text = '```chords\n{naming: solfege}\n[Do]Hello [Sol]little [La m]world\n```'
+        expect(progressionOf(text)).toEqual(['C', 'G', 'Am'])
+        expect(chordCharts(text)[0]).not.toContain('naming')
+    })
+
+    it('leaves a chart without a directive as written', () => {
+        expect(progressionOf('```chords\n[Do]Hello [G]world\n```')).toEqual(['Do', 'G'])
+    })
+})

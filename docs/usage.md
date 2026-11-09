@@ -121,7 +121,7 @@ Know the notes on the neck and on the keys, and name chords and scales at a glan
 
 1. Run **Drill notes, chords or scales** (or **Drill**, then **Notes, chords and scales** in the practice panel). Start one of your drills again, or set a new one:
     - **Fretboard notes**: the strings and the frets ("string 5, frets 0-5"). "Find C on string 5": click it on the neck. "Name the marked note": click its name.
-    - **Keyboard notes**: the lowest and highest key ("keys C3-B4"). "Find F#4", or name the marked key.
+    - **Keyboard notes**: the lowest and highest key ("keys C3-B4"; on a phone a new drill starts on one octave, C4-B4, so the keys are large enough to tap). "Find F#4", or name the marked key.
     - **Chord names**: guitar or piano, a chord family if you want, and where the chords come from: your chord notes (the current focus first), your pieces (chords their charts and progressions play that have no chord note yet), your focus (chords your current-focus notes need and you have no note for), or the library. Name the chord from its diagram, among 4.
     - **Scale shapes**: guitar or piano, from your notes, your focus or the library. Name the scale from its shape, or find its notes on the drawing.
 2. Answer. Each click plays its note when playback is on. A right answer is marked with a check; a wrong one with a cross, and the right place is shown. **Next** (or Enter) moves on. A chord or scale that has no note yet gets **Create note**: the note type's template, folder and name, as **Add a learning note** makes it.
