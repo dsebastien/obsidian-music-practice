@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { createDefaultPlayback, playOptions } from './playback'
+import { createDefaultPlayback, drawnPlaybackChanged, playOptions, volumeChange } from './playback'
 import type { NotePlayer } from '@dsebastien/music-notation'
 
 const player: NotePlayer = { play: () => ({ stop() {} }) }
@@ -42,5 +42,26 @@ describe('playOptions', () => {
 
     it('is off when playback is turned off', () => {
         expect(playOptions({ ...createDefaultPlayback(), enabled: false }, player)).toBe(false)
+    })
+})
+
+describe('volumeChange (#95)', () => {
+    it('gives the new level (0 to 1) when the volume changed, else null', () => {
+        const before = createDefaultPlayback()
+        expect(volumeChange(before, { ...before, volume: 40 })).toBe(0.4)
+        expect(volumeChange(before, { ...before })).toBeNull()
+        // Other playback settings: nothing to apply.
+        expect(volumeChange(before, { ...before, bpm: 60 })).toBeNull()
+        expect(volumeChange(before, { ...before, volume: 250 })).toBe(1)
+    })
+})
+
+describe('drawnPlaybackChanged (#95)', () => {
+    it('ignores the volume: a redraw would stop what plays, and no bar shows it', () => {
+        const before = createDefaultPlayback()
+        expect(drawnPlaybackChanged(before, { ...before, volume: 30 })).toBe(false)
+        expect(drawnPlaybackChanged(before, { ...before })).toBe(false)
+        expect(drawnPlaybackChanged(before, { ...before, engine: 'light' })).toBe(true)
+        expect(drawnPlaybackChanged(before, { ...before, volume: 30, bpm: 70 })).toBe(true)
     })
 })

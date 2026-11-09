@@ -48,6 +48,21 @@ export const volumeOf = (settings: PlaybackSettings): number =>
     Math.min(1, Math.max(0, settings.volume / 100))
 
 /**
+ * Whether a playback change shows on the bars (engine, tempo, strum, on or off), so they are drawn
+ * again. The volume doesn't: it is heard at once (#95), and a redraw would stop what plays.
+ */
+export function drawnPlaybackChanged(before: PlaybackSettings, after: PlaybackSettings): boolean {
+    if (before === after) return false
+    const { volume: _before, ...a } = before
+    const { volume: _after, ...b } = after
+    return JSON.stringify(a) !== JSON.stringify(b)
+}
+
+/** The new level (0 to 1) when Settings → Playback → Volume changed, else null (#95). */
+export const volumeChange = (before: PlaybackSettings, after: PlaybackSettings): number | null =>
+    before.volume === after.volume ? null : volumeOf(after)
+
+/**
  * The library's `play` option for these settings; false when playback is off. With `current`
  * (the settings as they are now), the volume is read at each play, so a change in Settings →
  * Playback applies to diagrams already drawn.

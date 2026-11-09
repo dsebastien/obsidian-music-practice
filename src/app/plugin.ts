@@ -66,7 +66,13 @@ import {
 } from './services/text-tab.service'
 import { PasteImportModal, ScoreImportModeModal } from './ui/import-modals'
 import { chordSheetToChordPro, textTabToAlphaTex } from '@dsebastien/music-notation/tab'
-import { DEFAULT_STRUM, playOptions, strumOption } from './domain/playback'
+import {
+    DEFAULT_STRUM,
+    drawnPlaybackChanged,
+    playOptions,
+    strumOption,
+    volumeChange
+} from './domain/playback'
 import type { PlayOptions, RenderOptions } from '@dsebastien/music-notation'
 import { printTab } from '@dsebastien/music-notation/tab'
 import type { TabResult } from '@dsebastien/music-notation/tab'
@@ -148,7 +154,7 @@ import {
     readChord
 } from '@dsebastien/music-notation'
 import type { GeneratedVoicing } from '@dsebastien/music-notation'
-import { namingOf } from '@dsebastien/music-notation'
+import { namingOf, volumeChanged } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
 import { namedNoteChanges, valueOfText, type ClickValue } from './domain/click-input'
 import type { ClickLayout } from './ui/click-input'
@@ -702,6 +708,15 @@ export class MusicPracticePlugin extends Plugin {
     }
 
     /** The diagrams' playback options (#31): the soundfont of the diagram's window, or the light synth. */
+    /**
+     * A new volume, heard at once (#95): the backing loop takes it, then every bar that plays reads
+     * the settings again (music-notation's `volumeChanged`). The metronome reads it at each click.
+     */
+    private applyVolume(level: number): void {
+        this.backing?.update({ volume: level })
+        volumeChanged()
+    }
+
     playOptions(): PlayOptions | false {
         return playOptions(
             this.settings.playback,
@@ -986,7 +1001,8 @@ export class MusicPracticePlugin extends Plugin {
     override async onExternalSettingsChange(): Promise<void> {
         const notation = JSON.stringify(this.settings.notation)
         const playAlong = this.settings.playAlong.enabled
-        const layout = JSON.stringify([this.settings.notationLayout, this.settings.playback])
+        const layout = JSON.stringify(this.settings.notationLayout)
+        const playback = this.settings.playback
         await this.loadSettings()
         this.noteModel?.refresh()
         this.renderTimer()
@@ -997,8 +1013,14 @@ export class MusicPracticePlugin extends Plugin {
             this.settings.playAlong.enabled !== playAlong
         )
             this.notation?.refreshOpenNotes()
-        if (JSON.stringify([this.settings.notationLayout, this.settings.playback]) !== layout)
+        if (
+            JSON.stringify(this.settings.notationLayout) !== layout ||
+            drawnPlaybackChanged(playback, this.settings.playback)
+        )
             this.notation?.redrawLayout()
+        // A volume changed on another device: heard at once too (#95).
+        const volume = volumeChange(playback, this.settings.playback)
+        if (volume !== null) this.applyVolume(volume)
         this.refreshPanels()
         this.renderTimer()
     }
@@ -2635,10 +2657,11 @@ export class MusicPracticePlugin extends Plugin {
             const playAlongChanged = next.playAlong.enabled !== this.settings.playAlong.enabled
             // Property names change what empty blocks draw from, like the layout changes how;
             // playback settings change the diagrams' bars.
+            const volume = volumeChange(this.settings.playback, next.playback)
             const layoutChanged =
                 next.notationLayout !== this.settings.notationLayout ||
                 next.fields !== this.settings.fields ||
-                next.playback !== this.settings.playback
+                drawnPlaybackChanged(this.settings.playback, next.playback)
             this.settings = next
             this.refreshPanels()
             this.noteModel?.refresh()
@@ -2651,6 +2674,7 @@ export class MusicPracticePlugin extends Plugin {
                 this.notation?.refreshOpenNotes()
             }
             if (layoutChanged) this.notation?.redrawLayout()
+            if (volume !== null) this.applyVolume(volume)
         }
         const p = this.settingsWriteChain.then(run, run)
         this.settingsWriteChain = p.catch(() => {})
