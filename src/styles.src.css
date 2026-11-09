@@ -622,6 +622,15 @@
     @apply flex flex-wrap items-end gap-3;
 }
 
+.mp-note-drill-strings {
+    @apply flex flex-row flex-wrap items-center;
+    gap: 0.25rem 0.5rem;
+}
+
+.mp-note-drill-strings > span {
+    @apply w-full;
+}
+
 .mp-note-drill-strings label {
     @apply inline-flex items-center gap-1;
     margin-inline-end: 0.5rem;
@@ -640,6 +649,22 @@
 
 .mp-note-drill-notes button {
     min-width: 3em;
+}
+
+/* An answered question: the right button outlined, a wrong pick crossed out (not color alone). */
+.mp-note-drill-notes button.mp-note-drill-is-right,
+.mp-note-drill-choices button.mp-note-drill-is-right {
+    outline: 2px solid var(--text-success);
+    outline-offset: 1px;
+    opacity: 1;
+}
+
+.mp-note-drill-notes button.mp-note-drill-is-wrong,
+.mp-note-drill-choices button.mp-note-drill-is-wrong {
+    outline: 2px solid var(--text-error);
+    outline-offset: 1px;
+    text-decoration: line-through;
+    opacity: 1;
 }
 
 .mp-note-drill-feedback {
@@ -681,7 +706,9 @@
     border: 2px solid transparent;
     border-radius: 4px;
     color: #fff;
-    background: hsl(calc(30 + var(--mp-share, 0) * 180) 65% 35%);
+    /* Mixed straight from orange to blue: no green in between, which red-green color-blind eyes
+       would confuse with orange. */
+    background: color-mix(in oklab, #c2410c, #1d4ed8 calc(var(--mp-share, 0) * 100%));
 }
 
 .mp-note-drill-count {

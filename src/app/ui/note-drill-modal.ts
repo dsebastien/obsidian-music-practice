@@ -458,20 +458,54 @@ export class NoteDrillModal extends Modal {
         })
     }
 
-    private noteButtons(parent: HTMLElement, onPick: (note: string) => void): void {
-        const row = parent.createDiv({ cls: 'mp-note-drill-notes' })
-        for (const n of NOTES)
-            row.createEl('button', { text: n }).addEventListener('click', () => onPick(n))
+    /**
+     * Answer buttons. Once answered, they are disabled, the one picked shows right or wrong and
+     * the right one is shown (in words for screen readers: the feedback line says it too).
+     */
+    private answerButtons(
+        parent: HTMLElement,
+        cls: string,
+        texts: string[],
+        right: (text: string) => boolean,
+        onPick: (text: string) => void
+    ): void {
+        const row = parent.createDiv({ cls })
+        const buttons = texts.map((t) => row.createEl('button', { text: t }))
+        buttons.forEach((button, i) =>
+            button.addEventListener('click', () => {
+                if (this.answered) return
+                onPick(texts[i]!)
+                for (const [j, b] of buttons.entries()) {
+                    b.disabled = true
+                    if (right(texts[j]!)) b.addClass('mp-note-drill-is-right')
+                    else if (j === i) b.addClass('mp-note-drill-is-wrong')
+                }
+            })
+        )
+    }
+
+    private noteButtons(parent: HTMLElement, q: Question, onPick: (note: string) => void): void {
+        this.answerButtons(
+            parent,
+            'mp-note-drill-notes',
+            NOTES,
+            (n) => isRight(q, { note: n }),
+            onPick
+        )
     }
 
     private choiceButtons(
         parent: HTMLElement,
-        choices: string[],
+        q: Question & { choices: string[] },
         onPick: (choice: string) => void
     ): void {
-        const row = parent.createDiv({ cls: 'mp-note-drill-choices' })
-        for (const c of choices)
-            row.createEl('button', { text: c }).addEventListener('click', () => onPick(c))
+        this.answerButtons(
+            parent,
+            'mp-note-drill-choices',
+            q.choices,
+            (c) => isRight(q, { choice: c }),
+            onPick
+        )
     }
 
     private pick(svg: SVGElement, onPick: (pick: DrawnPick) => void): void {
@@ -537,7 +571,8 @@ export class NoteDrillModal extends Modal {
                     this.drawMarks(outcome.marks)
                     this.finish(q, outcome.right, feedback, actions)
                 })
-                this.layer?.focus()
+                // The focus starts on the asked string, at the range's first fret.
+                if (!this.layer?.focus({ string: q.string, fret: frets[0] })) this.layer?.focus()
                 return
             }
             case 'name-fret': {
@@ -545,7 +580,7 @@ export class NoteDrillModal extends Modal {
                 drawing.appendChild(
                     neck(frets, listNoteSet(keyName(q.pitch))!, { strings: [6 - q.string] })
                 )
-                this.noteButtons(answer, named)
+                this.noteButtons(answer, q, named)
                 return
             }
             case 'find-key': {
@@ -564,7 +599,7 @@ export class NoteDrillModal extends Modal {
             case 'name-key': {
                 const range = s.kind === 'keyboard' ? s.keys : ([48, 71] as [number, number])
                 drawing.appendChild(keyboard(range, listNoteSet(keyName(q.pitch))!))
-                this.noteButtons(answer, named)
+                this.noteButtons(answer, q, named)
                 return
             }
             case 'name-chord': {
@@ -591,7 +626,7 @@ export class NoteDrillModal extends Modal {
                         )
                     }
                 }
-                this.choiceButtons(answer, q.choices, (choice) => {
+                this.choiceButtons(answer, q, (choice) => {
                     if (!this.answered) this.finish(q, isRight(q, { choice }), feedback, actions)
                 })
                 return
@@ -609,7 +644,7 @@ export class NoteDrillModal extends Modal {
                                   title: ''
                               })
                     )
-                this.choiceButtons(answer, q.choices, (choice) => {
+                this.choiceButtons(answer, q, (choice) => {
                     if (!this.answered) this.finish(q, isRight(q, { choice }), feedback, actions)
                 })
                 return
