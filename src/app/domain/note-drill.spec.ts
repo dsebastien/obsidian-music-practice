@@ -147,8 +147,13 @@ describe('the weak-spot map', () => {
     })
 
     it('finds the weak spots, weakest first: most misses, then slowest', () => {
-        const stat = (spot: string, right: number, asked: number, seconds: number, streak = 0) =>
-            ({ spot, answer: '', right, asked, seconds, streak }) as SpotStat
+        const stat = (
+            spot: string,
+            right: number,
+            asked: number,
+            seconds: number,
+            streak = 0
+        ): SpotStat => ({ spot, answer: '', right, asked, seconds, streak })
         const stats = new Map(
             [
                 stat('a', 5, 9, 2),

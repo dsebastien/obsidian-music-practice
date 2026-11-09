@@ -30,8 +30,7 @@ const WITH_MINUTES: readonly UriAction[] = ['log', 'plan']
 export const URI_MAX_MINUTES = 1440
 
 export type UriRequest =
-    | { ok: true; action: UriAction; minutes: number | null }
-    | { ok: false; error: string }
+    { ok: true; action: UriAction; minutes: number | null } | { ok: false; error: string }
 
 /** Parameters Obsidian adds itself, never an error. */
 const OBSIDIAN_PARAMS = new Set(['action', 'vault', 'do', 'minutes'])

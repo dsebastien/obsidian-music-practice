@@ -110,8 +110,7 @@ export interface LogResult {
  * log removed it).
  */
 export type UndoResult =
-    | { ok: true; sessionPath: string; keptKapEntry: boolean }
-    | { ok: false; reason: string }
+    { ok: true; sessionPath: string; keptKapEntry: boolean } | { ok: false; reason: string }
 
 const KAP_ENTRY_TIMEOUT_MS = 10_000
 const LINK_TIMEOUT_MS = 10_000

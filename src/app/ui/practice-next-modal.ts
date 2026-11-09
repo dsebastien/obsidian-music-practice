@@ -36,7 +36,7 @@ export class PracticeNextModal extends Modal {
         if (due.length + next.length + ready.length === 0) {
             contentEl.createDiv({
                 cls: 'mp-empty',
-                text: 'Nothing active or due. Pick something you want to learn and set it to Learning.'
+                text: 'Nothing active or due. Pick something you want to learn and start learning it.'
             })
             return
         }

@@ -20,8 +20,7 @@ interface KapSettingsLike {
 
 function kapSettings(app: App): KapSettingsLike | null {
     const plugin = app.plugins?.plugins?.[KANBAN_ACTION_PLANNER_PLUGIN_ID] as
-        | { settings?: unknown }
-        | undefined
+        { settings?: unknown } | undefined
     const s = plugin?.settings
     return typeof s === 'object' && s !== null ? s : null
 }

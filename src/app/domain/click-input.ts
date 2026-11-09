@@ -177,8 +177,7 @@ export function nearMarks(
 
 /** What the drawing holds: six frets (guitar) or keys (piano). */
 export type ClickValue =
-    | { kind: 'frets'; frets: (number | null)[] }
-    | { kind: 'keys'; keys: number[] }
+    { kind: 'frets'; frets: (number | null)[] } | { kind: 'keys'; keys: number[] }
 
 /** A target of the drawing, as the library's pick layer names it. */
 export type ClickAt = { string: number; fret: number } | { pitch: number }

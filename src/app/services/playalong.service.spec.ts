@@ -637,9 +637,10 @@ describe('PlayAlongBlocks: focus after Add section', () => {
         h.blocks.sync()
         h.blockBody.text = SOURCE
         const drawn = h.draw(SOURCE)
-        first = drawn.view as FakeView
-        first.focused = true
-        await first.request.actions.addSection()
+        const view = drawn.view!
+        first = view
+        view.focused = true
+        await view.request.actions.addSection()
         drawn.child!.unload()
         const again = h.draw(h.writes[0]!.result).view!
         expect(again.focused).toBe(true)

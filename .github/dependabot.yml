@@ -12,6 +12,10 @@ updates:
           interval: weekly
           day: monday
       open-pull-requests-limit: 5
+      # alphaTab is embedded at the release @dsebastien/music-notation is built
+      # for (a test checks it): it moves with the library, never on its own.
+      ignore:
+          - dependency-name: '@coderline/alphatab'
       # Mirrors `minimumReleaseAge = 259200` in bunfig.toml. Without it,
       # Dependabot proposes day-0 releases that `bun install` then refuses to
       # resolve, which reads as a confusing CI failure rather than the

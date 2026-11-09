@@ -105,7 +105,9 @@ const coreRestrictedImports = (): unknown[] => {
 }
 
 export default defineConfig([
-    eslint.configs.recommended,
+    // JavaScript and TypeScript only: ESLint 10's core rules fail on the JSON
+    // files the obsidianmd preset lints (manifest.json has no comments API).
+    { ...eslint.configs.recommended, files: ['**/*.{js,mjs,cjs,ts,mts,cts}'] },
     ...tseslint.configs.recommended,
     ...obsidianmd.configs['recommended'],
     eslintConfigPrettier,
