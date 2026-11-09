@@ -41,6 +41,8 @@ const type = (subject: string, kind: string, extra: string[] = []): LearningType
     allowedValues: {}
 })
 
+const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1)
+
 const drillFields = [fields.drillKind, fields.drillSetting, fields.drillStats, fields.trains]
 const types = [
     type('guitar', 'exercise', drillFields),
@@ -124,7 +126,12 @@ function setup(
             store.set(`${spec.title}.md`, { fm: { ...(spec.properties ?? {}) }, body: '' })
             return Promise.resolve(file(`${spec.title}.md`))
         },
-        today: () => '2026-11-08'
+        today: () => '2026-11-08',
+        affixes: (t: LearningType) => ({
+            prefix: '',
+            suffix: ` (${cap(t.subject ?? '')} ${t.kind === 'arrangement' ? 'Arrangement' : cap(t.kind)})`
+        }),
+        pathFor: (_t: LearningType, title: string) => `${title}.md`
     })
     return { service, store, created }
 }
@@ -359,5 +366,111 @@ describe('NoteDrillService: what to ask', () => {
             scale_type: 'Minor pentatonic'
         })
         expect(created[1]!.spec.block).toBe('fretboard')
+    })
+})
+
+describe('NoteDrillService: review findings', () => {
+    it("asks in 'my focus' only what the drill's instrument needs, by the type's affixes", async () => {
+        const { service } = setup(
+            {
+                'Piano Song (Piano Arrangement).md': {
+                    fm: {},
+                    item: {
+                        typeId: 'piano-arrangement',
+                        focus: true,
+                        missingPrerequisites: ['C Major 7 (Piano Chord)']
+                    }
+                },
+                'Guitar Song (Guitar Arrangement).md': {
+                    fm: {},
+                    item: {
+                        typeId: 'guitar-arrangement',
+                        focus: true,
+                        missingPrerequisites: [
+                            'F Major - Barre (Guitar Chord)',
+                            'Eb Major (Guitar Scale)'
+                        ]
+                    }
+                }
+            },
+            [...types, type('piano', 'arrangement')]
+        )
+        expect(
+            await service.pool({ kind: 'chords', instrument: 'guitar', source: 'focus' })
+        ).toEqual(['F'])
+        expect(
+            await service.pool({
+                kind: 'scales',
+                instrument: 'guitar',
+                source: 'focus',
+                ask: 'name'
+            })
+        ).toEqual(['Eb major'])
+        expect(
+            await service.pool({ kind: 'chords', instrument: 'piano', source: 'focus' })
+        ).toEqual(['Cmaj7'])
+    })
+
+    it('finds the note of a chord or scale whatever its spelling', () => {
+        const { service } = setup({
+            'D Flat Major.md': { fm: { chord_symbol: 'Db' }, item: { typeId: 'guitar-chord' } },
+            'E Flat Major (Guitar Scale).md': {
+                fm: { scale_root: 'Eb', scale_type: 'Major' },
+                item: { typeId: 'guitar-scale' }
+            }
+        })
+        expect(service.noteOf('chords', 'C#', 'guitar')).toBe('D Flat Major.md')
+        expect(service.noteOf('scales', 'D# major', 'guitar')).toBe(
+            'E Flat Major (Guitar Scale).md'
+        )
+    })
+
+    it('asks every family of the library when none is picked', async () => {
+        const { service } = setup({})
+        expect(
+            (await service.pool({ kind: 'chords', instrument: 'guitar', source: 'library' })).length
+        ).toBeGreaterThan(100)
+    })
+
+    it('records one review a day: a second save the same day keeps the review as it is', async () => {
+        const { service, store } = setup({})
+        const right: Answer[] = [{ spot: 's5f3', answer: 'C', right: true, seconds: 1 }]
+        const first = await service.save(string5, right)
+        const fm = store.get(first.path)!.fm
+        const count = fm['review_count']
+        const interval = fm['review_interval']
+        await service.save(string5, right)
+        expect(fm['review_count']).toBe(count)
+        expect(fm['review_interval']).toBe(interval)
+        // The map still takes the second drill's answers.
+        expect(fm['drill_stats']).toEqual(['s5f3 C: 2/2 1s, 2 in a row'])
+    })
+
+    it("uses the drill note's file when the index doesn't list it yet, and spells sharps in its name", async () => {
+        const { service, created, store } = setup({})
+        const keys: DrillSetting = { kind: 'keyboard', keys: [49, 70], ask: 'both' }
+        await service.save(keys, [{ spot: 'C#3', answer: '', right: true, seconds: 1 }])
+        expect(created[0]!.spec.title).toBe('Keyboard notes, keys C Sharp 3-A Sharp 4')
+        // The note exists on disk but the items don't list it (the index lags): no second note.
+        const lagging = setup({ 'Keyboard notes, keys C Sharp 3-A Sharp 4.md': { fm: {} } })
+        await lagging.service.save(keys, [{ spot: 'C#3', answer: '', right: true, seconds: 1 }])
+        expect(lagging.created).toHaveLength(0)
+        expect(
+            lagging.store.get('Keyboard notes, keys C Sharp 3-A Sharp 4.md')!.fm['drill_kind']
+        ).toBe('Keyboard notes')
+        void store
+    })
+
+    it('picks the most asked note when two drill notes share a setting', () => {
+        const fm = (asked: number) => ({
+            drill_kind: 'Fretboard notes',
+            drill_setting: 'string 5, frets 0-5',
+            drill_stats: [`s5f3 C: 1/${asked} 2s`]
+        })
+        const { service } = setup({
+            'A.md': { fm: fm(2), item: { typeId: 'guitar-exercise' } },
+            'B.md': { fm: fm(9), item: { typeId: 'guitar-exercise' } }
+        })
+        expect(service.noteFor(string5)?.path).toBe('B.md')
     })
 })

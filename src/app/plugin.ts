@@ -13,7 +13,10 @@ import type { Draft } from 'immer'
 import { NoteModelService } from './services/note-model.service'
 import type { NoteModelSource } from './services/note-model.service'
 import { ItemRepository } from './services/item-repository'
-import { onStarterKitNoteTypesChanged } from './services/starter-kit.service'
+import {
+    onStarterKitNoteTypesChanged,
+    resolveNoteTypeAffixes
+} from './services/starter-kit.service'
 import { PracticeNextModal } from './ui/practice-next-modal'
 import { PracticePlanModal } from './ui/practice-plan-modal'
 import { PracticeLogService } from './services/practice-log.service'
@@ -475,6 +478,11 @@ export class MusicPracticePlugin extends Plugin {
             }),
             create: (type, spec) => this.noteCreator.create(type, spec),
             today: () => isoDate(),
+            affixes: (type) => {
+                const a = resolveNoteTypeAffixes(this.app, type.id)
+                return { prefix: a?.prefix ?? '', suffix: a?.suffix ?? '' }
+            },
+            pathFor: (type, title) => this.noteCreator.pathFor(type, title),
             blocksOn: (language) => this.notation?.status(language) === 'on'
         })
         this.api = createApi({
@@ -1236,7 +1244,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'note-drill-current',
-            name: 'Drill notes, chords or scales: this drill note',
+            name: 'Drill notes, chords or scales for the current note',
             checkCallback: (checking) => {
                 const active = this.activeLearningNote()
                 const setting = active ? this.noteDrills.drillOf(active.file.path) : null

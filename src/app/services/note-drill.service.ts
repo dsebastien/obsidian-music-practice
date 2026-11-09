@@ -15,7 +15,7 @@ import {
     KIND_LABELS,
     chordOfName,
     chordsOfText,
-    drillTitle,
+    drillFileTitle,
     formatStat,
     inFamily,
     kindOfLabel,
@@ -26,6 +26,8 @@ import {
     parseSetting,
     parseStats,
     reviewResultOf,
+    sameChord,
+    sameScale,
     scaleOf,
     scaleOfName,
     scoreOf,
@@ -64,6 +66,10 @@ export interface NoteDrillDeps {
     create: (type: LearningType, spec: NewLearningNote) => Promise<TFile>
     /** Today, as the log writes dates (YYYY-MM-DD). */
     today: () => string
+    /** A type's name affixes (the Obsidian Starter Kit's prefix and suffix, or the local model's). */
+    affixes?: (type: LearningType) => { prefix: string; suffix: string }
+    /** Where a new note of a type and title goes, to find one the index doesn't list yet. */
+    pathFor?: (type: LearningType, title: string) => string
     /** Whether new notes get an empty block of this language (Music Practice draws it). */
     blocksOn?: (language: 'chord' | 'fretboard' | 'keyboard') => boolean
 }
@@ -137,17 +143,25 @@ export class NoteDrillService {
         })
     }
 
-    /** The drill note of a kind and setting; null before its first save. */
+    /**
+     * The drill note of a kind and setting; null before its first save. Two notes with the same
+     * setting (made by hand): the most asked one, then the first by path.
+     */
     noteFor(setting: DrillSetting): DrillNote | null {
         const words = settingWords(setting)
         const type = this.exerciseType(instrumentOf(setting))
+        const asked = (path: string) =>
+            [...this.statsOf(path).stats.values()].reduce((n, s) => n + s.asked, 0)
+        const matches = this.drillNotes().filter(
+            (n) =>
+                n.setting.kind === setting.kind &&
+                settingWords(n.setting) === words &&
+                this.deps.items().find((i) => i.path === n.path)?.typeId === type?.id
+        )
         return (
-            this.drillNotes().find(
-                (n) =>
-                    n.setting.kind === setting.kind &&
-                    settingWords(n.setting) === words &&
-                    this.deps.items().find((i) => i.path === n.path)?.typeId === type?.id
-            ) ?? null
+            matches.sort(
+                (a, b) => asked(b.path) - asked(a.path) || a.path.localeCompare(b.path)
+            )[0] ?? null
         )
     }
 
@@ -183,7 +197,11 @@ export class NoteDrillService {
 
     /** The note of a chord or scale on an instrument; null when there is none. */
     noteOf(kind: 'chords' | 'scales', name: string, instrument: DrillInstrument): string | null {
-        return this.known(kind, instrument).find((k) => k.name === name)?.path ?? null
+        const same = kind === 'chords' ? sameChord : sameScale
+        return (
+            this.known(kind, instrument).find((k) => k.name === name || same(k.name, name))?.path ??
+            null
+        )
     }
 
     /**
@@ -212,7 +230,7 @@ export class NoteDrillService {
             )
         }
         if (source === 'library')
-            return setting.kind === 'chords' ? libraryChords(family ?? 'Major') : libraryScales()
+            return setting.kind === 'chords' ? libraryChords(family) : libraryScales()
         if (source === 'pieces') {
             if (setting.kind === 'scales') return []
             const pieces = this.itemsOf(instrument, 'arrangement')
@@ -228,30 +246,53 @@ export class NoteDrillService {
                 )
             )
         }
-        // From my focus: what current-focus notes need and the vault has no note for.
-        // A name's type suffix says what it is: "(Guitar Chord)" is never a scale.
-        const other =
-            setting.kind === 'chords'
-                ? /\(\s*[^)]*\bscale\s*\)\s*$/i
-                : /\(\s*[^)]*\bchord\s*\)\s*$/i
-        const wanted = this.deps
+        // From my focus: what current-focus notes need and the vault has no note for. A name with
+        // a type's affixes is that type's: only this instrument's chord (or scale) type counts.
+        const wantedKind = setting.kind === 'chords' ? 'chord' : 'scale'
+        const own = this.typeOf(instrument, wantedKind)
+        const types = this.deps.model().learningTypes
+        const affixed = (name: string): { type: LearningType; bare: string } | null => {
+            for (const t of types) {
+                const a = this.deps.affixes?.(t)
+                if (!a || (!a.prefix && !a.suffix)) continue
+                if (name.startsWith(a.prefix) && name.endsWith(a.suffix))
+                    return {
+                        type: t,
+                        bare: name.slice(a.prefix.length, name.length - a.suffix.length)
+                    }
+            }
+            return null
+        }
+        const subjectOf = (i: LearningItem) => types.find((t) => t.id === i.typeId)?.subject ?? null
+        const names = this.deps
             .items()
             .filter((i) => i.focus)
-            .flatMap((i) => i.missingPrerequisites)
-            .filter((name) => !other.test(name))
+            .flatMap((i) =>
+                i.missingPrerequisites.flatMap((name) => {
+                    const typed = affixed(name)
+                    if (typed) return typed.type.id === own?.id ? [typed.bare] : []
+                    // No type's affixes: the note that needs it says the instrument.
+                    const subject = subjectOf(i)
+                    return subject === null || subject === instrument ? [name] : []
+                })
+            )
         if (setting.kind === 'chords')
             return keep(
                 missingFrom(
-                    wanted.map(chordOfName).filter((c): c is string => c !== null),
+                    names.map(chordOfName).filter((c): c is string => c !== null),
                     known.map((k) => k.name)
                 )
             )
-        const have = new Set(known.map((k) => k.name))
-        return [
-            ...new Set(
-                wanted.map(scaleOfName).filter((s): s is string => s !== null && !have.has(s))
+        const out: string[] = []
+        for (const scale of names.map(scaleOfName)) {
+            if (
+                scale &&
+                !known.some((k) => sameScale(k.name, scale)) &&
+                !out.some((o) => sameScale(o, scale))
             )
-        ]
+                out.push(scale)
+        }
+        return out
     }
 
     /** Creates the note of a chord or scale that has none, through its type (template, folder, name). */
@@ -313,10 +354,13 @@ export class NoteDrillService {
         let path = this.noteFor(setting)?.path ?? null
         let file = path ? this.host.vault.getFileByPath(path) : null
         if (!file) {
-            file = await this.deps.create(type, {
-                title: safeTitle(drillTitle(setting)),
-                level: rules.levels.learning
-            })
+            const title = safeTitle(drillFileTitle(setting))
+            // Created moments ago and not indexed yet: use it, never a second note.
+            const lagging = this.deps.pathFor
+                ? this.host.vault.getFileByPath(this.deps.pathFor(type, title))
+                : null
+            file =
+                lagging ?? (await this.deps.create(type, { title, level: rules.levels.learning }))
             path = file.path
         }
         const item = this.deps.items().find((i) => i.path === path)
@@ -342,6 +386,8 @@ export class NoteDrillService {
                 typeof fm[f.reviewInterval] === 'number'
                     ? (fm[f.reviewInterval] as number)
                     : (item?.reviewInterval ?? null)
+            // One review a day: a second drill the same day adds to the map, not to the review.
+            if (fm[f.lastReviewed] === today) return
             const outcome = reviewOutcome(
                 review,
                 { level: item?.level ?? null, interval, count },

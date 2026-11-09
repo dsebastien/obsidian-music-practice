@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 import {
     afterPick,
+    drillFileTitle,
+    pianoKeys,
+    sameChord,
+    sameScale,
+    weakSlots,
     scalePick,
     startScale,
     type Question,
@@ -449,5 +454,108 @@ describe('picks on the drawing: what they mark', () => {
         expect(last.done).toBe(true)
         expect(last.right).toBe(false) // one wrong pick on the way
         expect(state).toEqual({ found: [0, 2, 4, 7, 9], misses: 1 })
+    })
+})
+
+describe('review findings (domain)', () => {
+    it('reads scale names with # and b, and the type affixes it is given', () => {
+        expect(scaleOfName('C# Major (Piano Scale)')).toBe('C# major')
+        expect(scaleOfName('Bb Minor (Guitar Scale)')).toBe('Bb minor')
+        expect(scaleOfName('E♭ Major')).toBe('Eb major')
+    })
+
+    it('compares chords and scales whatever their spelling', () => {
+        expect(sameChord('Db', 'C#')).toBe(true)
+        expect(sameChord('Dbm7', 'C#m7')).toBe(true)
+        expect(sameChord('C/G', 'C')).toBe(false)
+        expect(sameScale('Eb major', 'D# major')).toBe(true)
+        expect(missingFrom(['C#', 'Gb7'], ['Db', 'F#7'])).toEqual([])
+    })
+
+    it('asks every family of the library when no family is picked', () => {
+        const all = libraryChords()
+        expect(all).toContain('C')
+        expect(all).toContain('Am7')
+        expect(all.length).toBe(CHORD_FAMILIES.reduce((n, f) => n + f.suffixes.length * 12, 0))
+    })
+
+    it('keeps strict numbers in the map, turns objects back into text, merges repeated spots', () => {
+        const { stats, other } = parseStats([
+            'C3: 1/2 1.2.3s',
+            'D3: 0/0 1s',
+            { 's5f3 C': '7/9 1.8s' },
+            'E3: 1/2 2s',
+            'E3: 2/2 1s, 2 in a row'
+        ])
+        expect(other).toEqual(['C3: 1/2 1.2.3s', 'D3: 0/0 1s'])
+        expect(stats.get('s5f3')).toMatchObject({ answer: 'C', right: 7, asked: 9 })
+        expect(stats.get('E3')).toEqual({
+            spot: 'E3',
+            answer: '',
+            right: 3,
+            asked: 4,
+            seconds: 1.5,
+            streak: 2
+        })
+    })
+
+    it('spreads weak slots exactly for any share', () => {
+        const stats = new Map<string, SpotStat>([
+            ['s5f1', { spot: 's5f1', answer: 'A#', right: 0, asked: 3, seconds: 5, streak: 0 }],
+            ['s5f2', { spot: 's5f2', answer: 'B', right: 0, asked: 3, seconds: 5, streak: 0 }]
+        ])
+        for (const share of [0.29, 0.57, 0.6]) {
+            const asked = questions(fretboard({ frets: [0, 12], ask: 'name' }), {
+                stats,
+                rules: { ...DEFAULT_DRILL_RULES, questions: 100, weakShare: share },
+                random: seededRandom(9)
+            })
+            // Weak slots are those from the weak list (the random ones may hit a weak spot too).
+            expect(
+                asked.filter((q) => q.spot === 's5f1' || q.spot === 's5f2').length
+            ).toBeGreaterThanOrEqual(Math.round(share * 100))
+        }
+        expect(weakSlots(100, 0.29)).toBe(29)
+        expect(weakSlots(100, 0.57)).toBe(57)
+        expect(weakSlots(20, 0.6)).toBe(12)
+    })
+
+    it('gives 4 choices even from a small pool, the others from the library', () => {
+        const [q] = questions(
+            { kind: 'chords', instrument: 'guitar', source: 'notes' },
+            {
+                stats: new Map(),
+                rules: { ...DEFAULT_DRILL_RULES, questions: 1 },
+                random: seededRandom(2),
+                pool: ['C', 'G']
+            }
+        )
+        expect(q?.type === 'name-chord' && q.choices.length).toBe(4)
+        const [s] = questions(
+            { kind: 'scales', instrument: 'guitar', source: 'notes', ask: 'name' },
+            {
+                stats: new Map(),
+                rules: { ...DEFAULT_DRILL_RULES, questions: 1 },
+                random: seededRandom(2),
+                pool: ['A minor pentatonic']
+            }
+        )
+        expect(s?.type === 'name-scale' && s.choices.length).toBe(4)
+        expect(s?.type === 'name-scale' && s.choices).toContain('A minor pentatonic')
+    })
+
+    it("reads a piano chord note's keys: exact pitches, a list, or pitch classes stacked from middle C", () => {
+        expect(pianoKeys('A3 C#4 E4')).toEqual([57, 61, 64])
+        expect(pianoKeys(['C4', 'E4', 'G4'])).toEqual([60, 64, 67])
+        expect(pianoKeys('A C# E')).toEqual([69, 73, 76])
+        expect(pianoKeys('')).toEqual([])
+        expect(pianoKeys(null)).toEqual([])
+    })
+
+    it('spells sharps in a drill title, so a file name keeps them', () => {
+        expect(drillFileTitle({ kind: 'keyboard', keys: [49, 70], ask: 'both' })).toBe(
+            'Keyboard notes, keys C Sharp 3-A Sharp 4'
+        )
+        expect(drillFileTitle(fretboard())).toBe('Fretboard notes, string 5, frets 0-5')
     })
 })

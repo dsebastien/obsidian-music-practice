@@ -4,6 +4,7 @@
  * reads the vault, the modal draws.
  */
 import {
+    listNoteSet,
     midiOf,
     parseChordName,
     progressionChords,
@@ -172,36 +173,60 @@ export interface SpotStat {
     streak: number
 }
 
-const STAT = /^(.+):\s*(\d+)\/(\d+)\s+([\d.]+)s(?:,\s*(\d+) in a row)?$/
+const STAT = /^(.+):\s*(\d+)\/(\d+)\s+(\d+(?:\.\d+)?)s(?:,\s*(\d+) in a row)?$/
 const FRET_SPOT = /^(s\d+f\d+)(?:\s+(.+))?$/
 
-/** The map from `drill_stats`; items it can't read are kept as written. */
+/** An item as text: a hand-written YAML item without quotes reads as a map (`s5f3 C: 7/9 1.8s`). */
+const itemText = (item: unknown): string[] => {
+    if (item === null || item === undefined) return []
+    if (typeof item === 'object' && !Array.isArray(item))
+        return Object.entries(item as Record<string, unknown>).map(
+            ([k, v]) => `${k}: ${typeof v === 'string' || typeof v === 'number' ? v : ''}`
+        )
+    return typeof item === 'string' || typeof item === 'number' ? [String(item)] : []
+}
+
+/**
+ * The map from `drill_stats`; items it can't read (or with no question) are kept as written. A
+ * spot written twice is merged: its counts add up, its time is weighted, the later streak wins.
+ */
 export function parseStats(value: unknown): { stats: Map<string, SpotStat>; other: string[] } {
-    const items = Array.isArray(value)
-        ? value
-        : value === null || value === undefined
-          ? []
-          : [value]
+    const items = (Array.isArray(value) ? value : [value]).flatMap(itemText)
     const stats = new Map<string, SpotStat>()
     const other: string[] = []
     for (const item of items) {
-        const text = String(item).trim()
+        const text = item.trim()
         const m = STAT.exec(text)
-        if (!m || Number(m[2]) > Number(m[3])) {
+        if (!m || Number(m[3]) === 0 || Number(m[2]) > Number(m[3])) {
             if (text) other.push(text)
             continue
         }
         const label = m[1]!.trim()
         const fret = FRET_SPOT.exec(label)
         const spot = fret ? fret[1]! : label
-        stats.set(spot, {
+        const read: SpotStat = {
             spot,
             answer: fret?.[2] ?? '',
             right: Number(m[2]),
             asked: Number(m[3]),
             seconds: Number(m[4]),
             streak: m[5] ? Number(m[5]) : 0
-        })
+        }
+        const before = stats.get(spot)
+        stats.set(
+            spot,
+            before
+                ? {
+                      ...read,
+                      answer: read.answer || before.answer,
+                      right: before.right + read.right,
+                      asked: before.asked + read.asked,
+                      seconds:
+                          (before.seconds * before.asked + read.seconds * read.asked) /
+                          (before.asked + read.asked)
+                  }
+                : read
+        )
     }
     return { stats, other }
 }
@@ -346,6 +371,28 @@ export function choicesFor(
     return shuffle([right, ...[...same, ...rest].slice(0, count - 1)])
 }
 
+/** Choices from a small pool, topped up to `count` from the library (those on the same root first). */
+function filled(
+    choices: string[],
+    right: string,
+    library: string[],
+    random: () => number,
+    count = 4
+): string[] {
+    if (choices.length >= count) return choices
+    const extra = choicesFor(
+        right,
+        library.filter((c) => !choices.includes(c)),
+        random,
+        count - choices.length + 1
+    ).filter((c) => c !== right)
+    // Shuffled again, so the library's choices aren't always last.
+    return [...choices, ...extra.slice(0, count - choices.length)]
+        .map((v) => ({ v, k: random() }))
+        .sort((a, b) => a.k - b.k)
+        .map((x) => x.v)
+}
+
 const scaleClasses = (name: string): number[] =>
     [...new Set(scaleNoteSet(name)?.members.map((m) => m.chroma) ?? [])].sort((a, b) => a - b)
 
@@ -392,7 +439,7 @@ function questionAt(
             type: 'name-chord',
             spot,
             prompt: 'Name this chord',
-            choices: choicesFor(spot, pool, random)
+            choices: filled(choicesFor(spot, pool, random), spot, libraryChords(), random)
         }
     return find
         ? {
@@ -405,9 +452,15 @@ function questionAt(
               type: 'name-scale',
               spot,
               prompt: 'Name this scale',
-              choices: choicesFor(spot, pool, random)
+              choices: filled(choicesFor(spot, pool, random), spot, libraryScales(), random)
           }
 }
+
+// A share given as a fraction (0.29) is not exact in binary: round before flooring.
+const slotsUpTo = (n: number, share: number) => Math.floor(Math.round(n * share * 1e6) / 1e6)
+
+/** How many of `count` questions go to the weak spots. */
+export const weakSlots = (count: number, share: number): number => slotsUpTo(count, share)
 
 /**
  * The drill's questions: `rules.questions` of them, `weakShare` of the slots (spread evenly) from
@@ -436,7 +489,7 @@ export function questions(
     let cursor = 0
     let previous: string | null = null
     for (let i = 0; i < rules.questions; i++) {
-        const weakSlot = Math.floor((i + 1) * rules.weakShare) > Math.floor(i * rules.weakShare)
+        const weakSlot = slotsUpTo(i + 1, rules.weakShare) > slotsUpTo(i, rules.weakShare)
         let spot: string | null = null
         if (weakSlot && weak.length) {
             for (let tries = 0; tries < weak.length && spot === null; tries++) {
@@ -540,11 +593,12 @@ export function inFamily(symbol: string, family: string): boolean {
     return f.suffixes.some((s) => canonical(`C${s}`)?.slice(1) === suffix)
 }
 
-/** A family's chords on the 12 roots. */
-export const libraryChords = (family: string): string[] =>
-    CHORD_FAMILIES.find((f) => f.name === family)?.suffixes.flatMap((s) =>
-        ROOTS.map((r) => `${r}${s}`)
-    ) ?? []
+/** A family's chords on the 12 roots; every family's without one. */
+export const libraryChords = (family?: string): string[] =>
+    (family === undefined
+        ? CHORD_FAMILIES
+        : CHORD_FAMILIES.filter((f) => f.name === family)
+    ).flatMap((f) => f.suffixes.flatMap((s) => ROOTS.map((r) => `${r}${s}`)))
 
 /** The common scales on the 12 roots ("A minor pentatonic"). */
 export const libraryScales = (): string[] =>
@@ -580,13 +634,47 @@ export function chordsOfText(text: string): string[] {
     return out
 }
 
-/** The chords of `symbols` that none of `known` is (each read by the library), each once. */
+/** A chord as pitch classes and quality, so C# and Db are the same chord ("1|m7|"). */
+function chordKey(symbol: string): string | null {
+    const chord = readChord(symbol.trim())
+    if (!chord) return null
+    const [main, bass] = chord.symbol.split('/')
+    const root = classOf(chord.root)
+    const below = bass ? classOf(bass) : null
+    return root === null ? null : `${root}|${main!.slice(chord.root.length)}|${below ?? ''}`
+}
+
+/** Whether two symbols are the same chord, whatever their spelling (C# and Db). */
+export function sameChord(a: string, b: string): boolean {
+    const ka = chordKey(a)
+    return ka !== null && ka === chordKey(b)
+}
+
+/** A scale as its root's pitch class and its type ("3|major" for Eb major and D# major). */
+function scaleKey(name: string): string | null {
+    const m = /^([A-G][#b]?)\s+(.+)$/.exec(name.trim())
+    const root = m ? classOf(m[1]!) : null
+    return root === null ? null : `${root}|${m![2]!.toLowerCase()}`
+}
+
+/** Whether two scale names are the same scale, whatever the root's spelling. */
+export function sameScale(a: string, b: string): boolean {
+    const ka = scaleKey(a)
+    return ka !== null && ka === scaleKey(b)
+}
+
+/** The chords of `symbols` that none of `known` is (whatever their spelling), each once. */
 export function missingFrom(symbols: readonly string[], known: readonly string[]): string[] {
-    const have = new Set(known.map(canonical).filter((s): s is string => s !== null))
+    const have = new Set(known.map(chordKey).filter((s): s is string => s !== null))
     const out: string[] = []
+    const seen = new Set<string>()
     for (const s of symbols) {
         const c = canonical(s)
-        if (c && !have.has(c) && !out.includes(c)) out.push(c)
+        const key = chordKey(s)
+        if (c && key && !have.has(key) && !seen.has(key)) {
+            out.push(c)
+            seen.add(key)
+        }
     }
     return out
 }
@@ -613,10 +701,18 @@ export function scaleOf(root: string, type: string): string | null {
 
 /** The scale a scale note's name spells ("C Sharp Major (Piano Scale)" → "C# major"). */
 export function scaleOfName(name: string): string | null {
-    const m = /^([A-G])(?:\s+(Sharp|Flat))?\s+(.+)$/i.exec(bareName(name))
+    const m = /^([A-G])(?:\s+(Sharp|Flat)|([#b♯♭]))?\s+(.+)$/i.exec(bareName(name))
     if (!m) return null
-    const root = `${m[1]!.toUpperCase()}${m[2] ? (m[2].toLowerCase() === 'sharp' ? '#' : 'b') : ''}`
-    return scaleOf(root, m[3]!)
+    const accidental = m[2]
+        ? m[2].toLowerCase() === 'sharp'
+            ? '#'
+            : 'b'
+        : m[3]
+          ? /[#♯]/.test(m[3])
+              ? '#'
+              : 'b'
+          : ''
+    return scaleOf(`${m[1]!.toUpperCase()}${accidental}`, m[4]!)
 }
 
 /** A pick on the drawing, as the library gives it. */
@@ -686,3 +782,29 @@ export function scalePick(
         marks: [{ at: placeOf(pick), result: ok ? 'right' : 'wrong' }]
     }
 }
+
+/**
+ * A piano chord note's keys (`pitches`): exact keys ("A3 C#4 E4", or a list), or pitch classes
+ * ("A C# E") stacked upwards from middle C, as Identify this chord reads them. Empty when none read.
+ */
+export function pianoKeys(value: unknown): number[] {
+    const text = (Array.isArray(value) ? value : [value])
+        .filter((v) => v !== null && v !== undefined)
+        .map(String)
+        .join(' ')
+        .trim()
+    const set = text ? listNoteSet(text) : null
+    if (!set) return []
+    if (set.pitches) return set.pitches
+    let previous = 59
+    return set.members.map((m) => {
+        let midi = 60 + m.chroma
+        while (midi <= previous) midi += 12
+        previous = midi
+        return midi
+    })
+}
+
+/** A drill note's title for its file name: sharps spelled out, which file names can't hold ("C Sharp 3"). */
+export const drillFileTitle = (setting: DrillSetting): string =>
+    drillTitle(setting).replace(/([A-G])#(-?\d)/g, '$1 Sharp $2')
