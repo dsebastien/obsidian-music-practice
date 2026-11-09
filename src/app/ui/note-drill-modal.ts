@@ -177,19 +177,33 @@ export class NoteDrillModal extends Modal {
         })
         const s = this.setting
         if (s.kind === 'fretboard') {
-            const strings = form.createDiv({ cls: 'mp-field mp-note-drill-strings' })
+            this.ask(form, s)
+            // Strings as six toggle buttons: a number on each, pressed or not (1 is the high E).
+            const strings = form.createDiv({
+                cls: 'mp-field mp-note-drill-strings mp-note-drill-row-start'
+            })
             strings.createSpan({ text: 'Strings' })
+            const row = strings.createDiv({
+                cls: 'mp-note-drill-string-row',
+                attr: { role: 'group' }
+            })
             for (let n = 1; n <= 6; n++) {
-                const label = strings.createEl('label')
-                const box = label.createEl('input', { type: 'checkbox' })
-                box.checked = s.strings.includes(n)
-                label.appendText(String(n))
-                box.addEventListener('change', () => {
+                const button = row.createEl('button', {
+                    cls: 'mp-note-drill-string',
+                    text: String(n),
+                    attr: {
+                        'aria-pressed': String(s.strings.includes(n)),
+                        'aria-label': `String ${n}${n === 1 ? ' (high E)' : n === 6 ? ' (low E)' : ''}`
+                    }
+                })
+                button.addEventListener('click', () => {
                     const set = new Set(s.strings)
-                    if (box.checked) set.add(n)
-                    else set.delete(n)
-                    if (set.size) s.strings = [...set].sort((a, b) => a - b)
-                    else box.checked = true
+                    if (set.has(n)) set.delete(n)
+                    else set.add(n)
+                    // At least one string.
+                    if (!set.size) return
+                    s.strings = [...set].sort((a, b) => a - b)
+                    button.setAttr('aria-pressed', String(set.has(n)))
                 })
             }
             this.number(
@@ -208,11 +222,12 @@ export class NoteDrillModal extends Modal {
                 24,
                 (v) => (s.frets = [Math.min(s.frets[0], v), v])
             )
-            this.ask(form, s)
         } else if (s.kind === 'keyboard') {
-            this.keyField(form, 'Lowest key', s.keys[0], (p) => (s.keys = [p, s.keys[1]]))
-            this.keyField(form, 'Highest key', s.keys[1], (p) => (s.keys = [s.keys[0], p]))
             this.ask(form, s)
+            this.keyField(form, 'Lowest key', s.keys[0], (p) => (s.keys = [p, s.keys[1]])).addClass(
+                'mp-note-drill-row-start'
+            )
+            this.keyField(form, 'Highest key', s.keys[1], (p) => (s.keys = [s.keys[0], p]))
         } else {
             this.instrument(form, s)
             const source = this.select(
@@ -294,7 +309,7 @@ export class NoteDrillModal extends Modal {
         label: string,
         value: number,
         set: (pitch: number) => void
-    ): void {
+    ): HTMLElement {
         const field = parent.createEl('label', { cls: 'mp-field', text: label })
         const input = field.createEl('input', { type: 'text', attr: { placeholder: 'C3' } })
         input.value = keyName(value)
@@ -303,6 +318,7 @@ export class NoteDrillModal extends Modal {
             if (pitch !== null && pitch >= 21 && pitch <= 108) set(pitch)
             else input.value = keyName(value)
         })
+        return field
     }
 
     private ask(parent: HTMLElement, s: { ask: DrillAsk }): void {

@@ -619,21 +619,30 @@
 
 /* Note, chord and scale drills (#73). */
 .mp-note-drill-form {
-    @apply flex flex-wrap items-end gap-3;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+    align-items: end;
 }
 
-.mp-note-drill-strings {
-    @apply flex flex-row flex-wrap items-center;
-    gap: 0.25rem 0.5rem;
+/* The first field of the form's second row (strings, the lowest key). */
+.mp-note-drill-form .mp-note-drill-row-start {
+    grid-column-start: 1;
 }
 
-.mp-note-drill-strings > span {
-    @apply w-full;
+.mp-note-drill-string-row {
+    @apply flex gap-1;
 }
 
-.mp-note-drill-strings label {
-    @apply inline-flex items-center gap-1;
-    margin-inline-end: 0.5rem;
+.mp-note-drill-string {
+    min-width: 2.2em;
+    padding: 0 0.5em;
+    font-variant-numeric: tabular-nums;
+}
+
+.mp-note-drill-string[aria-pressed='true'] {
+    color: var(--text-on-accent);
+    background: var(--interactive-accent);
 }
 
 .mp-note-drill-drawing {
