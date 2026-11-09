@@ -82,7 +82,7 @@
         "typescript-eslint": "8.72.1"
     },
     "dependencies": {
-        "@coderline/alphatab": "1.8.4",
+        "@coderline/alphatab": "1.9.0",
         "@dsebastien/music-notation": "0.17.0",
         "immer": "11.2.9",
         "zod": "4.6.7"
