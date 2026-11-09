@@ -129,7 +129,7 @@ Know the notes on the neck and on the keys, and name chords and scales at a glan
 4. **Save**: the drill's note, an exercise note named after the drill ("Fretboard notes, string 5, frets 0-5 (Guitar Exercise)"), keeps the drill's kind and setting (`drill_kind`, `drill_setting`) and the map (`drill_stats`, one item per spot: `s5f3 C: 7/9 1.8s`, plus `, 2 in a row` while a streak runs). Save also records a review: 90 % right or more is good, 60 % shaky, less failed; one a day, so a second drill the same day adds to the map only. The note is created on the first save, at Learning, and private (`public_note: false` when its type has the property): publishing it is your choice.
 5. The drill's note joins the practice panel's list. **Log this drill** opens Log practice with it: the time is the practice timer's, as for any practice.
 
-Questions, answers and the map name notes as **Settings → Notation → Note names** says: "Find Do on string 5", "It was La♯.". Your drill notes keep letters, so they work whatever you pick.
+Questions, answers and the map name notes as **Settings → Notation blocks → Note names** says: "Find Do on string 5", "It was La♯.". Your drill notes keep letters, so they work whatever you pick.
 
 A spot stops being weak after 3 right answers in a row, each under 2 seconds. The number of questions, the share of weak spots and both of these numbers are settings. Keyboard drills keep their notes in the piano exercise type, the others in the guitar one, unless you pick piano.
 

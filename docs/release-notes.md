@@ -6,7 +6,7 @@ Note names in solfège or German for every diagram and drill, a capo chord named
 
 #### Note names: letters, solfège or German
 
-**Settings → Notation → Note names**: Letters (C D E), Solfège (Do Ré Mi) or German (H for B, B for B flat).
+**Settings → Notation blocks → Note names**: Letters (C D E), Solfège (Do Ré Mi) or German (H for B, B for B flat).
 
 - Every diagram follows it: titles, dots, keys, string names, chord charts, progressions and the circle of fifths. A block with its own `naming:` line keeps it.
 - The drills too: the questions ("Find Do on string 5"), the note buttons, the chord and scale choices, the answer ("It was La♯.") and the map of your weak spots. So do the fretboard and keyboard you click in Add a learning note, and the titles in Easiest way and Triads.

@@ -72,7 +72,7 @@ export interface NoteDrillDeps {
     /** A piano chord's keys: its note's pitches, else the library's voicing. */
     keys: (symbol: string, note: string | null) => number[] | null
     layout: () => { hand: Hand; fretboard: Orientation; keyboard: Orientation }
-    /** Settings → Notation → Note names: how questions, answers and drawings name notes. */
+    /** Settings → Notation blocks → Note names: how questions, answers and drawings name notes. */
     naming: () => Naming
     /** Settings → Playback, for the sound of each pick; false when playback is off. */
     play: () => PlayOptions | false
