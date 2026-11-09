@@ -630,6 +630,11 @@
     grid-column-start: 1;
 }
 
+/* The six string buttons need a whole row. */
+.mp-note-drill-form .mp-note-drill-strings {
+    grid-column: 1 / -1;
+}
+
 .mp-note-drill-string-row {
     @apply flex gap-1;
 }
