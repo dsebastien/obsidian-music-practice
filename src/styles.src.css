@@ -662,9 +662,17 @@
     @apply flex flex-wrap justify-center gap-2;
 }
 
-/* Drills by ear (#91): the two options, a checkbox before its words. */
-.mp-note-drill-form .mp-note-drill-check {
-    @apply flex items-center gap-2;
+/* Drills by ear (#91): the two options, a checkbox before its words (not a field's column). */
+.mp-field.mp-note-drill-check {
+    @apply flex-row items-center gap-2;
+    color: var(--text-normal);
+}
+
+.mp-field.mp-note-drill-check input[type='checkbox'] {
+    /* Obsidian draws its checkbox at this size; the field's full width squeezed it. */
+    flex: none;
+    width: var(--checkbox-size, 15px);
+    height: var(--checkbox-size, 15px);
 }
 
 .mp-note-drill-notes button {
