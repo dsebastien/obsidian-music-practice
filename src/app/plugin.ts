@@ -148,6 +148,7 @@ import {
     readChord
 } from '@dsebastien/music-notation'
 import type { GeneratedVoicing } from '@dsebastien/music-notation'
+import { namingOf } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
 import { namedNoteChanges, valueOfText, type ClickValue } from './domain/click-input'
 import type { ClickLayout } from './ui/click-input'
@@ -300,7 +301,7 @@ export class MusicPracticePlugin extends Plugin {
             hand: layout.hand ?? 'right',
             fretboard: layout.orientation?.fretboard ?? 'horizontal',
             keyboard: layout.orientation?.keyboard ?? 'horizontal',
-            naming: this.settings.notationLayout.naming
+            naming: namingOf(this.settings.notationLayout.naming) ?? 'letters'
         }
     }
 
@@ -1631,7 +1632,7 @@ export class MusicPracticePlugin extends Plugin {
                         keyboard: layout.orientation?.keyboard ?? 'horizontal'
                     }
                 },
-                naming: () => this.settings.notationLayout.naming,
+                naming: () => namingOf(this.settings.notationLayout.naming) ?? 'letters',
                 play: () => this.playOptions(),
                 rules: () => ({
                     ...this.settings.drills,

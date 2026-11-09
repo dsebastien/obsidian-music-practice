@@ -32,7 +32,7 @@ One switch per kind of [notation block](notation.md), all on by default: **Chord
 
 A block's own `orientation:`, `hand:` or `naming:` wins over these. Diagrams on screen redraw when you change them (reading view, live preview, embeds).
 
-**Note names** only changes how names show: the titles, dots, keys and string names of the diagrams, the chord charts and progressions, and the drills' questions, answers and weak-spot maps. Blocks are read as you wrote them, so a note written in letters stays right whatever you pick. Note titles, properties and drill notes keep letters. The hints in Add a learning note, Identify this chord and Voicings of a chord stay in letters too, and so do tabs and scores. On Obsidian Publish, see [Notation](notation.md#obsidian-publish).
+**Note names** only changes how names show: the titles, dots, keys and string names of the diagrams, the chord charts and progressions, and the drills' questions, answers and weak-spot maps. Blocks are read as you wrote them, so a note written in letters stays right whatever you pick. Note titles, properties and drill notes keep letters. The hints in Add a learning note, Identify this chord and Voicings of a chord stay in letters too, and so do tabs and scores, a drill's title (its note's name) and the keys you type to set up a keyboard drill. On Obsidian Publish, see [Notation](notation.md#obsidian-publish).
 
 ## Playback
 

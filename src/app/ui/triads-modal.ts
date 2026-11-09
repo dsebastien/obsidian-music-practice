@@ -10,6 +10,7 @@ import {
 import type { RenderOptions, RenderResult, Triad } from '@dsebastien/music-notation'
 import { formatFingers, formatFrets } from '../domain/notation-note'
 import { STRING_SETS, stringsOf, type StringSet } from '../domain/triads'
+import { titleShown } from '../domain/note-names'
 import { alignGrid, selectCell, voicingCell } from './voicing-cell'
 
 /** A triad picked in the modal. */
@@ -190,7 +191,7 @@ export class TriadsModal extends Modal {
                 `frets: ${formatFrets(t.triad.frets)}`,
                 `fingers: ${formatFingers(t.triad)}`,
                 'labels: intervals',
-                `title: ${t.title}`
+                `title: ${titleShown(t.title, this.options.renderOptions().naming)}`
             ].join('\n')
             this.diagrams.push(renderBlock('chord', source, button, this.options.renderOptions()))
         }

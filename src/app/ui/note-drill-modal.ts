@@ -188,6 +188,8 @@ export class NoteDrillModal extends Modal {
                 cls: 'mp-field mp-note-drill-strings mp-note-drill-row-start'
             })
             strings.createSpan({ text: 'Strings' })
+            // The open strings' note, as the setting names it (Mi in solfège).
+            const e = noteShown('E', this.deps.naming())
             const row = strings.createDiv({
                 cls: 'mp-note-drill-string-row',
                 attr: { role: 'group' }
@@ -198,7 +200,7 @@ export class NoteDrillModal extends Modal {
                     text: String(n),
                     attr: {
                         'aria-pressed': String(s.strings.includes(n)),
-                        'aria-label': `String ${n}${n === 1 ? ' (high E)' : n === 6 ? ' (low E)' : ''}`
+                        'aria-label': `String ${n}${n === 1 ? ` (high ${e})` : n === 6 ? ` (low ${e})` : ''}`
                     }
                 })
                 button.addEventListener('click', () => {

@@ -72,7 +72,7 @@ A chord chart with its chord diagrams, lighting the chord that plays:
 - **Fingerpicking patterns**: Travis, alternate bass, 1-2-3-4 or your own (`p i m a`), as learning notes with mastery and BPM, played in time over a chord or a progression.
 - **Progressions and the circle of fifths**: write `I V vi IV` (or `1 5 6m 4`) once and see it in any key, with a diagram for each chord, and play it in time. Chord charts play in time too, bar by bar when you write bar lines. The circle shows a key's chords on the wheel; click one to hear it.
 - **Capo and piano voicings**: a capo on any guitar chord or fretboard, with the chord it sounds. Piano chords in any inversion, shell or rootless, with both hands.
-- **Note names**: letters (C D E), solfège (Do Ré Mi) or German (H for B), as a setting for every diagram and drill, or with a `naming:` line in one block. Only the display changes: your notes stay in letters.
+- **Note names**: letters (C D E), solfège (Do Ré Mi) or German (H for B), as a setting for the diagrams and the drills (tabs and scores stay in letters), or with a `naming:` line in one block. Only the display changes: your notes stay in letters.
 
 ![Six voicings of A, one per shape, each named: Open, G shape, Open strings, Open bass, E shape and Open bass](docs/images/voicings-light.png)
 

@@ -2,7 +2,7 @@
  * Note names as the learner reads them (letters, solfège or German, music-notation #12). Display
  * only: notes, properties and answers stay in letters.
  */
-import { chordInNaming, noteInNaming, type Naming } from '@dsebastien/music-notation'
+import { chordInNaming, noteInNaming, shownText, type Naming } from '@dsebastien/music-notation'
 import type { DrillKind, Question } from './note-drill'
 
 /** The settings' words for each naming, in the library's order. */
@@ -69,4 +69,12 @@ export function spotShown(kind: DrillKind, spot: string, naming: Naming): string
     if (kind === 'chords') return chordShown(spot, naming)
     if (kind === 'scales') return scaleShown(spot, naming)
     return noteShown(spot, naming)
+}
+
+/**
+ * A diagram title the plugin writes into a block (Easiest way, Triads): the library never
+ * rewrites a `title:` line, so the plugin shows it in the naming itself. Titles are never read.
+ */
+export function titleShown(title: string, naming: Naming | undefined): string {
+    return naming && naming !== 'letters' ? shownText(title, naming) : title
 }

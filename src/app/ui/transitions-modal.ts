@@ -10,6 +10,7 @@ import {
 import type { GeneratedVoicing, RenderOptions, RenderResult } from '@dsebastien/music-notation'
 import { formatFingers, formatFrets } from '../domain/notation-note'
 import { sameFrets } from '../domain/voicings'
+import { titleShown } from '../domain/note-names'
 import { alignGrid, selectCell, voicingCell } from './voicing-cell'
 
 /** A chord note as a transition sees it. */
@@ -97,10 +98,17 @@ export class TransitionModal extends Modal {
             this.diagrams.push(
                 renderBlock(
                     'chord',
-                    source(this.from.symbol, `${this.from.symbol}, held`, {
-                        frets: heldFrets,
-                        fingers: fingerVoicing(heldFrets) ?? heldFrets.map(() => null)
-                    }),
+                    source(
+                        this.from.symbol,
+                        titleShown(
+                            `${this.from.symbol}, held`,
+                            this.options.renderOptions().naming
+                        ),
+                        {
+                            frets: heldFrets,
+                            fingers: fingerVoicing(heldFrets) ?? heldFrets.map(() => null)
+                        }
+                    ),
                     held,
                     this.options.renderOptions()
                 )
@@ -123,7 +131,13 @@ export class TransitionModal extends Modal {
             this.diagrams.push(
                 renderBlock(
                     'chord',
-                    source(this.to.symbol, title, step.voicing, step.anchors, step.guides),
+                    source(
+                        this.to.symbol,
+                        titleShown(title, this.options.renderOptions().naming),
+                        step.voicing,
+                        step.anchors,
+                        step.guides
+                    ),
                     cell,
                     this.options.renderOptions()
                 )
@@ -218,7 +232,13 @@ export class ProgressionModal extends Modal {
             this.diagrams.push(
                 renderBlock(
                     'chord',
-                    source(step.chord, step.chord, step.voicing, step.anchors, step.guides),
+                    source(
+                        step.chord,
+                        titleShown(step.chord, this.options.renderOptions().naming),
+                        step.voicing,
+                        step.anchors,
+                        step.guides
+                    ),
                     cell,
                     this.options.renderOptions()
                 )

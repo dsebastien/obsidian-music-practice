@@ -7,7 +7,8 @@ import {
     noteShown,
     promptShown,
     scaleShown,
-    spotShown
+    spotShown,
+    titleShown
 } from './note-names'
 import type { Question } from './note-drill'
 
@@ -125,6 +126,17 @@ describe('expectedShown, choiceShown and spotShown', () => {
         expect(spotShown('chords', 'B7', 'german')).toBe('H7')
         expect(spotShown('scales', 'B minor', 'german')).toBe('H minor')
         expect(spotShown('fretboard', 'C', 'solfege')).toBe('Do')
+    })
+})
+
+describe('titleShown', () => {
+    it('shows a title the plugin writes in the naming (it is never read back)', () => {
+        expect(titleShown('G, held', 'solfege')).toBe('Sol, held')
+        expect(titleShown('A, 1', 'solfege')).toBe('La, 1')
+        expect(titleShown('IV · C', 'solfege')).toBe('IV · Do')
+        expect(titleShown('Bb, root position', 'german')).toBe('B, root position')
+        expect(titleShown('Bb, held', 'letters')).toBe('Bb, held')
+        expect(titleShown('Bb, held', undefined)).toBe('Bb, held')
     })
 })
 
