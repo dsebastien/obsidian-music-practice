@@ -15,7 +15,8 @@ import { progressionOf } from './progression'
 import { progressionFences } from './backing'
 import type { ReviewResult } from './review'
 
-export type DrillKind = 'fretboard' | 'keyboard' | 'chords' | 'scales'
+export type DrillKind =
+    'fretboard' | 'keyboard' | 'chords' | 'scales' | 'fretboard-ear' | 'keyboard-ear'
 export type DrillAsk = 'find' | 'name' | 'both'
 /** Where the chords or scales come from (decision 10). */
 export type DrillSource = 'notes' | 'pieces' | 'focus' | 'library'
@@ -26,13 +27,29 @@ export type DrillSetting =
     | { kind: 'keyboard'; keys: [number, number]; ask: DrillAsk }
     | { kind: 'chords'; instrument: DrillInstrument; source: DrillSource; family?: string }
     | { kind: 'scales'; instrument: DrillInstrument; source: DrillSource; ask: DrillAsk }
+    // By ear (#91): a note sounds, found anywhere in the range; `exact` asks the same octave,
+    // `reference` plays a reference note first.
+    | {
+          kind: 'fretboard-ear'
+          strings: number[]
+          frets: [number, number]
+          exact: boolean
+          reference: boolean
+      }
+    | { kind: 'keyboard-ear'; keys: [number, number]; exact: boolean; reference: boolean }
+
+/** The drill kinds that play a note to find (#91). */
+export const isEarKind = (kind: DrillKind): kind is 'fretboard-ear' | 'keyboard-ear' =>
+    kind === 'fretboard-ear' || kind === 'keyboard-ear'
 
 /** The `drill_kind` values, as the vault's note types allow them. */
 export const KIND_LABELS: Record<DrillKind, string> = {
-    fretboard: 'Fretboard notes',
-    keyboard: 'Keyboard notes',
-    chords: 'Chord names',
-    scales: 'Scale shapes'
+    'fretboard': 'Fretboard notes',
+    'keyboard': 'Keyboard notes',
+    'chords': 'Chord names',
+    'scales': 'Scale shapes',
+    'fretboard-ear': 'Fretboard by ear',
+    'keyboard-ear': 'Keyboard by ear'
 }
 
 export function kindOfLabel(label: unknown): DrillKind | null {
@@ -66,6 +83,21 @@ export function drillDefaults(kind: DrillKind, narrow: boolean): DrillSetting {
             return { kind: 'chords', instrument: 'guitar', source: 'notes' }
         case 'scales':
             return { kind: 'scales', instrument: 'guitar', source: 'notes', ask: 'name' }
+        case 'fretboard-ear':
+            return {
+                kind: 'fretboard-ear',
+                strings: [6],
+                frets: [0, 5],
+                exact: false,
+                reference: false
+            }
+        case 'keyboard-ear':
+            return {
+                kind: 'keyboard-ear',
+                keys: narrow ? [60, 71] : [48, 71],
+                exact: false,
+                reference: false
+            }
     }
 }
 
@@ -104,6 +136,8 @@ const listWords = (numbers: number[]): string => {
     return `strings ${sorted.slice(0, -1).join(', ')} and ${sorted.at(-1)}`
 }
 const askWords = (ask: DrillAsk) => (ask === 'both' ? '' : `, ${ask}`)
+const earWords = (s: { exact: boolean; reference: boolean }) =>
+    `${s.exact ? ', exact octave' : ''}${s.reference ? ', with a reference' : ''}`
 
 /** The setting in words: the `drill_setting` value ("string 5, frets 0-5"). */
 export function settingWords(setting: DrillSetting): string {
@@ -116,6 +150,10 @@ export function settingWords(setting: DrillSetting): string {
             return `${setting.family ? `${setting.family} chords, ` : ''}${SOURCE_WORDS[setting.source]}`
         case 'scales':
             return `${SOURCE_WORDS[setting.source]}${askWords(setting.ask)}`
+        case 'fretboard-ear':
+            return `${listWords(setting.strings)}, frets ${setting.frets[0]}-${setting.frets[1]}${earWords(setting)}`
+        case 'keyboard-ear':
+            return `keys ${keyName(setting.keys[0])}-${keyName(setting.keys[1])}${earWords(setting)}`
     }
 }
 
@@ -140,6 +178,27 @@ export function parseSetting(
     words: string,
     instrument: DrillInstrument = 'guitar'
 ): DrillSetting | null {
+    if (isEarKind(kind)) {
+        // The flags come last, in this order; a find or name doesn't apply to a drill by ear.
+        let text = words.trim()
+        const reference = /,\s*with a reference$/.test(text)
+        if (reference) text = text.replace(/,\s*with a reference$/, '')
+        const exact = /,\s*exact octave$/.test(text)
+        if (exact) text = text.replace(/,\s*exact octave$/, '')
+        if (/,\s*(find|name)$/.test(text)) return null
+        const base = parseSetting(kind === 'fretboard-ear' ? 'fretboard' : 'keyboard', text)
+        if (base?.kind === 'fretboard')
+            return {
+                kind: 'fretboard-ear',
+                strings: base.strings,
+                frets: base.frets,
+                exact,
+                reference
+            }
+        if (base?.kind === 'keyboard')
+            return { kind: 'keyboard-ear', keys: base.keys, exact, reference }
+        return null
+    }
     const { ask, rest } = readAsk(words.trim())
     if (kind === 'fretboard') {
         const m = /^strings?\s+(.+?),\s*frets\s+(\d+)-(\d+)$/.exec(rest)
@@ -327,13 +386,27 @@ export function spotsOf(setting: DrillSetting, pool: readonly string[] = []): st
             for (let f = setting.frets[0]; f <= setting.frets[1]; f++) out.push(`s${s}f${f}`)
         return out
     }
-    if (setting.kind === 'keyboard') {
+    if (setting.kind === 'keyboard' || setting.kind === 'keyboard-ear') {
         const out: string[] = []
         for (let p = setting.keys[0]; p <= setting.keys[1]; p++) out.push(keyName(p))
         return out
     }
+    if (setting.kind === 'fretboard-ear') return earPitches(setting).map(keyName)
     return [...new Set(pool)]
 }
+
+/** The pitches a fretboard setting plays, each once, low to high. */
+const earPitches = (setting: { strings: number[]; frets: [number, number] }): number[] => {
+    const out = new Set<number>()
+    for (const s of setting.strings)
+        for (let f = setting.frets[0]; f <= setting.frets[1]; f++) out.add(STRINGS[s - 1]! + f)
+    return [...out].sort((a, b) => a - b)
+}
+
+/** The reference a drill by ear plays first: C4 on a keyboard, the setting's lowest note on a fretboard. */
+export const referenceOf = (
+    setting: Extract<DrillSetting, { kind: 'fretboard-ear' | 'keyboard-ear' }>
+): number => (setting.kind === 'keyboard-ear' ? 60 : earPitches(setting)[0]!)
 
 export type Question =
     | {
@@ -358,6 +431,18 @@ export type Question =
     | { type: 'name-chord'; spot: string; prompt: string; choices: string[] }
     | { type: 'name-scale'; spot: string; prompt: string; choices: string[] }
     | { type: 'find-scale'; spot: string; prompt: string; classes: number[] }
+    | {
+          type: 'hear-fret' | 'hear-key'
+          spot: string
+          prompt: string
+          /** The note that sounds; `note` is its name with its octave (`G3`). */
+          pitch: number
+          note: string
+          /** Only this pitch is right; else any octave. */
+          exact: boolean
+          /** The reference that sounds first, null without one. */
+          reference: number | null
+      }
 
 /** What the learner gave: a pick on the drawing, a note name, or a choice. */
 export interface Given {
@@ -420,6 +505,17 @@ function questionAt(
     pool: readonly string[],
     random: () => number
 ): Question {
+    if (setting.kind === 'fretboard-ear' || setting.kind === 'keyboard-ear')
+        return {
+            type: setting.kind === 'fretboard-ear' ? 'hear-fret' : 'hear-key',
+            spot,
+            // Never the note's name: it is what you hear.
+            prompt: `Find the note you hear${setting.exact ? ' (exact octave)' : ''}`,
+            pitch: midiOf(spot)!,
+            note: spot,
+            exact: setting.exact,
+            reference: setting.reference ? referenceOf(setting) : null
+        }
     const ask = 'ask' in setting ? setting.ask : 'name'
     const find = ask === 'find' || (ask === 'both' && random() < 0.5)
     if (setting.kind === 'fretboard') {
@@ -544,6 +640,14 @@ export function isRight(question: Question, given: Given): boolean {
             return given.choice === question.spot
         case 'find-scale':
             return given.pitch !== undefined && question.classes.includes(given.pitch % 12)
+        case 'hear-fret':
+        case 'hear-key':
+            return (
+                given.pitch !== undefined &&
+                (question.exact
+                    ? given.pitch === question.pitch
+                    : given.pitch % 12 === question.pitch % 12)
+            )
     }
 }
 
@@ -767,6 +871,32 @@ export function afterPick(
                 marks.push({ at: { string: question.string, fret: f }, result: 'right' })
     if (!right && question.type === 'find-key')
         marks.push({ at: { pitch: question.pitch }, result: 'right' })
+    return { right, done: true, marks }
+}
+
+/**
+ * A drill by ear after one pick: right or wrong, and the marks (after a miss, every place in the
+ * range that was right: each string × fret, or each key, with the note or its pitch).
+ */
+export function afterHear(
+    question: Question,
+    pick: DrawnPick,
+    area: { strings: number[]; frets: [number, number] } | { keys: [number, number] }
+): { right: boolean; done: boolean; marks: DrillMark[] } {
+    const right = isRight(question, pick)
+    const marks: DrillMark[] = [{ at: placeOf(pick), result: right ? 'right' : 'wrong' }]
+    if (right || (question.type !== 'hear-fret' && question.type !== 'hear-key'))
+        return { right, done: true, marks }
+    const hits = (pitch: number) =>
+        question.exact ? pitch === question.pitch : pitch % 12 === question.pitch % 12
+    if ('keys' in area) {
+        for (let p = area.keys[0]; p <= area.keys[1]; p++)
+            if (hits(p)) marks.push({ at: { pitch: p }, result: 'right' })
+    } else
+        for (const s of [...area.strings].sort((a, b) => a - b))
+            for (let f = area.frets[0]; f <= area.frets[1]; f++)
+                if (hits(STRINGS[s - 1]! + f))
+                    marks.push({ at: { string: s, fret: f }, result: 'right' })
     return { right, done: true, marks }
 }
 

@@ -657,8 +657,14 @@
 }
 
 .mp-note-drill-notes,
-.mp-note-drill-choices {
+.mp-note-drill-choices,
+.mp-note-drill-hear {
     @apply flex flex-wrap justify-center gap-2;
+}
+
+/* Drills by ear (#91): the two options, a checkbox before its words. */
+.mp-note-drill-form .mp-note-drill-check {
+    @apply flex items-center gap-2;
 }
 
 .mp-note-drill-notes button {

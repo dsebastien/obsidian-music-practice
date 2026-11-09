@@ -88,9 +88,9 @@ export interface SavedDrill {
 }
 
 const instrumentOf = (setting: DrillSetting): DrillInstrument =>
-    setting.kind === 'keyboard'
+    setting.kind === 'keyboard' || setting.kind === 'keyboard-ear'
         ? 'piano'
-        : setting.kind === 'fretboard'
+        : setting.kind === 'fretboard' || setting.kind === 'fretboard-ear'
           ? 'guitar'
           : setting.instrument
 

@@ -48,10 +48,12 @@ const fretboard = (over: Partial<Extract<DrillSetting, { kind: 'fretboard' }>> =
 describe('drill kinds and settings', () => {
     it('labels kinds as the vault stores them, and reads them back', () => {
         expect(KIND_LABELS).toEqual({
-            fretboard: 'Fretboard notes',
-            keyboard: 'Keyboard notes',
-            chords: 'Chord names',
-            scales: 'Scale shapes'
+            'fretboard': 'Fretboard notes',
+            'keyboard': 'Keyboard notes',
+            'chords': 'Chord names',
+            'scales': 'Scale shapes',
+            'fretboard-ear': 'Fretboard by ear',
+            'keyboard-ear': 'Keyboard by ear'
         })
         expect(kindOfLabel('Fretboard notes')).toBe('fretboard')
         expect(kindOfLabel(' scale shapes ')).toBe('scales')
