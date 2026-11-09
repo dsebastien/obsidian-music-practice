@@ -121,7 +121,13 @@ export class NoteDrillService {
     /** What a note drills; null when it isn't a drill note (or its setting doesn't read). */
     drillOf(path: string): DrillSetting | null {
         const item = this.deps.items().find((i) => i.path === path)
-        const type = item && this.deps.model().learningTypes.find((t) => t.id === item.typeId)
+        return item ? this.settingOf(item) : null
+    }
+
+    /** What a learning item drills (one item: no computing of every item again). */
+    private settingOf(item: LearningItem): DrillSetting | null {
+        const path = item.path
+        const type = this.deps.model().learningTypes.find((t) => t.id === item.typeId)
         if (
             !type ||
             type.kind !== 'exercise' ||
@@ -135,11 +141,21 @@ export class NoteDrillService {
         return kind && typeof words === 'string' ? parseSetting(kind, words, type.subject) : null
     }
 
-    /** Every drill note of the vault. */
-    drillNotes(): DrillNote[] {
-        return this.deps.items().flatMap((i) => {
-            const setting = this.drillOf(i.path)
-            return setting ? [{ path: i.path, name: i.name, setting }] : []
+    /**
+     * Every drill note of the vault. The items are computed once here: computing them for each
+     * note froze Obsidian on a real vault (the work grew with the cube of the notes).
+     */
+    drillNotes(items: LearningItem[] = this.deps.items()): (DrillNote & { typeId: string })[] {
+        const exercises = new Set(
+            this.deps
+                .model()
+                .learningTypes.filter((t) => t.kind === 'exercise')
+                .map((t) => t.id)
+        )
+        return items.flatMap((i) => {
+            if (!exercises.has(i.typeId)) return []
+            const setting = this.settingOf(i)
+            return setting ? [{ path: i.path, name: i.name, setting, typeId: i.typeId }] : []
         })
     }
 
@@ -156,7 +172,7 @@ export class NoteDrillService {
             (n) =>
                 n.setting.kind === setting.kind &&
                 settingWords(n.setting) === words &&
-                this.deps.items().find((i) => i.path === n.path)?.typeId === type?.id
+                n.typeId === type?.id
         )
         return (
             matches.sort(

@@ -110,14 +110,18 @@ function setup(
         Object.entries(notes)
             .filter(([, n]) => n.item)
             .map(([p, n]) => item(p, n.item!.typeId, n.item))
+    const counter = { calls: 0 }
     const service = new NoteDrillService(host, {
         model: () => modelOf(model),
-        items: () => [
-            ...items(),
-            ...created
-                .filter((c) => !Object.keys(notes).includes(`${c.spec.title}.md`))
-                .map((c) => item(`${c.spec.title}.md`, c.type, { level: c.spec.level ?? 10 }))
-        ],
+        items: () => (
+            counter.calls++,
+            [
+                ...items(),
+                ...created
+                    .filter((c) => !Object.keys(notes).includes(`${c.spec.title}.md`))
+                    .map((c) => item(`${c.spec.title}.md`, c.type, { level: c.spec.level ?? 10 }))
+            ]
+        ),
         fields: () => fields,
         rules: () => DEFAULT_RULES,
         drillRules: () => DEFAULT_DRILL_RULES,
@@ -133,7 +137,7 @@ function setup(
         }),
         pathFor: (_t: LearningType, title: string) => `${title}.md`
     })
-    return { service, store, created }
+    return { service, store, created, counter }
 }
 
 /** The message a promise rejects with ('' when it resolves). */
@@ -472,5 +476,27 @@ describe('NoteDrillService: review findings', () => {
             'B.md': { fm: fm(9), item: { typeId: 'guitar-exercise' } }
         })
         expect(service.noteFor(string5)?.path).toBe('B.md')
+    })
+})
+
+describe('NoteDrillService: cost (the modal froze Obsidian on a real vault)', () => {
+    it('computes the learning items once per call, not once per note', async () => {
+        const notes: Parameters<typeof setup>[0] = {}
+        for (let i = 0; i < 50; i++)
+            notes[`Chord ${i}.md`] = { fm: { chord_symbol: 'C' }, item: { typeId: 'guitar-chord' } }
+        notes['Fretboard notes, string 5, frets 0-5 (Guitar Exercise).md'] = {
+            fm: { drill_kind: 'Fretboard notes', drill_setting: 'string 5, frets 0-5' },
+            item: { typeId: 'guitar-exercise' }
+        }
+        const { service, counter } = setup(notes)
+        counter.calls = 0
+        service.drillNotes()
+        expect(counter.calls).toBe(1)
+        counter.calls = 0
+        service.noteFor(string5)
+        expect(counter.calls).toBe(1)
+        counter.calls = 0
+        await service.pool({ kind: 'chords', instrument: 'guitar', source: 'notes' })
+        expect(counter.calls).toBeLessThanOrEqual(2)
     })
 })
