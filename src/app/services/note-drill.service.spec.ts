@@ -500,3 +500,20 @@ describe('NoteDrillService: cost (the modal froze Obsidian on a real vault)', ()
         expect(counter.calls).toBeLessThanOrEqual(2)
     })
 })
+
+describe('NoteDrillService: drill notes stay private', () => {
+    it('creates a drill note with public_note false when the type has it (publishing is a choice)', async () => {
+        const withPublic = types.map((t) =>
+            t.id === 'guitar-exercise'
+                ? type('guitar', 'exercise', [...drillFields, fields.publicNote])
+                : t
+        )
+        const { service, created } = setup({}, withPublic)
+        await service.save(string5, answers)
+        expect(created[0]!.spec.properties).toEqual({ public_note: false })
+        // A type without the property gets nothing.
+        const plain = setup({})
+        await plain.service.save(string5, answers)
+        expect(plain.created[0]!.spec.properties).toBeUndefined()
+    })
+})

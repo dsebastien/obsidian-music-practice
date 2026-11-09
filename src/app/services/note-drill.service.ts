@@ -376,7 +376,15 @@ export class NoteDrillService {
                 ? this.host.vault.getFileByPath(this.deps.pathFor(type, title))
                 : null
             file =
-                lagging ?? (await this.deps.create(type, { title, level: rules.levels.learning }))
+                lagging ??
+                (await this.deps.create(type, {
+                    title,
+                    level: rules.levels.learning,
+                    // A drill note is private: publishing is the user's choice, never the template's.
+                    ...(type.fields.has(f.publicNote)
+                        ? { properties: { [f.publicNote]: false } }
+                        : {})
+                }))
             path = file.path
         }
         const item = this.deps.items().find((i) => i.path === path)

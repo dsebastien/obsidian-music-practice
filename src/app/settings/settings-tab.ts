@@ -580,6 +580,11 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                                 'Note drills: the setting in words ("string 5, frets 0-5").'
                             ),
                             this.text(
+                                'fields.publicNote',
+                                'Public note',
+                                'Learning notes: whether the note is published. New drill notes get false; publishing stays your choice.'
+                            ),
+                            this.text(
                                 'fields.drillStats',
                                 'Drill weak spots',
                                 'Note drills: the weak-spot map ("s5f3 C: 7/9 1.8s").'

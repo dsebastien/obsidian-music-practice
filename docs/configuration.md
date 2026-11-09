@@ -94,6 +94,7 @@ Pieces, strumming and picking patterns have their own:
 - **Strumming pattern** (`strum_pattern`), for strumming patterns: "D DU UDU".
 - **Feel** (`strum_feel`), for strumming patterns: "straight", "swing" or a swing ratio ("60%").
 - **Picking pattern** (`picking_pattern`), for fingerpicking patterns: a name ("travis", "alternate bass", "1-2-3-4") or the fingers of each slot ("p i m a").
+- **Public note** (`public_note`): new drill notes get `false`, whatever their template says; publishing a note stays your choice.
 - **Drill kind**, **Drill setting**, **Drill weak spots** (`drill_kind`, `drill_setting`, `drill_stats`), for the drill notes of [note, chord and scale drills](usage.md#note-chord-and-scale-drills). Save checks that the exercise type has them, and names the one that's missing.
 
 When the Kanban Action Planner is installed, its time-tracking and review property names are used, so both plugins write the same properties. Empty notation blocks in chord, scale, arpeggio, strumming pattern and fingerpicking pattern notes draw from these names ([Notation](notation.md#notes-draw-their-own-diagram)).
