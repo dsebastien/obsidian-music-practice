@@ -50,7 +50,7 @@ A chord chart with its chord diagrams, lighting the chord that plays:
 - **Practice a progression in time**: a song's chords, one a bar or as its chart's bar lines say, as a backing loop with a click, a count-in and the speed trainer, to practice the changes or to solo over them. Save BPM keeps the tempo you reached.
 - **Play along with a recording**: a song's audio or video file of your vault, with an A-B loop, the speed from 50 % to 125 % without a pitch change, its sections to jump to or loop, and a count-in before each pass. Save BPM keeps the tempo you reached.
 - **Chord change drills**: count the changes between two chords in a minute. Your best and last counts go on the pair's note.
-- **Note, chord and scale drills**: find and name notes on the fretboard or the keyboard by clicking them, name chords and scales, find a scale's notes. The drill asks your weak spots most and keeps a map of them on its note.
+- **Note, chord and scale drills**: find and name notes on the fretboard or the keyboard by clicking them, name chords and scales, find a scale's notes, and find a note you hear (drills by ear). The drill asks your weak spots most and keeps a map of them on its note.
 - **Key, scales and hard changes of a piece**: find a song's key and the scales to solo with, and drill its hardest chord changes first.
 - **Mastery and spaced review**: a rubric for each kind of item, and a light SM-2 review that catches what's getting rusty.
 - **Skill tree**: prerequisites between items, so you see what's ready to learn.
