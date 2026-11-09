@@ -65,6 +65,12 @@ export function voicingRow(count: number, selected: number, size = 4): number[] 
 /** The source inside a fenced block (without its fences). */
 export const blockSource = (block: string): string => block.split('\n').slice(1, -1).join('\n')
 
+/** A block with one more line inside it, before its closing fence. */
+export function withBlockLine(block: string, line: string): string {
+    const lines = block.split('\n')
+    return [...lines.slice(0, -1), line, lines.at(-1)!].join('\n')
+}
+
 /** Insert a block right under the note's H1 (or after the frontmatter when there is none). */
 export function insertUnderTitle(content: string, block: string): string {
     const eol = content.includes('\r\n') ? '\r\n' : '\n'

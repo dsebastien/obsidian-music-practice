@@ -7,7 +7,9 @@ import {
     chordFromNotes,
     ensureBlock,
     withAlias,
-    voicingRow
+    voicingRow,
+    withBlockLine,
+    blockSource
 } from './notation-note'
 
 describe('frets and fingers as text', () => {
@@ -133,5 +135,14 @@ describe('ensureBlock fences', () => {
         expect(ensureBlock('# A\n```chord title\n```\n', 'chord')).toBe(
             '# A\n```chord title\n```\n'
         )
+    })
+})
+
+describe('withBlockLine (#76: the piano preview of clicked keys)', () => {
+    it('adds a line inside the block, before its closing fence', () => {
+        const block = chordBlock('C', 'piano', null)!
+        const out = withBlockLine(block, 'pitches: C4 E4 G4')
+        expect(out.split('\n').at(-1)).toBe(block.split('\n').at(-1))
+        expect(blockSource(out).split('\n').at(-1)).toBe('pitches: C4 E4 G4')
     })
 })

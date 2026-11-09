@@ -24,7 +24,13 @@ import type {
     RenderResult
 } from '@dsebastien/music-notation'
 import { lookupGuitarVoicing, voicingCount } from '@dsebastien/music-notation/voicings'
-import { blockSource, chordBlock, formatFrets, voicingRow } from '../domain/notation-note'
+import {
+    blockSource,
+    chordBlock,
+    withBlockLine,
+    formatFrets,
+    voicingRow
+} from '../domain/notation-note'
 import { hasBarre, shapeValue } from '../domain/voicings'
 import {
     PICKING_NAMES,
@@ -227,7 +233,9 @@ export class AddNoteModal extends Modal {
         const chordLines = chordBlock(symbol, instrument, this.voicing())
         if (!chordLines) return null
         // Piano chords entered as keys: the preview draws those keys (#76).
-        const block = this.typedKeys() ? `${chordLines}\npitches: ${this.keysText()}` : chordLines
+        const block = this.typedKeys()
+            ? withBlockLine(chordLines, `pitches: ${this.keysText()}`)
+            : chordLines
         const probe = renderBlock('chord', blockSource(block), createDiv())
         probe.destroy()
         return probe.ok ? block : null
