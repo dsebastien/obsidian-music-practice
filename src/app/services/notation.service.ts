@@ -37,6 +37,11 @@ export interface TabHost {
     convert?: (request: ConvertRequest) => void
     /** Writes `staves:` in a block of a note (Keep this view, #83); no such button without it. */
     keepView?: (request: ConvertRequest, staves: Staves) => void
+    /**
+     * Settings → Playback → Volume (0 to 1), read at each Play: the tab and score bar has no
+     * volume of its own since music-notation 0.18 (#82); a change is heard at once (#85).
+     */
+    volume?: () => number
 }
 
 /** What a block's actions (Edit as alphaTex, Keep this view) know about it. */
@@ -242,6 +247,7 @@ class TabChild extends MarkdownRenderChild {
                     alphaTab,
                     assets: this.host.runtime.assets(win),
                     resolveFile: (link) => this.host.resolveFile(link, this.sourcePath),
+                    ...(this.host.volume ? { volume: this.host.volume } : {}),
                     // Text tabs show tablature unless a staves: line says otherwise (#84).
                     ...(this.textTab ? { defaultStaves: 'tab' as const } : {}),
                     ...(keep ? { onKeepView: (staves: Staves) => keep(staves) } : {})

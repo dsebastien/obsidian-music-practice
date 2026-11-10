@@ -6,7 +6,7 @@
       "name": "obsidian-life-tracker-base-view-plugin",
       "dependencies": {
         "@coderline/alphatab": "1.8.4",
-        "@dsebastien/music-notation": "0.17.0",
+        "@dsebastien/music-notation": "0.18.1",
         "immer": "11.2.9",
         "zod": "4.6.7",
       },
@@ -101,7 +101,7 @@
 
     "@conventional-changelog/template": ["@conventional-changelog/template@1.4.1", "", {}, "sha512-mHyyEL0eIEqJ6+aF24+AdZRo4bu4W5GdUiCiCx5X7kfDY51ye8GQJ264uOINObrRSKxtSRCOWPpl9hbOy4UzxQ=="],
 
-    "@dsebastien/music-notation": ["@dsebastien/music-notation@0.17.0", "", { "dependencies": { "tonal": "6.5.1" }, "peerDependencies": { "@coderline/alphatab": "^1.8.4" }, "optionalPeers": ["@coderline/alphatab"], "bin": { "music-notation": "dist/cli.js" } }, "sha512-BFhjWrkw209rtfZzhsBuckfMzRKUeo3HYLR3ef0X9EVNrp4+7w+qr7lQ+uxXTLo/BdLpl1pvkpZEGstfqYPXiA=="],
+    "@dsebastien/music-notation": ["@dsebastien/music-notation@0.18.1", "", { "dependencies": { "tonal": "6.5.1" }, "peerDependencies": { "@coderline/alphatab": "^1.8.4" }, "optionalPeers": ["@coderline/alphatab"], "bin": { "music-notation": "dist/cli.js" } }, "sha512-ydELnm6fKF2tzqLTOmz6PTZ5WaIW21ncP0RpXSxnaZht8K0l3Jt0Jm4Jwv/ymVIOM/6rsiKNZGgcr+VlIAIIWg=="],
 
     "@eslint-community/eslint-plugin-eslint-comments": ["@eslint-community/eslint-plugin-eslint-comments@4.8.1", "", { "dependencies": { "escape-string-regexp": "^4.0.0", "ignore": "^7.0.5" }, "peerDependencies": { "eslint": "^6.0.0 || ^7.0.0 || ^8.0.0 || ^9.0.0 || ^10.0.0" } }, "sha512-vafrdi15JHBFh1qWOAucyJwlEEuhdoMof28jOdKdgnwZ7bXwd6v4wzHYSmAVLwnx0yc7bqAtfJ0EZQV1WAzV/Q=="],
 

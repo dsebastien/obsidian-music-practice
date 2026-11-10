@@ -71,7 +71,8 @@ import {
     drawnPlaybackChanged,
     playOptions,
     strumOption,
-    volumeChange
+    volumeChange,
+    volumeOf
 } from './domain/playback'
 import type { PlayOptions, RenderOptions } from '@dsebastien/music-notation'
 import { printTab } from '@dsebastien/music-notation/tab'
@@ -593,7 +594,8 @@ export class MusicPracticePlugin extends Plugin {
                 resolveFile: (link, sourcePath) => this.readLinkedFile(link, sourcePath),
                 decorate: (result, sourcePath) => this.decorateScore(result, sourcePath),
                 convert: (request) => void this.textTabs.convertBlock(request),
-                keepView: (request, staves) => void this.textTabs.keepView(request, staves)
+                keepView: (request, staves) => void this.textTabs.keepView(request, staves),
+                volume: () => volumeOf(this.settings.playback)
             },
             (path, language) => this.practiceBlock(path, language),
             (path) => this.saveBpmBars(path)
