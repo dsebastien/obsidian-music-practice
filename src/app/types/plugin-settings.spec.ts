@@ -244,3 +244,18 @@ describe('settingsFrom: note drills (#73)', () => {
         })
     })
 })
+
+describe('diagram image settings from data.json (#51)', () => {
+    it('defaults to the attachment location, without a link in the note', () => {
+        expect(settingsFrom({}).diagramImages).toEqual({ folder: '', embed: false })
+    })
+
+    it('keeps a valid folder in normal form, and drops one the setting refuses', () => {
+        const folder = (value: unknown) =>
+            settingsFrom({ diagramImages: { folder: value } }).diagramImages.folder
+        expect(folder('Music\\Images/')).toBe('Music/Images')
+        expect(folder('../x')).toBe('')
+        expect(folder(3)).toBe('')
+        expect(settingsFrom({ diagramImages: { embed: true } }).diagramImages.embed).toBe(true)
+    })
+})

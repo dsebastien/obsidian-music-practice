@@ -199,6 +199,16 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             options: ROOT_MARK_LABELS
                         }
                     },
+                    this.text(
+                        'diagramImages.folder',
+                        'Diagram images folder',
+                        'Where a right-click on a diagram saves it as a PNG or SVG file: a folder of the vault (Music/Images), made when missing. Empty: the attachment location Obsidian uses for the note (Settings → Files and links).'
+                    ),
+                    {
+                        name: 'Embed saved images',
+                        desc: 'After saving a diagram as an image, put a link to it (an embed) on its own line right after the block in the note.',
+                        control: { type: 'toggle', key: 'diagramImages.embed' }
+                    },
                     {
                         name: 'Status',
                         desc: '',

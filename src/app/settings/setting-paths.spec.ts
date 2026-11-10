@@ -119,3 +119,22 @@ describe('note drill settings (#73)', () => {
         })
     })
 })
+
+describe('diagram image settings (#51)', () => {
+    it('takes an empty folder (the attachment location) and a vault folder in normal form', () => {
+        expect(parseSetting('diagramImages.folder', '')).toEqual({ ok: true, value: '' })
+        expect(parseSetting('diagramImages.folder', ' /Music/Images/ ')).toEqual({
+            ok: true,
+            value: 'Music/Images'
+        })
+    })
+
+    it('refuses a folder outside the vault', () => {
+        expect(parseSetting('diagramImages.folder', '../Images').ok).toBe(false)
+    })
+
+    it('reads the embed switch as on or off', () => {
+        expect(parseSetting('diagramImages.embed', true)).toEqual({ ok: true, value: true })
+        expect(parseSetting('diagramImages.embed', 'yes').ok).toBe(false)
+    })
+})

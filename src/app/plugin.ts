@@ -48,6 +48,7 @@ import {
 } from './domain/timer'
 import type { TimerState } from './domain/timer'
 import { NotationBlocks, processorExists } from './services/notation.service'
+import { DiagramImages } from './services/diagram-images.service'
 import { PlayAlongBlocks } from './services/playalong.service'
 import type { PlayAlongDeps } from './services/playalong.service'
 import { mountPlayAlong, showPlayAlongMessage } from './ui/playalong-view'
@@ -599,7 +600,9 @@ export class MusicPracticePlugin extends Plugin {
                 volume: () => volumeOf(this.settings.playback)
             },
             (path, language) => this.practiceBlock(path, language),
-            (path) => this.saveBpmBars(path)
+            (path) => this.saveBpmBars(path),
+            // A right-click on a drawn block saves the diagram or the block as an image (#51).
+            new DiagramImages({ app: this.app, settings: () => this.settings.diagramImages }).menu
         )
         // Empty blocks in chord and scale notes draw from the note's properties: redraw them when
         // the properties change.

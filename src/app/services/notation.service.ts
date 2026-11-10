@@ -302,6 +302,18 @@ export type NotationHost = Pick<Plugin, 'registerMarkdownCodeBlockProcessor'> & 
     app: { workspace: Pick<Workspace, 'getLeavesOfType'> }
 }
 
+/** A right-click on a drawn block (#51): the block, its language, its note, where it is in it. */
+export interface BlockMenuRequest {
+    el: HTMLElement
+    language: BlockLanguage
+    sourcePath: string
+    /** The block's lines in the note, read when asked; null when Obsidian can't tell. */
+    section: () => MarkdownSectionInformation | null
+}
+
+/** Called on `contextmenu` of each block the library draws. */
+export type BlockMenu = (event: MouseEvent, block: BlockMenuRequest) => void
+
 /** What an empty block in a note draws from: the note's properties, their names, its instrument. */
 export type NoteContext = Pick<RenderOptions, 'properties' | 'propertyNames' | 'instrument'>
 
@@ -414,7 +426,9 @@ export class NotationBlocks {
          * a learning note); null for notes that get none.
          */
         private readonly timedBar: (sourcePath: string) => PlayOptions['timedBar'] | null = () =>
-            null
+            null,
+        /** The menu of a right-click on a drawn block (#51: save as image); null for none. */
+        private readonly menu: BlockMenu | null = null
     ) {}
 
     /** Register every language turned on, not registered yet and not taken. */
@@ -459,7 +473,19 @@ export class NotationBlocks {
                             ...(note.instrument ? { instrument: note.instrument } : {})
                         })
                     }
-                    ctx.addChild(new NotationChild(el, draw, this.live, ctx.sourcePath, empty, key))
+                    const child = new NotationChild(el, draw, this.live, ctx.sourcePath, empty, key)
+                    const menu = this.menu
+                    if (menu) {
+                        child.registerDomEvent(el, 'contextmenu', (event) =>
+                            menu(event, {
+                                el,
+                                language,
+                                sourcePath: child.sourcePath,
+                                section: () => ctx.getSectionInfo(el)
+                            })
+                        )
+                    }
+                    ctx.addChild(child)
                 })
                 this.registered.add(language)
             } catch {

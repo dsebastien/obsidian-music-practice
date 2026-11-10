@@ -7,6 +7,7 @@ import { createDefaultRubric } from '../domain/rubric'
 import type { RubricSettings } from '../domain/rubric'
 import type { PracticeRules } from '../domain/rules'
 import { NAMINGS, ROOT_MARKS } from '@dsebastien/music-notation'
+import { parseImageFolder } from '../domain/diagram-images'
 import { ORIENTATIONS } from '../domain/notation-layout'
 import type { NotationLayout } from '../domain/notation-layout'
 import type { NotationToggles } from '../services/notation.service'
@@ -67,6 +68,16 @@ export interface PluginSettings {
     drills: DrillSettings
     /** The play-along player (#75). */
     playAlong: PlayAlongSettings
+    /** Saving diagrams as images (#51). */
+    diagramImages: DiagramImageSettings
+}
+
+/** Save a diagram as an image (#51): where the files go, and whether a link goes in the note. */
+export interface DiagramImageSettings {
+    /** A vault folder; empty for Obsidian's attachment location of the note. */
+    folder: string
+    /** Put a link to the saved image right after the block. */
+    embed: boolean
 }
 
 /**
@@ -138,6 +149,7 @@ export function createDefaultSettings(): PluginSettings {
         panelItems: [],
         drillSeconds: 60,
         drills: { ...DEFAULT_DRILLS },
+        diagramImages: { folder: '', embed: false },
         playAlong: { enabled: true, preRoll: DEFAULT_PRE_ROLL }
     }
 }
@@ -200,6 +212,9 @@ export function settingsFrom(loaded: unknown): PluginSettings {
         settings.drillSeconds > 600
     )
         settings.drillSeconds = DEFAULT_SETTINGS.drillSeconds
+    // The images folder in normal form; one the setting would refuse is the attachment location.
+    const folder = parseImageFolder(settings.diagramImages.folder)
+    settings.diagramImages.folder = folder.ok ? folder.value : ''
     const dr = settings.drills
     if (!Number.isInteger(dr.questions) || dr.questions < 1 || dr.questions > 100)
         dr.questions = DEFAULT_DRILLS.questions
