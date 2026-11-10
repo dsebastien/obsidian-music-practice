@@ -1,4 +1,4 @@
-Ear training: hear an interval, a chord, a scale or a scale degree and name it, with your weak spots asked most and a guided start. Also root marks you can tell without colors, formulas under diagrams, and descriptions for screen readers. From music-notation 0.19.0.
+Ear training: hear an interval, a chord, a scale or a scale degree and name it, with your weak spots asked most and a guided start. Also Copy as image on every block, root marks you can tell without colors, formulas under diagrams, and descriptions for screen readers. From music-notation 0.19.0.
 
 #### Ear training
 
@@ -12,6 +12,7 @@ Run **Ear training: intervals, chords, scales and degrees**, or **Drill** then *
 
 #### Diagrams
 
+- **Copy as image**: a button on the bar under each block copies the selected diagram (Shift+click: the whole block) as a picture, with its title and captions, to paste in a chat or a document. With playback off, each block gets a small bar with only this button (#11 in music-notation).
 - **Settings → Notation blocks → Root marks**: **Color and shape** draws the root as a square dot, a square ring on an open string and a small square on its key, so you can tell it without seeing colors. Drills follow it. A block can say `root-mark: shape` (#14 in music-notation).
 - `caption: formula` under a chord or scale: its notes, its formula (1 b3 5 b7), the other ways to write it, and a scale's steps. `caption: fingering, formula` gives both (#52 in music-notation).
 - Screen readers read a description of each diagram: the fingering, the keys and the root, or the notes string by string.
