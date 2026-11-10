@@ -8,7 +8,7 @@ permalink: /
 
 Learn an instrument in Obsidian: log practice in under a minute, run a practice timer, get a plan for the time you have, and let spaced review tell you what's slipping. Guitar and piano first, any instrument after.
 
-> Version 0.12: the practice engine, a practice panel, a metronome with a count-in and a speed trainer, chord change drills, a song's key and hardest changes, progressions you practice in time, tab exercises, every way to play a chord, triads, chord transitions, tabs and scores with playback, imports, and notation blocks (chord diagrams, keyboards, fretboards, chord charts, strumming and picking patterns, progressions, the circle of fifths). Chord, scale, arpeggio, strumming pattern and fingerpicking pattern notes draw their own diagram from their properties. Every diagram plays, and its notes light up as you hear them.
+> Version 0.20: the practice engine, a practice panel, a metronome with a count-in and a speed trainer, chord change drills, note, chord and scale drills (by sight and by ear), a song's key and hardest changes, progressions you practice in time, a play-along player for recordings, tab exercises, every way to play a chord, triads, chord transitions, tabs and scores with playback, imports, chords entered by clicking a fretboard or a keyboard, note names in letters, solfège or German, and notation blocks (chord diagrams, keyboards, fretboards, chord charts, strumming and picking patterns, progressions, the circle of fifths). Chord, scale, arpeggio, strumming pattern and fingerpicking pattern notes draw their own diagram from their properties. Every diagram plays, and its notes light up as you hear them.
 
 ## Key features
 
@@ -19,7 +19,7 @@ Learn an instrument in Obsidian: log practice in under a minute, run a practice 
 - Mastery levels with a rubric, and a light spaced-review system.
 - A [practice panel](usage.md#practice-panel) with your session list and a [metronome](usage.md#metronome): count-in, beat flash, speed trainer, and the time signature of the piece.
 - [Chord change drills](usage.md#chord-change-drills), and the [key and scales of a piece](usage.md#key-and-scales-of-a-piece).
-- [Note, chord and scale drills](usage.md#note-chord-and-scale-drills): notes on the fretboard and the keyboard, chord names, scale shapes, with your weak spots asked most.
+- [Note, chord and scale drills](usage.md#note-chord-and-scale-drills): notes on the fretboard and the keyboard, by sight or by ear, chord names, scale shapes, with your weak spots asked most.
 - [Progressions in time](usage.md#progressions-in-time): a song's chords as a backing loop, and [tab exercises](usage.md#tab-exercises) of your scales and arpeggios.
 - [Shortcuts from outside Obsidian](usage.md#shortcuts-from-outside-obsidian): start the timer, log or plan from a phone, a Stream Deck or an NFC tag.
 - Works with the Obsidian Starter Kit, or on its own.
