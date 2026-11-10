@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.22.1](https://github.com/dsebastien/obsidian-music-practice/compare/0.22.0...0.22.1) (2026-11-10)
+
+Tabs and scores now use alphaTab 1.9.0, through music-notation 0.19.1.
+
+#### Tabs and scores
+
+- alphaTab 1.9.0: notes are spaced a little tighter, bar numbers sit at the start of each line, and hammer-on, pull-off and slide labels are placed above the staff. Playback, the bar, Export and Guitar Pro files work as before.
+- If another plugin in your vault loads its own alphaTab, it must be 1.9.0 too, as before with 1.8.4.
+
 ## [0.22.0](https://github.com/dsebastien/obsidian-music-practice/compare/0.21.0...0.22.0) (2026-11-10)
 
 Save a diagram or a whole block as a PNG or SVG file: right-click it, and it goes into your attachments or a folder you choose, with an optional link after the block. Also a clearer ear training question.
@@ -425,6 +434,7 @@ The first release of Music Practice: learn an instrument in your notes.
 - A public API lets scripts and AI assistants log and plan practice with the same rules.
 
 Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
+
 
 
 
