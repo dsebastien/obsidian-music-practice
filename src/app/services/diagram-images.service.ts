@@ -44,6 +44,16 @@ function diagramImage(drawing: Element): Element {
 /** The note's name, from its path ("Music/Song.md" → "Song"). */
 const noteNameOf = (path: string): string => (path.split('/').pop() ?? '').replace(/\.[^.]+$/, '')
 
+/** The background behind `el` on the page: its own or an ancestor's, else white. */
+function pageBackground(el: Element): string {
+    const win = el.ownerDocument.defaultView
+    for (let at: Element | null = el; at && win; at = at.parentElement) {
+        const color = win.getComputedStyle(at).backgroundColor
+        if (color && color !== 'transparent' && !/^rgba\(.*,\s*0\)$/.test(color)) return color
+    }
+    return 'white'
+}
+
 export class DiagramImages {
     constructor(private readonly host: DiagramImagesHost) {}
 
@@ -99,7 +109,9 @@ export class DiagramImages {
             const data =
                 format === 'png'
                     ? await (await toPng(image, { scale: 2 })).arrayBuffer()
-                    : toSvgString(image)
+                    : // The page's colors need the page's background, as the PNG has: a dark
+                      // theme's light lines on a transparent SVG vanish on a white page.
+                      toSvgString(image, { background: pageBackground(image) })
             const name = imageFileName(noteNameOf(request.sourcePath), what, format)
             const path = settings.folder
                 ? await this.inFolder(settings.folder, name, format)

@@ -238,7 +238,7 @@ Screen readers read each diagram's name and a description: the fingering, the ke
 
 ## Save a diagram as an image
 
-Right-click a diagram (long-press on a phone) and pick **Save diagram as PNG** or **Save diagram as SVG**: the file is the diagram as you see it, with its title and captions, in your theme's colors. On a block with several diagrams, or outside its diagrams, **Save block as PNG** and **Save block as SVG** save the whole block. Every block the plugin draws has it (chord, keyboard, fretboard, chord charts, strumming and picking patterns, progressions, the circle of fifths), with playback on or off; tabs and scores don't.
+Right-click a diagram (long-press on a phone) and pick **Save diagram as PNG** or **Save diagram as SVG**: the file is the diagram as you see it, with its title and captions, in your theme's colors on its background. On a block with several diagrams, or outside its diagrams, **Save block as PNG** and **Save block as SVG** save the whole block. Every block the plugin draws has it (chord, keyboard, fretboard, chord charts, strumming and picking patterns, progressions, the circle of fifths), with playback on or off; tabs and scores don't.
 
 The file is named after the note and the diagram (`Wonderwall - Em7.png`, sharps spelled out: `F Sharp m7`) and goes where Obsidian puts the note's attachments (**Settings → Files and links**), or in the folder of **Diagram images folder** (see [Configuration](configuration.md#notation-blocks)). A name already taken gets a number (`Wonderwall - Em7 1.png`). With **Embed saved images** on, a link to the file goes on its own line right after the block.
 
