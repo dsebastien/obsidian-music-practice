@@ -3,6 +3,7 @@ import type { PluginSettings } from '../types/plugin-settings.intf'
 import { NAMINGS, ROOT_MARKS } from '@dsebastien/music-notation'
 import { ORIENTATIONS } from '../domain/notation-layout'
 import { PLAYBACK_ENGINES } from '../domain/playback'
+import { parseImageFolder } from '../domain/diagram-images'
 
 /**
  * Settings controls are keyed by their path in the settings ("rules.review.firstInterval"). The
@@ -93,7 +94,7 @@ const MAXIMUMS: Record<string, number> = {
 
 /** Text settings that may be left empty; every other text setting needs a value. */
 const OPTIONAL_TEXT =
-    /^(rubric\.|local\.(startedField|masteredField|sessionTemplate|sessionSuffix)$)/
+    /^(rubric\.|local\.(startedField|masteredField|sessionTemplate|sessionSuffix)$|diagramImages\.folder$)/
 
 /** Values in words: "a or b", "a, b or c". */
 const inWords = (values: readonly string[]): string =>
@@ -139,6 +140,7 @@ export function parseSetting(key: string, raw: unknown): Parsed {
             return { ok: false, error: `Choose ${inWords(choices)}.` }
         if (!text && !OPTIONAL_TEXT.test(key))
             return { ok: false, error: 'This setting needs a value.' }
+        if (key === 'diagramImages.folder') return parseImageFolder(text)
         return { ok: true, value: text }
     }
     if (Array.isArray(def)) {
