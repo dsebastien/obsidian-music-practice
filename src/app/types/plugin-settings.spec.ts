@@ -86,8 +86,19 @@ describe('layout settings from data.json', () => {
             chord: 'horizontal',
             fretboard: 'horizontal',
             keyboard: 'horizontal',
-            naming: 'letters'
+            naming: 'letters',
+            rootMark: 'color'
         })
+    })
+
+    it('keeps a valid root mark and falls back to color on anything else', () => {
+        const mark = (value: unknown) =>
+            settingsFrom({ notationLayout: { rootMark: value } }).notationLayout.rootMark
+        expect(mark('shape')).toBe('shape')
+        expect(mark('color')).toBe('color')
+        expect(mark('Shape')).toBe('color')
+        expect(mark(undefined)).toBe('color')
+        expect(mark(3)).toBe('color')
     })
 
     it('keeps a valid note naming and falls back to letters on anything else', () => {

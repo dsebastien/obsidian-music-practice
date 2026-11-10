@@ -16,13 +16,15 @@ import {
     scaleNoteSet,
     chordNoteSet,
     lightPlayer,
-    withNaming
+    withNaming,
+    withRootMark
 } from '@dsebastien/music-notation'
 import type {
     FrettedVoicing,
     Hand,
     Naming,
     Orientation,
+    RootMark,
     NoteEvent,
     NotePlayer,
     PickLayer,
@@ -97,6 +99,8 @@ export interface NoteDrillDeps {
     layout: () => { hand: Hand; fretboard: Orientation; keyboard: Orientation }
     /** Settings → Notation blocks → Note names: how questions, answers and drawings name notes. */
     naming: () => Naming
+    /** Settings → Notation blocks → Root marks: by color, or by color and a shape. */
+    rootMark: () => RootMark
     /** Settings → Playback, for the sound of each pick; false when playback is off. */
     play: () => PlayOptions | false
     rules: () => DrillRules
@@ -653,8 +657,11 @@ export class NoteDrillModal extends Modal {
             attr: { 'aria-live': 'polite' }
         })
         const actions = el.createDiv({ cls: 'mp-actions' })
-        // The library's drawings (string names, key labels) name notes as the setting says.
-        withNaming(this.deps.naming(), () => this.draw(q, drawing, answer, feedback, actions))
+        // The library's drawings (string names, key labels) name notes as the setting says, and
+        // mark roots as it says.
+        withRootMark(this.deps.rootMark(), () =>
+            withNaming(this.deps.naming(), () => this.draw(q, drawing, answer, feedback, actions))
+        )
         // The focus goes to the answer: the drawing's tab stop or the first button.
         if (!this.layer) answer.querySelector('button')?.focus()
     }

@@ -9,9 +9,17 @@ import {
     emptyNoteSet,
     renderFretboard,
     renderKeyboard,
-    withNaming
+    withNaming,
+    withRootMark
 } from '@dsebastien/music-notation'
-import type { Hand, Naming, Orientation, PickLayer, PlayOptions } from '@dsebastien/music-notation'
+import type {
+    Hand,
+    Naming,
+    Orientation,
+    PickLayer,
+    PlayOptions,
+    RootMark
+} from '@dsebastien/music-notation'
 import { noteShown } from '../domain/note-names'
 import {
     afterPick,
@@ -33,6 +41,7 @@ export interface ClickLayout {
     fretboard: Orientation
     keyboard: Orientation
     naming: Naming
+    rootMark: RootMark
 }
 
 export interface ClickInputOptions {
@@ -68,22 +77,24 @@ export class ClickInput {
         const doc = this.el.ownerDocument
         const layout = options.layout()
         this.naming = layout.naming
-        // String names and key labels as the setting names notes.
-        this.svg = withNaming(layout.naming, () =>
-            options.instrument === 'guitar'
-                ? renderFretboard(doc, emptyNoteSet(), {
-                      pick: true,
-                      frets: CLICK_FRETS,
-                      hand: layout.hand,
-                      orientation: layout.fretboard,
-                      title: 'Click the frets'
-                  })
-                : renderKeyboard(doc, emptyNoteSet(), {
-                      pick: true,
-                      range: CLICK_KEYS,
-                      orientation: layout.keyboard,
-                      title: 'Click the keys'
-                  })
+        // String names and key labels as the setting names notes; root marks as it marks them.
+        this.svg = withRootMark(layout.rootMark, () =>
+            withNaming(layout.naming, () =>
+                options.instrument === 'guitar'
+                    ? renderFretboard(doc, emptyNoteSet(), {
+                          pick: true,
+                          frets: CLICK_FRETS,
+                          hand: layout.hand,
+                          orientation: layout.fretboard,
+                          title: 'Click the frets'
+                      })
+                    : renderKeyboard(doc, emptyNoteSet(), {
+                          pick: true,
+                          range: CLICK_KEYS,
+                          orientation: layout.keyboard,
+                          title: 'Click the keys'
+                      })
+            )
         )
         this.el.appendChild(this.svg)
         const play = options.play()

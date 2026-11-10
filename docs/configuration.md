@@ -22,17 +22,20 @@ One switch per kind of [notation block](notation.md), all on by default: **Chord
 
 ![The Notation blocks switches for Tabs, Scores, Strumming patterns, Picking patterns, Progressions and Circle of fifths, all on, each with the code block name it draws](images/settings.png)
 
-| Setting                   | Default    | What it does                                                                                           |
-| ------------------------- | ---------- | ------------------------------------------------------------------------------------------------------ |
-| Left-handed               | Off        | Mirrors guitar chord diagrams and fretboards (the low string on the right). Keyboards don't change.    |
-| Chord diagram orientation | Vertical   | Vertical: the nut on top. Horizontal: the strings across, the high string on top, as in tabs.          |
-| Fretboard orientation     | Horizontal | Horizontal: the high string on top. Vertical: the nut on top, as a chord diagram.                      |
-| Keyboard orientation      | Horizontal | Horizontal: low notes on the left. Vertical: low notes at the bottom. Piano chords follow it.          |
-| Note names                | Letters    | How diagrams and drills name notes: letters (C D E), solfège (Do Ré Mi) or German (H for B, B for B♭). |
+| Setting                   | Default    | What it does                                                                                                         |
+| ------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| Left-handed               | Off        | Mirrors guitar chord diagrams and fretboards (the low string on the right). Keyboards don't change.                  |
+| Chord diagram orientation | Vertical   | Vertical: the nut on top. Horizontal: the strings across, the high string on top, as in tabs.                        |
+| Fretboard orientation     | Horizontal | Horizontal: the high string on top. Vertical: the nut on top, as a chord diagram.                                    |
+| Keyboard orientation      | Horizontal | Horizontal: low notes on the left. Vertical: low notes at the bottom. Piano chords follow it.                        |
+| Note names                | Letters    | How diagrams and drills name notes: letters (C D E), solfège (Do Ré Mi) or German (H for B, B for B♭).               |
+| Root marks                | Color      | How diagrams and drills mark the root: by its color, or by its color and a shape (square dots, a square on the key). |
 
-A block's own `orientation:`, `hand:` or `naming:` wins over these. Diagrams on screen redraw when you change them (reading view, live preview, embeds).
+A block's own `orientation:`, `hand:`, `naming:` or `root-mark:` wins over these. Diagrams on screen redraw when you change them (reading view, live preview, embeds).
 
 **Note names** only changes how names show: the titles, dots, keys and string names of the diagrams, the chord charts and progressions, and the drills' questions, answers and weak-spot maps. Blocks are read as you wrote them, so a note written in letters stays right whatever you pick. Note titles, properties and drill notes keep letters. The hints in Add a learning note, Identify this chord and Voicings of a chord stay in letters too, and so do tabs and scores, a drill's title (its note's name) and the keys you type to set up a keyboard drill. On Obsidian Publish, see [Notation](notation.md#obsidian-publish).
+
+**Root marks**: with **Color and shape**, the root is a square dot (its finger or label still inside) on chord diagrams and fretboards, a square ring on an open string, and a small square on its key, so you can tell it without seeing colors. Drills and the click-to-enter drawings follow it too.
 
 ## Playback
 

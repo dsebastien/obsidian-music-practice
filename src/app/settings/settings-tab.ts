@@ -7,7 +7,7 @@ import { createDefaultSettings } from '../types/plugin-settings.intf'
 import { parseSetting, readSetting, validateSetting, writeSetting } from './setting-paths'
 import { BLOCK_LANGUAGES } from '../services/notation.service'
 import type { BlockLanguage } from '../services/notation.service'
-import { ORIENTATIONS } from '../domain/notation-layout'
+import { ORIENTATIONS, ROOT_MARK_LABELS } from '../domain/notation-layout'
 import { NAMING_LABELS } from '../domain/note-names'
 
 /**
@@ -188,6 +188,15 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             type: 'dropdown',
                             key: 'notationLayout.naming',
                             options: NAMING_LABELS
+                        }
+                    },
+                    {
+                        name: 'Root marks',
+                        desc: 'How diagrams and drills mark the root: by its color, or by its color and a shape (a square dot, a square on the key), which you can tell without seeing colors. A block can say otherwise with "root-mark:".',
+                        control: {
+                            type: 'dropdown',
+                            key: 'notationLayout.rootMark',
+                            options: ROOT_MARK_LABELS
                         }
                     },
                     {

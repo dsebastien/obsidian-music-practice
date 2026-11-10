@@ -8,7 +8,8 @@ describe('layoutDefaults', () => {
             chord: 'vertical',
             fretboard: 'horizontal',
             keyboard: 'vertical',
-            naming: 'letters'
+            naming: 'letters',
+            rootMark: 'color'
         } as const
         expect(layoutDefaults(layout)).toEqual({
             orientation: { chord: 'vertical', fretboard: 'horizontal', keyboard: 'vertical' }
@@ -22,10 +23,24 @@ describe('layoutDefaults', () => {
             chord: 'vertical',
             fretboard: 'horizontal',
             keyboard: 'horizontal',
-            naming: 'letters'
+            naming: 'letters',
+            rootMark: 'color'
         } as const
         expect('naming' in layoutDefaults(layout)).toBe(false)
         expect(layoutDefaults({ ...layout, naming: 'solfege' }).naming).toBe('solfege')
         expect(layoutDefaults({ ...layout, naming: 'german' }).naming).toBe('german')
+    })
+
+    it('passes the root mark only when it is not color (color output unchanged)', () => {
+        const layout = {
+            leftHanded: false,
+            chord: 'vertical',
+            fretboard: 'horizontal',
+            keyboard: 'horizontal',
+            naming: 'letters',
+            rootMark: 'color'
+        } as const
+        expect('rootMark' in layoutDefaults(layout)).toBe(false)
+        expect(layoutDefaults({ ...layout, rootMark: 'shape' }).rootMark).toBe('shape')
     })
 })

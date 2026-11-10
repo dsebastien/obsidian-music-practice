@@ -228,6 +228,14 @@ Letters (C D E) by default. `naming: solfege` in a block shows Do Ré Mi Fa Sol 
 
 To see every diagram in solfège or German without a line in each block, pick **Note names** in the settings (see [Configuration](configuration.md#notation-blocks)). It changes how names show, never how a block is read: a block without its own `naming:` line is still read in letters first, so the notes you already wrote keep their meaning. Drills use it too.
 
+## Root marks, formulas and screen readers
+
+The root is marked by its color. `root-mark: shape` in a block also draws it as a square (a square dot, a square on its key), which you can tell without seeing colors; **Root marks** in the settings does it for every diagram (see [Configuration](configuration.md#notation-blocks)).
+
+`caption: formula` writes what a chord or scale is under its diagram: its notes, its formula (1 b3 5 b7), the other ways to write it, and for a scale its steps (W W H …). `caption: fingering, formula` gives both.
+
+Screen readers read each diagram's name and a description: the fingering, the keys and the root, or the notes string by string.
+
 ## Mistakes
 
 A block with a mistake shows what's wrong and what to write instead. The note itself is never changed.

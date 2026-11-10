@@ -1,6 +1,6 @@
 import { DEFAULT_SETTINGS } from '../types/plugin-settings.intf'
 import type { PluginSettings } from '../types/plugin-settings.intf'
-import { NAMINGS } from '@dsebastien/music-notation'
+import { NAMINGS, ROOT_MARKS } from '@dsebastien/music-notation'
 import { ORIENTATIONS } from '../domain/notation-layout'
 import { PLAYBACK_ENGINES } from '../domain/playback'
 
@@ -105,6 +105,7 @@ const CHOICES: Record<string, readonly string[]> = {
     'notationLayout.fretboard': ORIENTATIONS,
     'notationLayout.keyboard': ORIENTATIONS,
     'notationLayout.naming': NAMINGS,
+    'notationLayout.rootMark': ROOT_MARKS,
     'playback.engine': PLAYBACK_ENGINES
 }
 

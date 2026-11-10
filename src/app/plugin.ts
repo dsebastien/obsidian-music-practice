@@ -308,7 +308,8 @@ export class MusicPracticePlugin extends Plugin {
             hand: layout.hand ?? 'right',
             fretboard: layout.orientation?.fretboard ?? 'horizontal',
             keyboard: layout.orientation?.keyboard ?? 'horizontal',
-            naming: namingOf(this.settings.notationLayout.naming) ?? 'letters'
+            naming: namingOf(this.settings.notationLayout.naming) ?? 'letters',
+            rootMark: this.settings.notationLayout.rootMark
         }
     }
 
@@ -1666,6 +1667,7 @@ export class MusicPracticePlugin extends Plugin {
                     }
                 },
                 naming: () => namingOf(this.settings.notationLayout.naming) ?? 'letters',
+                rootMark: () => this.settings.notationLayout.rootMark,
                 play: () => this.playOptions(),
                 rules: () => ({
                     ...this.settings.drills,
