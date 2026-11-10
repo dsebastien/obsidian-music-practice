@@ -99,6 +99,8 @@ export interface DrillRules {
     /** Right answers in a row, each faster than `fastSeconds`, that clear a weak spot. */
     clearStreak: number
     fastSeconds: number
+    /** What fast is for ear training (#72): naming what you hear is slower than finding a note. */
+    earFastSeconds?: number
     /** Ear training asks the guided set (2 items, one more once they are cleared); on unless false. */
     guided?: boolean
 }
@@ -142,7 +144,18 @@ export const DEFAULT_DRILL_RULES: DrillRules = {
     weakShare: 0.6,
     clearStreak: 3,
     fastSeconds: 2,
+    earFastSeconds: 4,
     guided: true
+}
+
+/**
+ * The rules a drill of a kind uses: ear training's own fast time (#72), the shared one for the
+ * other kinds (finding a note, notes by ear included).
+ */
+export function rulesFor(rules: DrillRules, kind: DrillKind): DrillRules {
+    return isEarTrainingKind(kind) && rules.earFastSeconds !== undefined
+        ? { ...rules, fastSeconds: rules.earFastSeconds }
+        : rules
 }
 
 /** Standard tuning, string 1 (high E) first, as MIDI. */

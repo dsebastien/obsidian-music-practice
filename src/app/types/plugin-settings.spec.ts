@@ -199,6 +199,7 @@ describe('settingsFrom: note drills (#73)', () => {
             weakShare: 60,
             clearStreak: 3,
             fastSeconds: 2,
+            earFastSeconds: 4,
             guided: true
         })
     })
@@ -210,10 +211,18 @@ describe('settingsFrom: note drills (#73)', () => {
                     weakShare: 0,
                     clearStreak: 5,
                     fastSeconds: 1.5,
+                    earFastSeconds: 6,
                     guided: false
                 }
             }).drills
-        ).toEqual({ questions: 10, weakShare: 0, clearStreak: 5, fastSeconds: 1.5, guided: false })
+        ).toEqual({
+            questions: 10,
+            weakShare: 0,
+            clearStreak: 5,
+            fastSeconds: 1.5,
+            earFastSeconds: 6,
+            guided: false
+        })
         expect(
             settingsFrom({
                 drills: {
@@ -221,9 +230,17 @@ describe('settingsFrom: note drills (#73)', () => {
                     weakShare: 101,
                     clearStreak: 0.5,
                     fastSeconds: 0,
+                    earFastSeconds: 30,
                     guided: 'yes'
                 }
             }).drills
-        ).toEqual({ questions: 20, weakShare: 60, clearStreak: 3, fastSeconds: 2, guided: true })
+        ).toEqual({
+            questions: 20,
+            weakShare: 60,
+            clearStreak: 3,
+            fastSeconds: 2,
+            earFastSeconds: 4,
+            guided: true
+        })
     })
 })

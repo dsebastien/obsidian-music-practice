@@ -24,6 +24,7 @@ import {
     libraryChords,
     libraryScales,
     mergeStats,
+    rulesFor,
     missingFrom,
     parseSetting,
     parseStats,
@@ -441,7 +442,11 @@ export class NoteDrillService {
         const today = this.deps.today()
         await this.host.fileManager.processFrontMatter(file, (fm) => {
             const { stats, other } = parseStats(fm[f.drillStats])
-            const merged = mergeStats(stats, answers, this.deps.drillRules())
+            const merged = mergeStats(
+                stats,
+                answers,
+                rulesFor(this.deps.drillRules(), setting.kind)
+            )
             fm[f.drillKind] = KIND_LABELS[setting.kind]
             // A kind already written (by hand, or a template's) stays.
             const kindNow: unknown = fm[f.exerciseKind]

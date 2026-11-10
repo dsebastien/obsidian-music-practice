@@ -65,6 +65,7 @@ Each diagram's bar can change the speed, volume and sound for that diagram.
 | Weak spots share                   | 60            | Percent of the questions about your weak spots, from 0 to 100.                                                             |
 | Right answers to clear a weak spot | 3             | Right answers in a row, each faster than the fast answer, from 1 to 10.                                                    |
 | Fast answer                        | 2             | Seconds, from 0.5 to 10.                                                                                                   |
+| Fast answer, ear training          | 4             | Seconds, from 0.5 to 20, for intervals, chords, scales and degrees by ear (naming what you hear takes longer).             |
 | Guided ear training                | On            | Ear training drills start with two items and add the next one once you know them all. Off: everything you picked at once.  |
 
 ## Play-along

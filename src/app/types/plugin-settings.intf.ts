@@ -86,6 +86,8 @@ export interface DrillSettings {
     weakShare: number
     clearStreak: number
     fastSeconds: number
+    /** What fast is for ear training (#72). */
+    earFastSeconds: number
     guided: boolean
 }
 
@@ -94,6 +96,7 @@ export const DEFAULT_DRILLS: DrillSettings = {
     weakShare: 60,
     clearStreak: 3,
     fastSeconds: 2,
+    earFastSeconds: 4,
     guided: true
 }
 
@@ -206,6 +209,8 @@ export function settingsFrom(loaded: unknown): PluginSettings {
         dr.clearStreak = DEFAULT_DRILLS.clearStreak
     if (!Number.isFinite(dr.fastSeconds) || dr.fastSeconds < 0.5 || dr.fastSeconds > 10)
         dr.fastSeconds = DEFAULT_DRILLS.fastSeconds
+    if (!Number.isFinite(dr.earFastSeconds) || dr.earFastSeconds < 0.5 || dr.earFastSeconds > 20)
+        dr.earFastSeconds = DEFAULT_DRILLS.earFastSeconds
     if (typeof dr.guided !== 'boolean') dr.guided = DEFAULT_DRILLS.guided
     const preRoll = settings.playAlong.preRoll
     if (preRoll < 0 || preRoll > MAX_PRE_ROLL) settings.playAlong.preRoll = DEFAULT_PRE_ROLL

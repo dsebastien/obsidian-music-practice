@@ -39,7 +39,8 @@ import {
     type Answer,
     type DrillSetting,
     type SpotStat,
-    drillDefaults
+    drillDefaults,
+    rulesFor
 } from './note-drill'
 
 const fretboard = (over: Partial<Extract<DrillSetting, { kind: 'fretboard' }>> = {}) =>
@@ -604,5 +605,24 @@ describe('my pieces in solfège or German (music-notation #12)', () => {
             'Bb',
             'E'
         ])
+    })
+})
+
+describe('rulesFor', () => {
+    it('gives ear training its own fast time, and the other kinds the shared one', () => {
+        const rules = { ...DEFAULT_DRILL_RULES, fastSeconds: 2, earFastSeconds: 4 }
+        expect(rulesFor(rules, 'intervals-ear').fastSeconds).toBe(4)
+        expect(rulesFor(rules, 'degrees-ear').fastSeconds).toBe(4)
+        expect(rulesFor(rules, 'keyboard-ear').fastSeconds).toBe(2)
+        expect(rulesFor(rules, 'fretboard').fastSeconds).toBe(2)
+    })
+
+    it('counts a 3 s right answer toward clearing an interval, not a fretboard spot', () => {
+        const rules = { ...DEFAULT_DRILL_RULES, fastSeconds: 2, earFastSeconds: 4 }
+        const answer: Answer = { spot: 'P5 up', answer: 'P5', right: true, seconds: 3 }
+        const ear = mergeStats(new Map(), [answer], rulesFor(rules, 'intervals-ear'))
+        const seen = mergeStats(new Map(), [answer], rulesFor(rules, 'fretboard'))
+        expect(ear.get('P5 up')?.streak).toBe(1)
+        expect(seen.get('P5 up')?.streak).toBe(0)
     })
 })

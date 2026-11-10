@@ -42,6 +42,7 @@ import {
     drillTitle,
     isRight,
     mergeStats,
+    rulesFor,
     noteName,
     questions,
     scoreOf,
@@ -203,7 +204,10 @@ export class NoteDrillModal extends Modal {
             el.createEl('p', { cls: 'mp-muted', text: 'Your drills: start one again.' })
             const list = el.createDiv({ cls: 'mp-list' })
             for (const note of notes) {
-                const weak = weakSpots(this.deps.statsOf(note.path), this.deps.rules()).length
+                const weak = weakSpots(
+                    this.deps.statsOf(note.path),
+                    rulesFor(this.deps.rules(), note.setting.kind)
+                ).length
                 const row = list.createEl('button', { cls: 'mp-drill-pair' })
                 row.createSpan({ text: drillTitle(note.setting) })
                 row.createSpan({
@@ -607,7 +611,7 @@ export class NoteDrillModal extends Modal {
         const note = this.deps.noteFor(setting)
         this.list = questions(setting, {
             stats: note ? this.deps.statsOf(note.path) : new Map<string, SpotStat>(),
-            rules: this.deps.rules(),
+            rules: rulesFor(this.deps.rules(), setting.kind),
             random: Math.random,
             pool: this.pool
         })
@@ -1143,10 +1147,14 @@ export class NoteDrillModal extends Modal {
             })
         const note = this.deps.noteFor(this.setting)
         const before = note ? this.deps.statsOf(note.path) : new Map<string, SpotStat>()
-        const after = mergeStats(before, this.answers, this.deps.rules())
+        const after = mergeStats(
+            before,
+            this.answers,
+            rulesFor(this.deps.rules(), this.setting.kind)
+        )
         this.heatMap(el.createDiv({ cls: 'mp-note-drill-map' }), after)
         // Guided ear training: what the next drill adds, or what comes once these are known.
-        const rules = this.deps.rules()
+        const rules = rulesFor(this.deps.rules(), this.setting.kind)
         const s = this.setting
         if (isEarTraining(s) && rules.guided !== false) {
             const now = guidedItems(s, before, rules.clearStreak).length
@@ -1202,7 +1210,7 @@ export class NoteDrillModal extends Modal {
 
     /** The weak-spot map as a heat map: each spot colored by its right answers, slow ones marked. */
     private heatMap(el: HTMLElement, stats: Map<string, SpotStat>): void {
-        const rules = this.deps.rules()
+        const rules = rulesFor(this.deps.rules(), this.setting.kind)
         const naming = this.deps.naming()
         // Each cell says its numbers in text, not only in color (orange to blue, color-blind safe).
         const cell = (parent: HTMLElement, text: string, stat: SpotStat | undefined) => {

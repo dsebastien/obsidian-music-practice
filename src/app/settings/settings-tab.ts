@@ -319,7 +319,12 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                     this.num(
                         'drills.fastSeconds',
                         'Fast answer',
-                        'Seconds: a right answer faster than this counts toward clearing a weak spot (0.5 to 10).'
+                        'Seconds: a right answer faster than this counts toward clearing a weak spot (0.5 to 10). Ear training has its own, below.'
+                    ),
+                    this.num(
+                        'drills.earFastSeconds',
+                        'Fast answer, ear training',
+                        'Seconds, for intervals, chords, scales and degrees by ear: naming what you hear takes longer (0.5 to 20, 4 by default). It also decides when guided ear training adds the next item.'
                     ),
                     {
                         name: 'Guided ear training',
