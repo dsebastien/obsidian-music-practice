@@ -83,7 +83,7 @@
     },
     "dependencies": {
         "@coderline/alphatab": "1.8.4",
-        "@dsebastien/music-notation": "0.18.1",
+        "@dsebastien/music-notation": "0.19.0",
         "immer": "11.2.9",
         "zod": "4.6.7"
     },
