@@ -517,3 +517,114 @@ describe('NoteDrillService: drill notes stay private', () => {
         expect(plain.created[0]!.spec.properties).toBeUndefined()
     })
 })
+
+describe('NoteDrillService: ear training (#72) in Music Exercise notes', () => {
+    const music = (extra: string[] = [], allowed: Record<string, string[]> = {}): LearningType => ({
+        ...type('music', 'exercise', [...drillFields, fields.exerciseKind, ...extra]),
+        id: 'music-exercise',
+        name: 'Music Exercises',
+        typeTag: 'type/music/exercise',
+        subject: null,
+        allowedValues: allowed
+    })
+    const intervals: DrillSetting = {
+        kind: 'intervals-ear',
+        instrument: 'piano',
+        intervals: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        ways: ['up']
+    }
+    const heard: Answer[] = [
+        { spot: 'P8 up', answer: '', right: true, seconds: 1.1 },
+        { spot: 'M3 up', answer: '', right: false, seconds: 3 }
+    ]
+
+    it('keeps ear training drills in the Music Exercise type, with exercise_kind Ear training', async () => {
+        const { service, store, created } = setup({}, [
+            ...types,
+            music([fields.publicNote], {
+                [fields.exerciseKind]: ['Ear training', 'Rhythm', 'Sight-reading', 'Theory drill']
+            })
+        ])
+        const saved = await service.save(intervals, heard)
+        expect(created[0]!.type).toBe('music-exercise')
+        expect(created[0]!.spec.title).toBe('Intervals by ear, m2-P8, up, piano')
+        expect(created[0]!.spec.properties).toEqual({
+            public_note: false,
+            exercise_kind: 'Ear training'
+        })
+        const fm = store.get(saved.path)!.fm
+        expect(fm['drill_kind']).toBe('Intervals by ear')
+        expect(fm['drill_setting']).toBe('m2-P8, up, piano')
+        expect(fm['drill_stats']).toEqual(['M3 up: 0/1 3s', 'P8 up: 1/1 1.1s, 1 in a row'])
+        expect(fm['exercise_kind']).toBe('Ear training')
+    })
+
+    it("writes the type's own spelling of Ear training, and nothing when it has none", async () => {
+        const own = setup({}, [...types, music([], { [fields.exerciseKind]: ['ear TRAINING'] })])
+        const p = (await own.service.save(intervals, heard)).path
+        expect(own.store.get(p)!.fm['exercise_kind']).toBe('ear TRAINING')
+        const none = setup({}, [...types, music([], { [fields.exerciseKind]: ['Rhythm'] })])
+        const q = (await none.service.save(intervals, heard)).path
+        expect(none.store.get(q)!.fm['exercise_kind']).toBeUndefined()
+        expect(none.created[0]!.spec.properties).toBeUndefined()
+        // Without allowed values, the usual words; a value already there stays.
+        const free = setup(
+            {
+                'Intervals by ear, m2-P8, up, piano.md': {
+                    fm: {
+                        drill_kind: 'Intervals by ear',
+                        drill_setting: 'm2-P8, up, piano',
+                        exercise_kind: 'Theory drill'
+                    },
+                    item: { typeId: 'music-exercise' }
+                }
+            },
+            [...types, music()]
+        )
+        const r = (await free.service.save(intervals, heard)).path
+        expect(free.store.get(r)!.fm['exercise_kind']).toBe('Theory drill')
+    })
+
+    it('finds ear training notes in the Music Exercise type only, and other drills never there', () => {
+        const { service } = setup(
+            {
+                'Intervals by ear, m2-P8, up, piano.md': {
+                    fm: { drill_kind: 'Intervals by ear', drill_setting: 'm2-P8, up, piano' },
+                    item: { typeId: 'music-exercise' }
+                },
+                'Intervals (Guitar Exercise).md': {
+                    fm: { drill_kind: 'Intervals by ear', drill_setting: 'm2-P8, up, piano' },
+                    item: { typeId: 'guitar-exercise' }
+                },
+                'Frets (Music Exercise).md': {
+                    fm: { drill_kind: 'Fretboard notes', drill_setting: 'string 5, frets 0-5' },
+                    item: { typeId: 'music-exercise' }
+                }
+            },
+            [...types, music()]
+        )
+        expect(service.noteFor(intervals)?.path).toBe('Intervals by ear, m2-P8, up, piano.md')
+        expect(service.drillOf('Intervals by ear, m2-P8, up, piano.md')).toEqual(intervals)
+        expect(service.drillOf('Intervals (Guitar Exercise).md')).toBeNull()
+        expect(service.drillOf('Frets (Music Exercise).md')).toBeNull()
+        expect(service.noteFor({ ...intervals, instrument: 'guitar' })).toBeNull()
+        expect(service.drillNotes().map((n) => n.path)).toEqual([
+            'Intervals by ear, m2-P8, up, piano.md'
+        ])
+    })
+
+    it('says what is missing: the type, or a drill property', async () => {
+        const { service } = setup({})
+        expect(await failure(service.save(intervals, heard))).toBe(
+            'This vault has no music exercise note type to keep ear training drills in.'
+        )
+        const lacking = {
+            ...music(),
+            fields: new Set(['mastery', fields.drillKind, fields.drillSetting])
+        }
+        const second = setup({}, [...types, lacking])
+        expect(await failure(second.service.save(intervals, heard))).toBe(
+            'The music exercise type has no "drill_stats" property: add it to keep drill results.'
+        )
+    })
+})

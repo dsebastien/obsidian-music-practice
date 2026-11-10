@@ -18,6 +18,8 @@ import {
     drillFileTitle,
     formatStat,
     inFamily,
+    isEarTraining,
+    isEarTrainingKind,
     kindOfLabel,
     libraryChords,
     libraryScales,
@@ -87,6 +89,9 @@ export interface SavedDrill {
     review: ReviewResult
 }
 
+/** The words a Music Exercise's `exercise_kind` takes for ear training drill notes. */
+const EAR_TRAINING = 'Ear training'
+
 const instrumentOf = (setting: DrillSetting): DrillInstrument =>
     setting.kind === 'keyboard' || setting.kind === 'keyboard-ear'
         ? 'piano'
@@ -113,6 +118,26 @@ export class NoteDrillService {
         return this.typeOf(instrument, 'exercise')
     }
 
+    /**
+     * The instrument-agnostic Music Exercise type (`type/music/exercise`), which keeps ear training
+     * drill notes (#72); null when the vault has none.
+     */
+    musicExerciseType(): LearningType | null {
+        const types = this.deps.model().learningTypes
+        return (
+            types.find((t) => t.typeTag === 'type/music/exercise') ??
+            types.find((t) => t.kind === 'exercise' && t.subject === null) ??
+            null
+        )
+    }
+
+    /** The type that keeps a drill's notes: Music Exercise for ear training, else the instrument's exercise. */
+    private drillType(setting: DrillSetting): LearningType | null {
+        return isEarTraining(setting)
+            ? this.musicExerciseType()
+            : this.exerciseType(instrumentOf(setting))
+    }
+
     private frontmatter(path: string): Record<string, unknown> {
         const file = this.host.vault.getFileByPath(path)
         return (file && this.host.metadataCache.getFileCache(file)?.frontmatter) || {}
@@ -128,17 +153,18 @@ export class NoteDrillService {
     private settingOf(item: LearningItem): DrillSetting | null {
         const path = item.path
         const type = this.deps.model().learningTypes.find((t) => t.id === item.typeId)
-        if (
-            !type ||
-            type.kind !== 'exercise' ||
-            (type.subject !== 'guitar' && type.subject !== 'piano')
-        )
-            return null
+        if (!type || type.kind !== 'exercise') return null
+        const instrument =
+            type.subject === 'guitar' || type.subject === 'piano' ? type.subject : null
+        const music = type.id === this.musicExerciseType()?.id
+        if (!instrument && !music) return null
         const { drillKind, drillSetting } = this.deps.fields()
         const fm = this.frontmatter(path)
         const kind = kindOfLabel(fm[drillKind])
         const words = fm[drillSetting]
-        return kind && typeof words === 'string' ? parseSetting(kind, words, type.subject) : null
+        // Ear training lives in Music Exercise notes, the other drills in an instrument's exercises.
+        if (!kind || typeof words !== 'string' || isEarTrainingKind(kind) !== music) return null
+        return parseSetting(kind, words, instrument ?? 'guitar')
     }
 
     /**
@@ -165,7 +191,7 @@ export class NoteDrillService {
      */
     noteFor(setting: DrillSetting): DrillNote | null {
         const words = settingWords(setting)
-        const type = this.exerciseType(instrumentOf(setting))
+        const type = this.drillType(setting)
         const asked = (path: string) =>
             [...this.statsOf(path).stats.values()].reduce((n, s) => n + s.asked, 0)
         const matches = this.drillNotes().filter(
@@ -356,16 +382,31 @@ export class NoteDrillService {
      * setting, the merged weak-spot map and the review from the score, in one write.
      */
     async save(setting: DrillSetting, answers: Answer[]): Promise<SavedDrill> {
+        const ear = isEarTraining(setting)
         const instrument = instrumentOf(setting)
-        const type = this.exerciseType(instrument)
+        const type = this.drillType(setting)
+        const typeWords = ear ? 'music exercise' : `${instrument} exercise`
         if (!type)
-            throw new Error(`This vault has no ${instrument} exercise note type to keep drills in.`)
+            throw new Error(
+                ear
+                    ? 'This vault has no music exercise note type to keep ear training drills in.'
+                    : `This vault has no ${instrument} exercise note type to keep drills in.`
+            )
         const f = this.deps.fields()
         for (const field of [f.drillKind, f.drillSetting, f.drillStats])
             if (!type.fields.has(field))
                 throw new Error(
-                    `The ${instrument} exercise type has no "${field}" property: add it to keep drill results.`
+                    `The ${typeWords} type has no "${field}" property: add it to keep drill results.`
                 )
+        // Ear training notes say so in `exercise_kind`, with the type's own value when it lists them.
+        const allowed = type.allowedValues[f.exerciseKind]
+        const exerciseKind =
+            ear && type.fields.has(f.exerciseKind)
+                ? allowed?.length
+                    ? (allowed.find((v) => v.trim().toLowerCase() === EAR_TRAINING.toLowerCase()) ??
+                      null)
+                    : EAR_TRAINING
+                : null
         const rules = this.deps.rules()
         let path = this.noteFor(setting)?.path ?? null
         let file = path ? this.host.vault.getFileByPath(path) : null
@@ -381,8 +422,15 @@ export class NoteDrillService {
                     title,
                     level: rules.levels.learning,
                     // A drill note is private: publishing is the user's choice, never the template's.
-                    ...(type.fields.has(f.publicNote)
-                        ? { properties: { [f.publicNote]: false } }
+                    ...(type.fields.has(f.publicNote) || exerciseKind
+                        ? {
+                              properties: {
+                                  ...(type.fields.has(f.publicNote)
+                                      ? { [f.publicNote]: false }
+                                      : {}),
+                                  ...(exerciseKind ? { [f.exerciseKind]: exerciseKind } : {})
+                              }
+                          }
                         : {})
                 }))
             path = file.path
@@ -395,6 +443,10 @@ export class NoteDrillService {
             const { stats, other } = parseStats(fm[f.drillStats])
             const merged = mergeStats(stats, answers, this.deps.drillRules())
             fm[f.drillKind] = KIND_LABELS[setting.kind]
+            // A kind already written (by hand, or a template's) stays.
+            const kindNow: unknown = fm[f.exerciseKind]
+            if (exerciseKind && (kindNow === undefined || kindNow === null || kindNow === ''))
+                fm[f.exerciseKind] = exerciseKind
             fm[f.drillSetting] = settingWords(setting)
             fm[f.drillStats] = [
                 ...[...merged.values()]

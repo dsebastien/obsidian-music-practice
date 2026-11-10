@@ -28,6 +28,8 @@ export interface PracticePanelDeps {
     drill: () => void
     /** Note, chord and scale drills (#73). */
     noteDrill: () => void
+    /** Ear training (#72): the drill's setup on Intervals by ear. */
+    earTraining: () => void
     metronome: Metronome
     /** A learning note's time signature, as the metronome counts it (#77). */
     meterOf?: (path: string) => ItemMeter | null
@@ -98,6 +100,12 @@ export class PracticePanelView extends ItemView {
                         .setTitle('Notes, chords and scales')
                         .setIcon('target')
                         .onClick(() => this.deps.noteDrill())
+                )
+                menu.addItem((item) =>
+                    item
+                        .setTitle('Ear training')
+                        .setIcon('ear')
+                        .onClick(() => this.deps.earTraining())
                 )
                 // From the keyboard (no pointer), under the button, not at the window's corner.
                 if (event.detail === 0) {

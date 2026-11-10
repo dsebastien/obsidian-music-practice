@@ -31,6 +31,8 @@ export interface FieldNames {
     drillKind: string
     drillSetting: string
     drillStats: string
+    /** Music exercises: what kind of exercise; ear training drill notes (#72) get Ear training. */
+    exerciseKind: string
     /** Learning notes: whether the note is published; new drill notes are private (`false`). */
     publicNote: string
     /** Pieces: where they come from (links); imported score files are added here (#19). */
@@ -99,6 +101,7 @@ export function createDefaultFieldNames(): FieldNames {
         drillKind: 'drill_kind',
         drillSetting: 'drill_setting',
         drillStats: 'drill_stats',
+        exerciseKind: 'exercise_kind',
         publicNote: 'public_note',
         sources: 'sources',
         timeSignature: 'time_signature',

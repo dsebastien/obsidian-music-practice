@@ -183,18 +183,36 @@ describe('settingsFrom: note drills (#73)', () => {
             'drill_setting',
             'drill_stats'
         ])
-        expect(s.drills).toEqual({ questions: 20, weakShare: 60, clearStreak: 3, fastSeconds: 2 })
+        expect(s.drills).toEqual({
+            questions: 20,
+            weakShare: 60,
+            clearStreak: 3,
+            fastSeconds: 2,
+            guided: true
+        })
     })
     it('keeps stored values in range, and drops the others', () => {
         expect(
             settingsFrom({
-                drills: { questions: 10, weakShare: 0, clearStreak: 5, fastSeconds: 1.5 }
+                drills: {
+                    questions: 10,
+                    weakShare: 0,
+                    clearStreak: 5,
+                    fastSeconds: 1.5,
+                    guided: false
+                }
             }).drills
-        ).toEqual({ questions: 10, weakShare: 0, clearStreak: 5, fastSeconds: 1.5 })
+        ).toEqual({ questions: 10, weakShare: 0, clearStreak: 5, fastSeconds: 1.5, guided: false })
         expect(
             settingsFrom({
-                drills: { questions: 0, weakShare: 101, clearStreak: 0.5, fastSeconds: 0 }
+                drills: {
+                    questions: 0,
+                    weakShare: 101,
+                    clearStreak: 0.5,
+                    fastSeconds: 0,
+                    guided: 'yes'
+                }
             }).drills
-        ).toEqual({ questions: 20, weakShare: 60, clearStreak: 3, fastSeconds: 2 })
+        ).toEqual({ questions: 20, weakShare: 60, clearStreak: 3, fastSeconds: 2, guided: true })
     })
 })

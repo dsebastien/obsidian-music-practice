@@ -80,19 +80,21 @@ export interface PluginSettings {
  * nested arrays and objects as new values, never by spreading DEFAULT_SETTINGS.
  */
 /** Note drills (#73): questions per drill, the weak spots' share (percent), the streak of fast right
- * answers that clears a weak spot and what fast is (seconds). */
+ * answers that clears a weak spot and what fast is (seconds); ear training's guided set (#72). */
 export interface DrillSettings {
     questions: number
     weakShare: number
     clearStreak: number
     fastSeconds: number
+    guided: boolean
 }
 
 export const DEFAULT_DRILLS: DrillSettings = {
     questions: 20,
     weakShare: 60,
     clearStreak: 3,
-    fastSeconds: 2
+    fastSeconds: 2,
+    guided: true
 }
 
 export function createDefaultSettings(): PluginSettings {
@@ -203,6 +205,7 @@ export function settingsFrom(loaded: unknown): PluginSettings {
         dr.clearStreak = DEFAULT_DRILLS.clearStreak
     if (!Number.isFinite(dr.fastSeconds) || dr.fastSeconds < 0.5 || dr.fastSeconds > 10)
         dr.fastSeconds = DEFAULT_DRILLS.fastSeconds
+    if (typeof dr.guided !== 'boolean') dr.guided = DEFAULT_DRILLS.guided
     const preRoll = settings.playAlong.preRoll
     if (preRoll < 0 || preRoll > MAX_PRE_ROLL) settings.playAlong.preRoll = DEFAULT_PRE_ROLL
     // A pause from before the start, or in the future, or negative paused time: count no pause.

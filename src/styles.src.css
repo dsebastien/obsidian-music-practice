@@ -645,6 +645,15 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* Ear training (#72): the intervals, chords, scales to ask, on as many lines as they need. */
+.mp-note-drill-string-row.mp-note-drill-toggles {
+    @apply flex-wrap;
+}
+
+.mp-note-drill-toggles .mp-note-drill-string {
+    min-width: 3em;
+}
+
 .mp-note-drill-string[aria-pressed='true'] {
     color: var(--text-on-accent);
     background: var(--interactive-accent);

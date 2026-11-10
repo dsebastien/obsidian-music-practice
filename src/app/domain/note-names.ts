@@ -56,11 +56,14 @@ export function promptShown(q: Question, naming: Naming): string {
 /** The right answer, as the feedback says it ("It was Do."). */
 export function expectedShown(q: Question, naming: Naming): string {
     if ('note' in q) return noteShown(q.note, naming)
+    // Ear training names no note: an interval, a quality, a scale type or a degree.
+    if (q.type === 'hear-name') return q.answer
     return q.type === 'name-chord' ? chordShown(q.spot, naming) : scaleShown(q.spot, naming)
 }
 
 /** A choice of a chord or scale question. */
 export function choiceShown(q: Question, choice: string, naming: Naming): string {
+    if (q.type === 'hear-name') return choice
     return q.type === 'name-chord' ? chordShown(choice, naming) : scaleShown(choice, naming)
 }
 

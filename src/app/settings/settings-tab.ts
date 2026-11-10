@@ -311,7 +311,12 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         'drills.fastSeconds',
                         'Fast answer',
                         'Seconds: a right answer faster than this counts toward clearing a weak spot (0.5 to 10).'
-                    )
+                    ),
+                    {
+                        name: 'Guided ear training',
+                        desc: 'Ear training drills start with two intervals, chords, scales or degrees, and add the next one once you know them all (each spot cleared, as above). Off: every one you picked from the start.',
+                        control: { type: 'toggle', key: 'drills.guided' }
+                    }
                 ]
             },
             {
@@ -598,6 +603,11 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                                 'fields.drillStats',
                                 'Drill weak spots',
                                 'Note drills: the weak-spot map ("s5f3 C: 7/9 1.8s").'
+                            ),
+                            this.text(
+                                'fields.exerciseKind',
+                                'Exercise kind',
+                                'Music exercises: what kind of exercise. Ear training drill notes get Ear training.'
                             ),
                             this.text('fields.scaleRoot', 'Scale root', 'Scales: "A".'),
                             this.text(

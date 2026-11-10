@@ -58,8 +58,23 @@ import {
     afterHear,
     spotsOf,
     isEarKind,
+    isEarTraining,
     referenceOf
 } from '../domain/note-drill'
+import {
+    CHORD_QUALITIES,
+    EAR_KEYS,
+    EAR_SCALES,
+    INTERVALS,
+    guidedItems,
+    intervalName,
+    intervalWords,
+    nextGuidedItem,
+    type ChordStyle,
+    type EarQuestion,
+    type EarTrainingSetting,
+    type IntervalWay
+} from '../domain/ear-training'
 import type { DrillNote, SavedDrill } from '../services/note-drill.service'
 import { choiceShown, expectedShown, noteShown, promptShown, spotShown } from '../domain/note-names'
 
@@ -117,12 +132,18 @@ export class NoteDrillModal extends Modal {
     constructor(
         app: App,
         private readonly deps: NoteDrillDeps,
-        start: DrillSetting | null = null
+        start: DrillSetting | null = null,
+        /** The kind the setup shows first, without a setting to start (Ear training: intervals). */
+        kind: DrillKind = 'fretboard'
     ) {
         super(app)
-        this.setting = structuredClone(start ?? drillDefaults('fretboard', this.narrow()))
+        this.setting = structuredClone(start ?? drillDefaults(kind, this.narrow()))
         this.startNow = start !== null
+        this.earTraining = isEarTraining(this.setting)
     }
+
+    /** Opened for ear training: its title says so. */
+    private readonly earTraining: boolean
 
     private readonly startNow: boolean
     /** Counts the drills started: a pool that resolves after another start, or after close, is dropped. */
@@ -130,7 +151,7 @@ export class NoteDrillModal extends Modal {
     private closed = false
 
     override onOpen(): void {
-        this.setTitle('Drill notes, chords or scales')
+        this.setTitle(this.earTraining ? 'Ear training' : 'Drill notes, chords or scales')
         this.contentEl.addClass('mp-modal', 'mp-note-drill')
         // R plays the note of a drill by ear again.
         this.scope.register([], 'r', () => {
@@ -255,6 +276,8 @@ export class NoteDrillModal extends Modal {
             )
             this.keyField(form, 'Highest key', s.keys[1], (p) => (s.keys = [s.keys[0], p]))
             if (s.kind === 'keyboard-ear') this.earOptions(form, s)
+        } else if (isEarTraining(s)) {
+            this.earTrainingSetup(form, s)
         } else {
             this.instrument(form, s)
             const source = this.select(
@@ -298,6 +321,19 @@ export class NoteDrillModal extends Modal {
                 this.setting.keys[0] >= this.setting.keys[1]
             ) {
                 new Notice('The lowest key must be below the highest key.')
+                return
+            }
+            // Ear training needs at least one way (up, down, together) or style (block, arpeggio).
+            const ear = this.setting
+            if (
+                (ear.kind === 'intervals-ear' && !ear.ways.length) ||
+                (ear.kind === 'chords-ear' && !ear.styles.length)
+            ) {
+                new Notice(
+                    ear.kind === 'chords-ear'
+                        ? 'Pick how the chords sound: block, arpeggio or both.'
+                        : 'Pick how the intervals sound: going up, going down or together.'
+                )
                 return
             }
             void this.begin()
@@ -355,24 +391,167 @@ export class NoteDrillModal extends Modal {
         return field
     }
 
+    /** Toggle buttons on a whole row, pressed or not; at least `min` stay pressed. */
+    private toggles(
+        parent: HTMLElement,
+        label: string,
+        options: { value: string; text: string; name?: string }[],
+        chosen: string[],
+        set: (values: string[]) => void,
+        min: number
+    ): void {
+        const field = parent.createDiv({
+            cls: 'mp-field mp-note-drill-strings mp-note-drill-row-start'
+        })
+        field.createSpan({ text: label })
+        const row = field.createDiv({
+            cls: 'mp-note-drill-string-row mp-note-drill-toggles',
+            attr: { 'role': 'group', 'aria-label': label }
+        })
+        const on = new Set(chosen)
+        for (const option of options) {
+            const button = row.createEl('button', {
+                cls: 'mp-note-drill-string',
+                text: option.text,
+                attr: {
+                    'aria-pressed': String(on.has(option.value)),
+                    ...(option.name ? { 'aria-label': option.name } : {})
+                }
+            })
+            button.addEventListener('click', () => {
+                if (on.has(option.value)) {
+                    if (on.size <= min) return
+                    on.delete(option.value)
+                } else on.add(option.value)
+                button.setAttr('aria-pressed', String(on.has(option.value)))
+                set(options.map((o) => o.value).filter((v) => on.has(v)))
+            })
+        }
+    }
+
+    /** A check box before its words. */
+    private check(
+        parent: HTMLElement,
+        label: string,
+        value: boolean,
+        set: (on: boolean) => void,
+        first = false
+    ): void {
+        const field = parent.createEl('label', {
+            cls: `mp-field mp-note-drill-check${first ? ' mp-note-drill-row-start' : ''}`
+        })
+        const box = field.createEl('input', { type: 'checkbox' })
+        box.checked = value
+        field.appendText(` ${label}`)
+        box.addEventListener('change', () => set(box.checked))
+    }
+
+    /** Ear training (#72): the sound, then what to ask and how it sounds. */
+    private earTrainingSetup(form: HTMLElement, s: EarTrainingSetting): void {
+        const sound = this.select(
+            form,
+            'Sound',
+            [
+                ['piano', 'Piano'],
+                ['guitar', 'Guitar']
+            ],
+            s.instrument
+        )
+        sound.addEventListener('change', () => (s.instrument = sound.value as DrillInstrument))
+        // Several ways or styles: each question picks one of them.
+        const ways = (
+            values: readonly string[],
+            chosen: readonly string[],
+            labels: Record<string, string>,
+            set: (v: string[]) => void
+        ) =>
+            values.forEach((v, i) =>
+                this.check(
+                    form,
+                    labels[v]!,
+                    chosen.includes(v),
+                    (on) => {
+                        const next = new Set(chosen)
+                        if (on) next.add(v)
+                        else next.delete(v)
+                        chosen = values.filter((x) => next.has(x))
+                        set([...chosen])
+                    },
+                    i === 0
+                )
+            )
+        switch (s.kind) {
+            case 'intervals-ear':
+                this.toggles(
+                    form,
+                    'Intervals',
+                    INTERVALS.map((n) => ({
+                        value: String(n),
+                        text: intervalName(n),
+                        name: intervalWords(n)
+                    })),
+                    s.intervals.map(String),
+                    (v) => (s.intervals = v.map(Number)),
+                    2
+                )
+                ways(
+                    ['up', 'down', 'together'],
+                    s.ways,
+                    { up: 'Going up', down: 'Going down', together: 'Together (harmonic)' },
+                    (v) => (s.ways = v as IntervalWay[])
+                )
+                return
+            case 'chords-ear':
+                this.toggles(
+                    form,
+                    'Chords',
+                    CHORD_QUALITIES.map((q) => ({ value: q.name, text: q.name })),
+                    s.qualities,
+                    (v) => (s.qualities = v),
+                    2
+                )
+                ways(
+                    ['block', 'arpeggio'],
+                    s.styles,
+                    { block: 'Block (all at once)', arpeggio: 'Arpeggio (one by one)' },
+                    (v) => (s.styles = v as ChordStyle[])
+                )
+                return
+            case 'scales-ear':
+                this.toggles(
+                    form,
+                    'Scales and modes',
+                    EAR_SCALES.map((x) => ({ value: x.name, text: x.name })),
+                    s.scales,
+                    (v) => (s.scales = v),
+                    2
+                )
+                return
+            case 'degrees-ear': {
+                const naming = this.deps.naming()
+                const key = this.select(
+                    form,
+                    'Key',
+                    [['', 'Any key'], ...EAR_KEYS.map((k) => [k, `${noteShown(k, naming)} major`])],
+                    s.key ?? ''
+                )
+                key.addEventListener('change', () => (s.key = key.value || null))
+                this.check(
+                    form,
+                    'Chromatic degrees (b2, b3, #4, b6, b7)',
+                    s.chromatic,
+                    (on) => (s.chromatic = on),
+                    true
+                )
+                return
+            }
+        }
+    }
+
     /** A drill by ear's two options: the exact octave, and a reference note first. */
     private earOptions(parent: HTMLElement, s: { exact: boolean; reference: boolean }): void {
-        const toggle = (
-            label: string,
-            value: boolean,
-            set: (on: boolean) => void,
-            first = false
-        ) => {
-            const field = parent.createEl('label', {
-                cls: `mp-field mp-note-drill-check${first ? ' mp-note-drill-row-start' : ''}`
-            })
-            const box = field.createEl('input', { type: 'checkbox' })
-            box.checked = value
-            field.appendText(` ${label}`)
-            box.addEventListener('change', () => set(box.checked))
-        }
-        toggle('Exact octave', s.exact, (on) => (s.exact = on), true)
-        toggle('Reference note first', s.reference, (on) => (s.reference = on))
+        this.check(parent, 'Exact octave', s.exact, (on) => (s.exact = on), true)
+        this.check(parent, 'Reference note first', s.reference, (on) => (s.reference = on))
     }
 
     private ask(parent: HTMLElement, s: { ask: DrillAsk }): void {
@@ -490,6 +669,37 @@ export class NoteDrillModal extends Modal {
     }
 
     /**
+     * Plays notes on the play options' player (the light player without one). `startAt` (seconds
+     * into the notes) sets when the answer time starts: from the moment the notes start sounding,
+     * as the player reports it, else from the play call; null for a replay, which keeps the time.
+     */
+    private sound(events: NoteEvent[], sound: 'guitar' | 'piano', startAt: number | null): void {
+        const play = this.deps.play()
+        if (!play) return
+        this.hearing?.stop()
+        const win = this.contentEl.win
+        const given = typeof play.player === 'function' ? play.player(win) : play.player
+        const player: NotePlayer = given ?? lightPlayer(win)
+        const raw: unknown = typeof play.volume === 'function' ? play.volume() : play.volume
+        const volume =
+            typeof raw === 'number' && Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : 0.8
+        if (startAt !== null) this.started = performance.now() + startAt * 1000
+        const question = this.index
+        try {
+            this.hearing = player.play(events, {
+                sound,
+                volume,
+                onStart: () => {
+                    if (startAt !== null && !this.answered && this.index === question)
+                        this.started = performance.now() + startAt * 1000
+                }
+            })
+        } catch {
+            // A player that fails leaves the question as it is: Play again tries again.
+        }
+    }
+
+    /**
      * Plays a drill by ear's note (after its reference when `lead` is a pitch), on the play options'
      * player. The first play of a question sets when the answer time starts: the moment the note
      * sounds, as the player reports it, else the play call plus the reference.
@@ -499,34 +709,12 @@ export class NoteDrillModal extends Modal {
         lead: number | null,
         first: boolean
     ): void {
-        const play = this.deps.play()
-        if (!play) return
-        this.hearing?.stop()
-        const win = this.contentEl.win
-        const given = typeof play.player === 'function' ? play.player(win) : play.player
-        const player: NotePlayer = given ?? lightPlayer(win)
         const offset = lead === null ? 0 : REFERENCE_GAP
         const events: NoteEvent[] = [
             ...(lead === null ? [] : [{ midi: lead, time: 0, duration: 1 }]),
             { midi: q.pitch, time: offset, duration: 1.5 }
         ]
-        const raw: unknown = typeof play.volume === 'function' ? play.volume() : play.volume
-        const volume =
-            typeof raw === 'number' && Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : 0.8
-        if (first) this.started = performance.now() + offset * 1000
-        const question = this.index
-        try {
-            this.hearing = player.play(events, {
-                sound: q.type === 'hear-key' ? 'piano' : 'guitar',
-                volume,
-                onStart: () => {
-                    if (first && !this.answered && this.index === question)
-                        this.started = performance.now() + offset * 1000
-                }
-            })
-        } catch {
-            // A player that fails leaves the question as it is: Play again tries again.
-        }
+        this.sound(events, q.type === 'hear-key' ? 'piano' : 'guitar', first ? offset : null)
     }
 
     /** Records the answer, says right or wrong, and shows Next. */
@@ -599,11 +787,17 @@ export class NoteDrillModal extends Modal {
         texts: string[],
         right: (text: string) => boolean,
         onPick: (text: string) => void,
-        label: (text: string) => string
-    ): void {
+        label: (text: string) => string,
+        name?: (text: string) => string
+    ): HTMLButtonElement[] {
         const row = parent.createDiv({ cls })
         // Each button shows its answer in the naming; answers are compared in letters.
-        const buttons = texts.map((t) => row.createEl('button', { text: label(t) }))
+        const buttons = texts.map((t) =>
+            row.createEl('button', {
+                text: label(t),
+                ...(name ? { attr: { 'aria-label': name(t) } } : {})
+            })
+        )
         buttons.forEach((button, i) =>
             button.addEventListener('click', () => {
                 if (this.answered) return
@@ -615,6 +809,61 @@ export class NoteDrillModal extends Modal {
                 }
             })
         )
+        return buttons
+    }
+
+    /**
+     * An ear training question (#72): its sound plays, Play again (R) plays it again (a degree's
+     * note only), Key plays a degree's cadence and note, Show me gives the answer (a miss).
+     */
+    private earTrainingQuestion(
+        q: EarQuestion,
+        answer: HTMLElement,
+        feedback: HTMLElement,
+        actions: HTMLElement
+    ): void {
+        const s = this.setting
+        const sound = isEarTraining(s) ? s.instrument : 'piano'
+        const tools = answer.createDiv({ cls: 'mp-note-drill-hear' })
+        const replay = () => this.sound(q.again, sound, null)
+        tools
+            .createEl('button', { text: 'Play again', attr: { 'aria-keyshortcuts': 'R' } })
+            .addEventListener('click', replay)
+        if (q.kind === 'degrees-ear')
+            tools
+                .createEl('button', { text: 'Key' })
+                .addEventListener('click', () => this.sound(q.sound, sound, null))
+        const show = tools.createEl('button', { text: 'Show me' })
+        this.replay = replay
+        const intervals = q.kind === 'intervals-ear'
+        const buttons = this.answerButtons(
+            answer,
+            'mp-note-drill-choices',
+            q.choices,
+            (c) => c === q.answer,
+            (choice) => {
+                if (this.answered) return
+                show.disabled = true
+                this.finish(q, isRight(q, { choice }), feedback, actions)
+            },
+            (c) => c,
+            intervals
+                ? (c) => intervalWords(INTERVALS.find((n) => intervalName(n) === c) ?? 0) || c
+                : undefined
+        )
+        show.addEventListener('click', () => {
+            if (this.answered) return
+            show.disabled = true
+            for (const [i, b] of buttons.entries()) {
+                b.disabled = true
+                if (q.choices[i] === q.answer) b.addClass('mp-note-drill-is-right')
+            }
+            // Shown is not known: it counts as a miss, and the map brings it back sooner.
+            this.finish(q, false, feedback, actions, `It was ${q.answer}.`)
+            this.sound(q.sound, sound, null)
+        })
+        this.sound(q.sound, sound, q.last)
+        buttons[0]?.focus()
     }
 
     private noteButtons(parent: HTMLElement, q: Question, onPick: (note: string) => void): void {
@@ -770,6 +1019,9 @@ export class NoteDrillModal extends Modal {
                 this.layer?.focus()
                 return
             }
+            case 'hear-name':
+                this.earTrainingQuestion(q, answer, feedback, actions)
+                return
             case 'name-key': {
                 const range = s.kind === 'keyboard' ? s.keys : ([48, 71] as [number, number])
                 drawing.appendChild(keyboard(range, listNoteSet(keyName(q.pitch))!))
@@ -886,6 +1138,21 @@ export class NoteDrillModal extends Modal {
         const before = note ? this.deps.statsOf(note.path) : new Map<string, SpotStat>()
         const after = mergeStats(before, this.answers, this.deps.rules())
         this.heatMap(el.createDiv({ cls: 'mp-note-drill-map' }), after)
+        // Guided ear training: what the next drill adds, or what comes once these are known.
+        const rules = this.deps.rules()
+        const s = this.setting
+        if (isEarTraining(s) && rules.guided !== false) {
+            const now = guidedItems(s, before, rules.clearStreak).length
+            const next = guidedItems(s, after, rules.clearStreak)
+            const coming = nextGuidedItem(s, after, rules.clearStreak)
+            const text =
+                next.length > now
+                    ? `Save it, and the next drill adds ${next.at(-1)}.`
+                    : coming
+                      ? `Next to come: ${coming}, once you know these.`
+                      : null
+            if (text) el.createDiv({ cls: 'mp-muted', text })
+        }
         const actions = el.createDiv({ cls: 'mp-actions' })
         const save = actions.createEl('button', { cls: 'mod-cta', text: 'Save' })
         actions

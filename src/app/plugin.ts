@@ -105,7 +105,7 @@ import { DrillModal } from './ui/drill-modal'
 import { DrillService } from './services/drill.service'
 import { NoteDrillService } from './services/note-drill.service'
 import { NoteDrillModal } from './ui/note-drill-modal'
-import { pianoKeys, type DrillSetting } from './domain/note-drill'
+import { pianoKeys, type DrillKind, type DrillSetting } from './domain/note-drill'
 import { VoicingNotesService } from './services/voicing-notes.service'
 import { VoicingsModal } from './ui/voicings-modal'
 import { TriadsModal } from './ui/triads-modal'
@@ -1303,6 +1303,11 @@ export class MusicPracticePlugin extends Plugin {
             callback: () => this.openNoteDrill()
         })
         this.addCommand({
+            id: 'ear-training',
+            name: 'Ear training: intervals, chords, scales and degrees',
+            callback: () => this.openNoteDrill(null, 'intervals-ear')
+        })
+        this.addCommand({
             id: 'note-drill-current',
             name: 'Drill notes, chords or scales for the current note',
             checkCallback: (checking) => {
@@ -1560,6 +1565,7 @@ export class MusicPracticePlugin extends Plugin {
             planIntoPanel: () => this.openPlan(),
             drill: () => this.openDrill(),
             noteDrill: () => this.openNoteDrill(),
+            earTraining: () => this.openNoteDrill(null, 'intervals-ear'),
             metronome: this.metronome,
             metronomeDeps: () => this.metronomeDeps(),
             meterOf: (path) => {
@@ -1609,8 +1615,11 @@ export class MusicPracticePlugin extends Plugin {
         ).open()
     }
 
-    /** A note, chord or scale drill (#73): from its setting form, or on a given setting. */
-    openNoteDrill(setting: DrillSetting | null = null): void {
+    /**
+     * A note, chord or scale drill (#73), or ear training (#72): from its setting form (on `kind`),
+     * or on a given setting.
+     */
+    openNoteDrill(setting: DrillSetting | null = null, kind?: DrillKind): void {
         const fields = this.effective().fields
         const fm = (path: string | null) => {
             const file = path ? this.app.vault.getFileByPath(path) : null
@@ -1669,7 +1678,8 @@ export class MusicPracticePlugin extends Plugin {
                 },
                 log: (path, note) => this.openLogPractice({ paths: [path], note })
             },
-            setting
+            setting,
+            kind
         ).open()
     }
 

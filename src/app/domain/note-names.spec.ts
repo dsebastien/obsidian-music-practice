@@ -121,6 +121,24 @@ describe('expectedShown, choiceShown and spotShown', () => {
         expect(choiceShown(chord, 'Dm7', 'letters')).toBe('Dm7')
     })
 
+    it('keeps ear training answers as they are: no note in them', () => {
+        const q: Question = {
+            type: 'hear-name',
+            kind: 'intervals-ear',
+            spot: 'M3 up',
+            prompt: '',
+            answer: 'M3',
+            choices: ['M3', 'P8'],
+            sound: [],
+            again: [],
+            last: 0
+        }
+        expect(expectedShown(q, 'solfege')).toBe('M3')
+        expect(choiceShown(q, 'P8', 'german')).toBe('P8')
+        expect(spotShown('degrees-ear', 'b3', 'solfege')).toBe('b3')
+        expect(spotShown('scales-ear', 'major', 'german')).toBe('major')
+    })
+
     it('shows the spots of the weak-spot map by the drill kind', () => {
         expect(spotShown('keyboard', 'F#4', 'solfege')).toBe('Fa♯4')
         expect(spotShown('chords', 'B7', 'german')).toBe('H7')

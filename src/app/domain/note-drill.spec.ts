@@ -53,7 +53,11 @@ describe('drill kinds and settings', () => {
             'chords': 'Chord names',
             'scales': 'Scale shapes',
             'fretboard-ear': 'Fretboard by ear',
-            'keyboard-ear': 'Keyboard by ear'
+            'keyboard-ear': 'Keyboard by ear',
+            'intervals-ear': 'Intervals by ear',
+            'chords-ear': 'Chords by ear',
+            'scales-ear': 'Scales by ear',
+            'degrees-ear': 'Degrees by ear'
         })
         expect(kindOfLabel('Fretboard notes')).toBe('fretboard')
         expect(kindOfLabel(' scale shapes ')).toBe('scales')

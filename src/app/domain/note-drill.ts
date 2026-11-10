@@ -14,9 +14,30 @@ import {
 import { progressionOf } from './progression'
 import { progressionFences } from './backing'
 import type { ReviewResult } from './review'
+import {
+    earChoices,
+    earDefaults,
+    earItems,
+    earQuestion,
+    earSpots,
+    earWords,
+    guidedItems,
+    isEarTrainingKind,
+    parseEarSetting,
+    type EarQuestion,
+    type EarTrainingKind,
+    type EarTrainingSetting
+} from './ear-training'
 
 export type DrillKind =
-    'fretboard' | 'keyboard' | 'chords' | 'scales' | 'fretboard-ear' | 'keyboard-ear'
+    | 'fretboard'
+    | 'keyboard'
+    | 'chords'
+    | 'scales'
+    | 'fretboard-ear'
+    | 'keyboard-ear'
+    // Ear training (#72): name an interval, a chord, a scale or a degree you hear.
+    | EarTrainingKind
 export type DrillAsk = 'find' | 'name' | 'both'
 /** Where the chords or scales come from (decision 10). */
 export type DrillSource = 'notes' | 'pieces' | 'focus' | 'library'
@@ -37,10 +58,17 @@ export type DrillSetting =
           reference: boolean
       }
     | { kind: 'keyboard-ear'; keys: [number, number]; exact: boolean; reference: boolean }
+    | EarTrainingSetting
 
-/** The drill kinds that play a note to find (#91). */
-export const isEarKind = (kind: DrillKind): kind is 'fretboard-ear' | 'keyboard-ear' =>
+/** The drill kinds that play a note to find on the drawing (#91). */
+export const isNoteEarKind = (kind: DrillKind): kind is 'fretboard-ear' | 'keyboard-ear' =>
     kind === 'fretboard-ear' || kind === 'keyboard-ear'
+
+/** The drill kinds that play their questions (#91, #72): they need playback. */
+export const isEarKind = (kind: DrillKind): boolean =>
+    isNoteEarKind(kind) || isEarTrainingKind(kind)
+
+export { isEarTrainingKind }
 
 /** The `drill_kind` values, as the vault's note types allow them. */
 export const KIND_LABELS: Record<DrillKind, string> = {
@@ -49,7 +77,11 @@ export const KIND_LABELS: Record<DrillKind, string> = {
     'chords': 'Chord names',
     'scales': 'Scale shapes',
     'fretboard-ear': 'Fretboard by ear',
-    'keyboard-ear': 'Keyboard by ear'
+    'keyboard-ear': 'Keyboard by ear',
+    'intervals-ear': 'Intervals by ear',
+    'chords-ear': 'Chords by ear',
+    'scales-ear': 'Scales by ear',
+    'degrees-ear': 'Degrees by ear'
 }
 
 export function kindOfLabel(label: unknown): DrillKind | null {
@@ -67,6 +99,8 @@ export interface DrillRules {
     /** Right answers in a row, each faster than `fastSeconds`, that clear a weak spot. */
     clearStreak: number
     fastSeconds: number
+    /** Ear training asks the guided set (2 items, one more once they are cleared); on unless false. */
+    guided?: boolean
 }
 
 /**
@@ -98,6 +132,8 @@ export function drillDefaults(kind: DrillKind, narrow: boolean): DrillSetting {
                 exact: false,
                 reference: false
             }
+        default:
+            return earDefaults(kind)
     }
 }
 
@@ -105,7 +141,8 @@ export const DEFAULT_DRILL_RULES: DrillRules = {
     questions: 20,
     weakShare: 0.6,
     clearStreak: 3,
-    fastSeconds: 2
+    fastSeconds: 2,
+    guided: true
 }
 
 /** Standard tuning, string 1 (high E) first, as MIDI. */
@@ -136,7 +173,7 @@ const listWords = (numbers: number[]): string => {
     return `strings ${sorted.slice(0, -1).join(', ')} and ${sorted.at(-1)}`
 }
 const askWords = (ask: DrillAsk) => (ask === 'both' ? '' : `, ${ask}`)
-const earWords = (s: { exact: boolean; reference: boolean }) =>
+const noteEarWords = (s: { exact: boolean; reference: boolean }) =>
     `${s.exact ? ', exact octave' : ''}${s.reference ? ', with a reference' : ''}`
 
 /** The setting in words: the `drill_setting` value ("string 5, frets 0-5"). */
@@ -151,9 +188,11 @@ export function settingWords(setting: DrillSetting): string {
         case 'scales':
             return `${SOURCE_WORDS[setting.source]}${askWords(setting.ask)}`
         case 'fretboard-ear':
-            return `${listWords(setting.strings)}, frets ${setting.frets[0]}-${setting.frets[1]}${earWords(setting)}`
+            return `${listWords(setting.strings)}, frets ${setting.frets[0]}-${setting.frets[1]}${noteEarWords(setting)}`
         case 'keyboard-ear':
-            return `keys ${keyName(setting.keys[0])}-${keyName(setting.keys[1])}${earWords(setting)}`
+            return `keys ${keyName(setting.keys[0])}-${keyName(setting.keys[1])}${noteEarWords(setting)}`
+        default:
+            return earWords(setting)
     }
 }
 
@@ -178,7 +217,9 @@ export function parseSetting(
     words: string,
     instrument: DrillInstrument = 'guitar'
 ): DrillSetting | null {
-    if (isEarKind(kind)) {
+    // Ear training: the sound is in the words, whatever the note's type.
+    if (isEarTrainingKind(kind)) return parseEarSetting(kind, words)
+    if (isNoteEarKind(kind)) {
         // The flags come last, in this order; a find or name doesn't apply to a drill by ear.
         let text = words.trim()
         const reference = /,\s*with a reference$/.test(text)
@@ -375,6 +416,10 @@ export function seededRandom(seed: number): () => number {
     }
 }
 
+/** An ear training setting (#72). */
+export const isEarTraining = (setting: DrillSetting): setting is EarTrainingSetting =>
+    isEarTrainingKind(setting.kind)
+
 const pickOne = <T>(items: readonly T[], random: () => number): T =>
     items[Math.floor(random() * items.length)]!
 
@@ -392,6 +437,7 @@ export function spotsOf(setting: DrillSetting, pool: readonly string[] = []): st
         return out
     }
     if (setting.kind === 'fretboard-ear') return earPitches(setting).map(keyName)
+    if (isEarTraining(setting)) return earSpots(setting)
     return [...new Set(pool)]
 }
 
@@ -443,6 +489,7 @@ export type Question =
           /** The reference that sounds first, null without one. */
           reference: number | null
       }
+    | EarQuestion
 
 /** What the learner gave: a pick on the drawing, a note name, or a choice. */
 export interface Given {
@@ -503,8 +550,10 @@ function questionAt(
     setting: DrillSetting,
     spot: string,
     pool: readonly string[],
-    random: () => number
+    random: () => number,
+    choices: string[]
 ): Question {
+    if (isEarTraining(setting)) return earQuestion(setting, spot, choices, random)
     if (setting.kind === 'fretboard-ear' || setting.kind === 'keyboard-ear')
         return {
             type: setting.kind === 'fretboard-ear' ? 'hear-fret' : 'hear-key',
@@ -593,7 +642,15 @@ export function questions(
 ): Question[] {
     const { rules, random } = context
     const pool = context.pool ?? []
-    const spots = spotsOf(setting, pool)
+    // Ear training asks its guided set (unless guided is off), with one button per item.
+    const ear = isEarTraining(setting) ? setting : null
+    const items = ear
+        ? rules.guided === false
+            ? earItems(ear)
+            : guidedItems(ear, context.stats, rules.clearStreak)
+        : []
+    const choices = ear ? earChoices(ear, items) : []
+    const spots = ear ? earSpots(ear, items) : spotsOf(setting, pool)
     if (!spots.length) return []
     const inRange = new Set(spots)
     const weak = weakSpots(context.stats, rules)
@@ -615,7 +672,7 @@ export function questions(
             const choices = spots.filter((s) => s !== previous)
             spot = pickOne(choices.length ? choices : spots, random)
         }
-        out.push(questionAt(setting, spot, pool, random))
+        out.push(questionAt(setting, spot, pool, random, choices))
         previous = spot
     }
     return out
@@ -648,6 +705,8 @@ export function isRight(question: Question, given: Given): boolean {
                     ? given.pitch === question.pitch
                     : given.pitch % 12 === question.pitch % 12)
             )
+        case 'hear-name':
+            return given.choice === question.answer
     }
 }
 
@@ -954,4 +1013,6 @@ export function pianoKeys(value: unknown): number[] {
 
 /** A drill note's title for its file name: sharps spelled out, which file names can't hold ("C Sharp 3"). */
 export const drillFileTitle = (setting: DrillSetting): string =>
-    drillTitle(setting).replace(/([A-G])#(-?\d)/g, '$1 Sharp $2')
+    drillTitle(setting).replace(/([A-G])#(-?\d)?/g, (_, note: string, octave?: string) =>
+        octave === undefined ? `${note} Sharp` : `${note} Sharp ${octave}`
+    )

@@ -62,6 +62,7 @@ Each diagram's bar can change the speed, volume and sound for that diagram.
 | Weak spots share                   | 60            | Percent of the questions about your weak spots, from 0 to 100.                                                             |
 | Right answers to clear a weak spot | 3             | Right answers in a row, each faster than the fast answer, from 1 to 10.                                                    |
 | Fast answer                        | 2             | Seconds, from 0.5 to 10.                                                                                                   |
+| Guided ear training                | On            | Ear training drills start with two items and add the next one once you know them all. Off: everything you picked at once.  |
 
 ## Play-along
 
@@ -98,7 +99,8 @@ Pieces, strumming and picking patterns have their own:
 - **Feel** (`strum_feel`), for strumming patterns: "straight", "swing" or a swing ratio ("60%").
 - **Picking pattern** (`picking_pattern`), for fingerpicking patterns: a name ("travis", "alternate bass", "1-2-3-4") or the fingers of each slot ("p i m a").
 - **Public note** (`public_note`): new drill notes get `false`, whatever their template says; publishing a note stays your choice.
-- **Drill kind**, **Drill setting**, **Drill weak spots** (`drill_kind`, `drill_setting`, `drill_stats`), for the drill notes of [note, chord and scale drills](usage.md#note-chord-and-scale-drills). Save checks that the exercise type has them, and names the one that's missing.
+- **Drill kind**, **Drill setting**, **Drill weak spots** (`drill_kind`, `drill_setting`, `drill_stats`), for the drill notes of [note, chord and scale drills](usage.md#note-chord-and-scale-drills). Save checks that the exercise type has them, and names the one that's missing. Ear training keeps its notes in the music exercise type (`type/music/exercise`), which needs them too.
+- **Exercise kind** (`exercise_kind`): new [ear training](usage.md#ear-training) drill notes get `Ear training` (the spelling your music exercise type allows), when the type has the property. A value already there stays.
 
 When the Kanban Action Planner is installed, its time-tracking and review property names are used, so both plugins write the same properties. Empty notation blocks in chord, scale, arpeggio, strumming pattern and fingerpicking pattern notes draw from these names ([Notation](notation.md#notes-draw-their-own-diagram)).
 
