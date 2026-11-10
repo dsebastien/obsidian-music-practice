@@ -678,6 +678,70 @@
     @apply flex flex-wrap justify-center gap-2;
 }
 
+/* A question without a drawing (ear training) leaves no gap. */
+.mp-note-drill-drawing:empty {
+    display: none;
+}
+
+/* Ear training (#72): a listening panel, then the answers as a grid of large buttons. */
+.mp-note-drill-ear {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.mp-note-drill-listen {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-radius: var(--radius-m);
+    background: var(--background-secondary);
+}
+
+.mp-note-drill-listen .mp-note-drill-play {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.mp-note-drill-play-icon {
+    display: inline-flex;
+}
+
+.mp-note-drill-play kbd {
+    padding: 0 0.3em;
+    border-radius: var(--radius-s);
+    font-size: var(--font-ui-smaller);
+    background: rgb(0 0 0 / 0.15);
+}
+
+/* Show me is a way out, not an answer: at the far end, quieter. */
+.mp-note-drill-listen .mp-note-drill-show {
+    margin-left: auto;
+    color: var(--text-muted);
+}
+
+.mp-note-drill-choices.mp-note-drill-ear-choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    gap: 0.5rem;
+}
+
+.mp-note-drill-choices.mp-note-drill-ear-short {
+    grid-template-columns: repeat(auto-fill, minmax(3.75rem, 1fr));
+}
+
+.mp-note-drill-ear-choices button {
+    height: auto;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    font-size: var(--font-ui-medium);
+    white-space: normal;
+}
+
 /* Drills by ear (#91): the two options, a checkbox before its words (not a field's column). */
 .mp-field.mp-note-drill-check {
     @apply flex-row items-center gap-2;

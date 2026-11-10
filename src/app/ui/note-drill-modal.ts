@@ -3,7 +3,7 @@
  * questions on the drawing (the library's pick layer, with sound) or with buttons, see the score
  * and the weak-spot heat map, Save (the drill note's map and review), Log this drill.
  */
-import { Modal, Notice } from 'obsidian'
+import { Modal, Notice, setIcon } from 'obsidian'
 import type { App } from 'obsidian'
 import {
     attachPick,
@@ -835,21 +835,31 @@ export class NoteDrillModal extends Modal {
     ): void {
         const s = this.setting
         const sound = isEarTraining(s) ? s.instrument : 'piano'
-        const tools = answer.createDiv({ cls: 'mp-note-drill-hear' })
+        // A listening panel (what plays), then the answers as a grid of large buttons: the
+        // controls never read as answers.
+        answer.addClass('mp-note-drill-ear')
+        const tools = answer.createDiv({ cls: 'mp-note-drill-listen' })
         const replay = () => this.sound(q.again, sound, null)
-        tools
-            .createEl('button', { text: 'Play again', attr: { 'aria-keyshortcuts': 'R' } })
-            .addEventListener('click', replay)
+        const again = tools.createEl('button', {
+            cls: 'mod-cta mp-note-drill-play',
+            attr: { 'aria-keyshortcuts': 'R' }
+        })
+        setIcon(again.createSpan({ cls: 'mp-note-drill-play-icon' }), 'volume-2')
+        again.createSpan({ text: 'Play again' })
+        again.createEl('kbd', { text: 'R', attr: { 'aria-hidden': 'true' } })
+        again.addEventListener('click', replay)
         if (q.kind === 'degrees-ear')
             tools
                 .createEl('button', { text: 'Key' })
                 .addEventListener('click', () => this.sound(q.sound, sound, null))
-        const show = tools.createEl('button', { text: 'Show me' })
+        const show = tools.createEl('button', { cls: 'mp-note-drill-show', text: 'Show me' })
         this.replay = replay
         const intervals = q.kind === 'intervals-ear'
+        // Intervals and degrees are short labels (m3, b6): narrower cells, more on a row.
+        const short = intervals || q.kind === 'degrees-ear'
         const buttons = this.answerButtons(
             answer,
-            'mp-note-drill-choices',
+            `mp-note-drill-choices mp-note-drill-ear-choices${short ? ' mp-note-drill-ear-short' : ''}`,
             q.choices,
             (c) => c === q.answer,
             (choice) => {
