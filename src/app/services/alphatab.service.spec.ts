@@ -89,14 +89,14 @@ const events: NoteEvent[] = [{ midi: 60, time: 0, duration: 1 }]
 
 describe('versionOf', () => {
     it("reads alphaTab's meta.version", () => {
-        expect(versionOf(moduleOf('1.8.4'))).toBe('1.8.4')
+        expect(versionOf(moduleOf(ALPHATAB_VERSION))).toBe(ALPHATAB_VERSION)
         expect(versionOf(moduleOf(null))).toBeNull()
     })
 })
 
 describe('AlphaTabRuntime', () => {
     it('loads alphaTab once per window, from a blob URL', async () => {
-        const { win, tags } = fakeWindow(moduleOf('1.8.4'))
+        const { win, tags } = fakeWindow(moduleOf(ALPHATAB_VERSION))
         const runtime = new AlphaTabRuntime(fakeDeps().deps)
         const [a, b] = await Promise.all([runtime.module(win), runtime.module(win)])
         expect(a).toBe(b)
@@ -106,7 +106,7 @@ describe('AlphaTabRuntime', () => {
 
     it("uses another plugin's alphaTab of the same release, and refuses another release", async () => {
         const same = fakeWindow(undefined)
-        same.win.alphaTab = moduleOf('1.8.4')
+        same.win.alphaTab = moduleOf(ALPHATAB_VERSION)
         const runtime = new AlphaTabRuntime(fakeDeps().deps)
         expect(await runtime.module(same.win)).toBe(same.win.alphaTab)
         expect(same.tags).toHaveLength(0)
@@ -142,7 +142,7 @@ describe('AlphaTabRuntime', () => {
     })
 
     it('takes the alphaTab of a window freed while loading away again, and never tracks it again', async () => {
-        const { win, tags } = fakeWindow(moduleOf('1.8.4'))
+        const { win, tags } = fakeWindow(moduleOf(ALPHATAB_VERSION))
         const runtime = new AlphaTabRuntime(fakeDeps().deps)
         const loading = runtime.module(win).catch((e: Error) => e.message)
         runtime.release(win)
@@ -158,7 +158,7 @@ describe('AlphaTabRuntime', () => {
         const fake = fakeDeps()
         const runtime = new AlphaTabRuntime(fake.deps)
         runtime
-            .player(fakeWindow(moduleOf('1.8.4')).win)
+            .player(fakeWindow(moduleOf(ALPHATAB_VERSION)).win)
             .play(events, { sound: 'guitar', volume: 1 })
         runtime.player(fakeWindow(undefined).win).play(events, { sound: 'guitar', volume: 1 })
         await flush()
@@ -167,7 +167,7 @@ describe('AlphaTabRuntime', () => {
 
     it('frees a closed window: its player, its blob URL, the script and alphaTab it loaded', async () => {
         const fake = fakeDeps()
-        const { win, revoked, tags } = fakeWindow(moduleOf('1.8.4'))
+        const { win, revoked, tags } = fakeWindow(moduleOf(ALPHATAB_VERSION))
         const runtime = new AlphaTabRuntime(fake.deps)
         runtime.player(win).play(events, { sound: 'piano', volume: 1 })
         await flush()
@@ -180,10 +180,10 @@ describe('AlphaTabRuntime', () => {
     })
 
     it('leaves an alphaTab another plugin set after ours in place', async () => {
-        const { win } = fakeWindow(moduleOf('1.8.4'))
+        const { win } = fakeWindow(moduleOf(ALPHATAB_VERSION))
         const runtime = new AlphaTabRuntime(fakeDeps().deps)
         await runtime.module(win)
-        const theirs = moduleOf('1.8.4')
+        const theirs = moduleOf(ALPHATAB_VERSION)
         win.alphaTab = theirs
         runtime.unload()
         expect(win.alphaTab).toBe(theirs)
@@ -191,7 +191,7 @@ describe('AlphaTabRuntime', () => {
 
     it("leaves another plugin's alphaTab in place when it frees a window", async () => {
         const { win } = fakeWindow(undefined)
-        const theirs = moduleOf('1.8.4')
+        const theirs = moduleOf(ALPHATAB_VERSION)
         win.alphaTab = theirs
         const runtime = new AlphaTabRuntime(fakeDeps().deps)
         await runtime.module(win)
