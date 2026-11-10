@@ -625,6 +625,13 @@
     align-items: end;
 }
 
+/* On a phone the three columns cut the selects ("Intervals by ear" read "Interval"). */
+@media (max-width: 480px) {
+    .mp-note-drill-form {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 /* The first field of the form's second row (strings, the lowest key). */
 .mp-note-drill-form .mp-note-drill-row-start {
     grid-column-start: 1;
