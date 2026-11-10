@@ -65,7 +65,7 @@
         "@eslint/js": "10.0.1",
         "@tailwindcss/cli": "4.3.5",
         "@types/bun": "1.4.4",
-        "@types/node": "24.10.1",
+        "@types/node": "26.6.6",
         "commitizen": "4.3.2",
         "conventional-changelog-cli": "5.0.0",
         "conventional-changelog-conventionalcommits": "9.1.0",
@@ -78,7 +78,7 @@
         "obsidian": "1.14.4",
         "prettier": "3.9.10",
         "tailwindcss": "4.3.5",
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
         "typescript-eslint": "8.72.1"
     },
     "dependencies": {
