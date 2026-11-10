@@ -16,6 +16,11 @@ updates:
       # for (a test checks it): it moves with the library, never on its own.
       ignore:
           - dependency-name: '@coderline/alphatab'
+          # Version 10 needs conventional-changelog-writer 9, which
+          # conventional-changelog-cli 5 doesn't bring: the release's changelog
+          # step failed (0.20.0). Move both together, by hand.
+          - dependency-name: conventional-changelog-conventionalcommits
+            update-types: ['version-update:semver-major']
       # Mirrors `minimumReleaseAge = 259200` in bunfig.toml. Without it,
       # Dependabot proposes day-0 releases that `bun install` then refuses to
       # resolve, which reads as a confusing CI failure rather than the
