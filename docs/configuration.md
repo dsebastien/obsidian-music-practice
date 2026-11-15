@@ -51,7 +51,7 @@ A block's own `orientation:`, `hand:`, `naming:` or `root-mark:` wins over these
 | Scale tempo       | 90        | Notes per minute when a scale plays, from 20 to 240.                                                                                                                                                                                                                |
 | Strum             | 12        | Milliseconds between two strings when a chord is strummed, from 0 to 200.                                                                                                                                                                                           |
 
-Each diagram's bar can change the speed, volume and sound for that diagram.
+Each diagram's bar can change the speed and sound for that diagram.
 
 ## Metronome
 

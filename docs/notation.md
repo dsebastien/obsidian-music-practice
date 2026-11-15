@@ -132,7 +132,7 @@ swing: yes
 - `D>` is an accent, `X` a muted strum (a percussive chuck), `(U)` a ghost strum, and `[G]` a chord change. A line of chords above the pattern works too.
 - `time: 3/4` (or `6/8`, `12/8`), `subdivision: 16ths` or `triplets`, `chord: Am` for the whole pattern, `tempo: 100` for playback.
 - `swing: yes` plays a shuffle feel, and `swing: 60%` a lighter swing. The pattern is still written in 8ths.
-- The bar under the pattern plays it over its chords, with loop, a count-in, tempo and volume, and lights the slot that plays.
+- The bar under the pattern plays it over its chords, with loop, a count-in and tempo, and lights the slot that plays.
 
 Every symbol and option is in the [guide](https://dsebastien.github.io/music-notation/blocks.html#strumming-patterns).
 
@@ -152,7 +152,7 @@ chords: C G Am F
 - Write one slot at a time: `p` is the thumb on the bass, `p'` the thumb on the alternate bass (the chord's fifth), and `i`, `m`, `a` the fingers on strings 3, 2 and 1. A string number (`5`, `3`) works too, `p+a` picks two notes together, `-` is a rest and `|` a bar line.
 - `pattern: travis`, `pattern: alternate bass` and `pattern: 1-2-3-4` fill a bar for you.
 - `chord: Am` for the chord picked, `chords: C Am F G` for one chord a bar, `time: 3/4` (as for strumming patterns), `tempo: 80` for playback.
-- The bar under the pattern plays it over its chord or chords, with loop, a count-in, a click (off by default), tempo and volume, and lights the slot that plays.
+- The bar under the pattern plays it over its chord or chords, with loop, a count-in, a click (off by default) and tempo, and lights the slot that plays.
 
 Every symbol and option is in the [guide](https://dsebastien.github.io/music-notation/blocks.html#picking-patterns).
 
@@ -333,7 +333,8 @@ staves: both
 - `staves: tab | score | both` goes on the first line. By default, `tab` blocks show tablature and `score` blocks show notation.
 - The player bar has **Tab**, **Score** and **Both**. The view you see is lit. Select another one to see the music that way: the note doesn't change. To keep it, select **Keep this view**: it writes the `staves:` line at the top of the block (Ctrl+Z, or Cmd+Z, undoes it in editing view). Drums and piano have no tablature, so their blocks have no view buttons.
 - `file: [[Song.gp]]` draws a Guitar Pro (3–8), MusicXML or Capella file from your vault instead. `tracks: 1 2` picks the tracks.
-- Hover the music (tap it on a phone) for the player: play / pause, stop, loop, metronome, count-in, speed, volume, and **Export** (Guitar Pro 7 or MIDI, saved in your attachments folder, or print in black on white). In a learning note, **Save BPM** opens Set BPM with the tempo the music plays at: its tempo times the speed set on the bar. The sound loads at the first Play. While the music plays, a line follows the beat and the notes that sound light up.
+- Under the music, the player bar: play / pause, stop, loop, metronome, count-in, speed (25–150%), the time, the view, **Export** (Guitar Pro 7 or MIDI, saved in your attachments folder, or print in black on white) and **Full screen**. The volume is not on the bar: set it in **Settings → Playback**. In a learning note, **Save BPM** opens Set BPM with the tempo the music plays at: its tempo times the speed set on the bar. The sound loads at the first Play. While the music plays, a line follows the beat and the notes that sound light up.
+- **Full screen** draws the music again at the screen's width, so several lines show at once. It scrolls by hand, and by itself while the music plays; a scroll by hand stops that until the next Play. Escape, or the button again, goes back to the note, where it was.
 - Tabs work in popout windows too, and when you drag a note to another window.
 - A block with a mistake shows an error message. Open **Block text** under it to see what you wrote; the line with the mistake is marked.
 - **Insert a tab block** starts one at the cursor, on its own lines. **Insert a tab exercise of this scale or arpeggio** writes the run of a guitar scale or arpeggio note as a tab block (see [Usage](usage.md#tab-exercises)). The [imports](usage.md#imports) turn files and pasted tabs into blocks.
