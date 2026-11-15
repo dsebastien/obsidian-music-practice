@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.23.0](https://github.com/dsebastien/obsidian-music-practice/compare/0.22.1...0.23.0) (2026-11-15)
+
+Tabs and scores get a full screen mode, and a click on a chord diagram no longer sends the note to its end. From music-notation 0.20.0.
+
+#### Tabs and scores
+
+- **Full screen**: a new button at the end of the player bar. The music is drawn again at the width of your screen, so a wide screen shows many more bars on a line and several lines at once.
+- In full screen, you can scroll by hand, and the music follows the bar that plays on its own. Scroll by hand and it stops following until your next **Play**. Escape takes you back to the note, right where you were.
+
+#### Fixes
+
+- In a note with a tab or a score, the first click on a chord diagram could scroll the note to its end. It no longer moves the page (#109).
+
 ## [0.22.1](https://github.com/dsebastien/obsidian-music-practice/compare/0.22.0...0.22.1) (2026-11-10)
 
 Tabs and scores now use alphaTab 1.9.0, through music-notation 0.19.1.
@@ -434,6 +447,7 @@ The first release of Music Practice: learn an instrument in your notes.
 - A public API lets scripts and AI assistants log and plan practice with the same rules.
 
 Notation (chord diagrams, tabs and scores with playback) comes in 0.2.
+
 
 
 
