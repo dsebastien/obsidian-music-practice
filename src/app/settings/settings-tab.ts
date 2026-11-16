@@ -259,7 +259,16 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         'playback.strum',
                         'Strum',
                         'Milliseconds between two strings when a guitar chord is strummed, from 0 to 200 (12 by default). Piano chords sound together.'
-                    )
+                    ),
+                    {
+                        name: 'Tab tempo',
+                        desc: 'The unit the bar under a tab or a score shows first: BPM (the tempo the music plays at, with the percent next to it) or percent of the written tempo. The unit button on a bar switches it and saves it here.',
+                        control: {
+                            type: 'dropdown',
+                            key: 'playback.tempoUnit',
+                            options: { bpm: 'BPM', percent: 'Percent' }
+                        }
+                    }
                 ]
             },
             {

@@ -65,3 +65,11 @@ describe('drawnPlaybackChanged (#95)', () => {
         expect(drawnPlaybackChanged(before, { ...before, volume: 30, bpm: 70 })).toBe(true)
     })
 })
+
+describe('the tab tempo unit (music-notation #114)', () => {
+    it('is BPM by default, and a switch saved from a bar redraws nothing', () => {
+        const before = createDefaultPlayback()
+        expect(before.tempoUnit).toBe('bpm')
+        expect(drawnPlaybackChanged(before, { ...before, tempoUnit: 'percent' })).toBe(false)
+    })
+})

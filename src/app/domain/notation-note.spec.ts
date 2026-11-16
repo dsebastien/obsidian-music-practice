@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'bun:test'
+import { createDefaultFieldNames } from './fields'
 import {
+    propertyNamesOf,
     chordBlock,
     formatFingers,
     formatFrets,
@@ -144,5 +146,24 @@ describe('withBlockLine (#76: the piano preview of clicked keys)', () => {
         const out = withBlockLine(block, 'pitches: C4 E4 G4')
         expect(out.split('\n').at(-1)).toBe(block.split('\n').at(-1))
         expect(blockSource(out).split('\n').at(-1)).toBe('pitches: C4 E4 G4')
+    })
+})
+
+describe('the property names the library gets (music-notation #132)', () => {
+    it("passes the chord's root and quality and the patterns' names, renamed or not", () => {
+        const fields = {
+            ...createDefaultFieldNames(),
+            chordRoot: 'root',
+            chordQuality: 'quality',
+            strumPattern: 'pattern'
+        }
+        const names = propertyNamesOf(fields)
+        expect(names.chordRoot).toBe('root')
+        expect(names.chordQuality).toBe('quality')
+        expect(names.strumPattern).toBe('pattern')
+        expect(names.timeSignature).toBe(fields.timeSignature)
+        expect(names.strumFeel).toBe(fields.strumFeel)
+        expect(names.bpmCurrent).toBe(fields.bpmCurrent)
+        expect(names.pickingPattern).toBe(fields.pickingPattern)
     })
 })

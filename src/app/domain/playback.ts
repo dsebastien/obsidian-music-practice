@@ -19,7 +19,15 @@ export interface PlaybackSettings {
     bpm: number
     /** Chords: milliseconds between strings. */
     strum: number
+    /**
+     * The unit the tempo on a tab or score bar shows first (music-notation #114): BPM or percent.
+     * A switch on a bar saves it here.
+     */
+    tempoUnit: TempoUnit
 }
+
+export const TEMPO_UNITS = ['bpm', 'percent'] as const
+export type TempoUnit = (typeof TEMPO_UNITS)[number]
 
 /**
  * The library's own guitar strum (12 ms between strings). At this value the plugin passes no strum
@@ -36,7 +44,8 @@ export const createDefaultPlayback = (): PlaybackSettings => ({
     engine: 'soundfont',
     volume: 80,
     bpm: 90,
-    strum: DEFAULT_STRUM
+    strum: DEFAULT_STRUM,
+    tempoUnit: 'bpm'
 })
 
 /** The strum to pass to the library: none at the default, so the instrument decides. */
@@ -49,12 +58,14 @@ export const volumeOf = (settings: PlaybackSettings): number =>
 
 /**
  * Whether a playback change shows on the bars (engine, tempo, strum, on or off), so they are drawn
- * again. The volume doesn't: it is heard at once (#95), and a redraw would stop what plays.
+ * again. The volume doesn't: it is heard at once (#95), and a redraw would stop what plays. Nor
+ * does the tab tempo's unit: a bar saves it when the reader switches it, and only the next scores
+ * drawn start from it.
  */
 export function drawnPlaybackChanged(before: PlaybackSettings, after: PlaybackSettings): boolean {
     if (before === after) return false
-    const { volume: _before, ...a } = before
-    const { volume: _after, ...b } = after
+    const { volume: _before, tempoUnit: _unitBefore, ...a } = before
+    const { volume: _after, tempoUnit: _unitAfter, ...b } = after
     return JSON.stringify(a) !== JSON.stringify(b)
 }
 

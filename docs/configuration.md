@@ -50,6 +50,7 @@ A block's own `orientation:`, `hand:`, `naming:` or `root-mark:` wins over these
 | Volume            | 80        | From 0 to 100. The volume of every play bar (the bars have no volume control), of tabs and scores, and of the backing loop. A change is heard at once, in what plays too.                                                                                           |
 | Scale tempo       | 90        | Notes per minute when a scale plays, from 20 to 240.                                                                                                                                                                                                                |
 | Strum             | 12        | Milliseconds between two strings when a chord is strummed, from 0 to 200.                                                                                                                                                                                           |
+| Tab tempo         | BPM       | The unit the bar under a tab or a score shows first: BPM (the tempo the music plays at, with the speed in percent next to it) or Percent (of the written tempo). The unit button on a bar switches it and saves it here; scores drawn after that start with it.     |
 
 Each diagram's bar can change the speed and sound for that diagram.
 
@@ -110,7 +111,7 @@ Pieces, strumming and picking patterns have their own:
 - **Drill kind**, **Drill setting**, **Drill weak spots** (`drill_kind`, `drill_setting`, `drill_stats`), for the drill notes of [note, chord and scale drills](usage.md#note-chord-and-scale-drills). Save checks that the exercise type has them, and names the one that's missing. Ear training keeps its notes in the music exercise type (`type/music/exercise`), which needs them too.
 - **Exercise kind** (`exercise_kind`): new [ear training](usage.md#ear-training) drill notes get `Ear training` (the spelling your music exercise type allows), when the type has the property. A value already there stays.
 
-When the Kanban Action Planner is installed, its time-tracking and review property names are used, so both plugins write the same properties. Empty notation blocks in chord, scale, arpeggio, strumming pattern and fingerpicking pattern notes draw from these names ([Notation](notation.md#notes-draw-their-own-diagram)).
+When the Kanban Action Planner is installed, its time-tracking and review property names are used, so both plugins write the same properties. Empty notation blocks in chord, scale, arpeggio, strumming pattern and fingerpicking pattern notes draw from these names, a chord's root and quality and a pattern's time signature, feel and current BPM included ([Notation](notation.md#notes-draw-their-own-diagram)).
 
 ## With or without the Obsidian Starter Kit
 
