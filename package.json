@@ -84,7 +84,7 @@
     "dependencies": {
         "@coderline/alphatab": "1.9.0",
         "@dsebastien/music-notation": "0.22.0",
-        "immer": "11.2.9",
+        "immer": "11.2.10",
         "zod": "4.6.7"
     },
     "overrides": {
