@@ -172,7 +172,7 @@ export const settingsFr: Translation<typeof settingsEn> = {
     'settings.item.toggleScore.name': 'Partitions',
     'settings.item.toggleScore.desc':
         'Notation standard en alphaTex (ou un fichier de partition), avec lecture.',
-    'settings.item.toggleStrum.name': 'Rythmiques de grattage',
+    'settings.item.toggleStrum.name': 'Rythmiques',
     'settings.item.toggleStrum.desc':
         "Grattés vers le bas et vers le haut sur une grille de temps, avec accents et changements d'accords, jouables.",
     'settings.item.togglePicking.name': 'Motifs de picking',
@@ -217,7 +217,7 @@ export const settingsFr: Translation<typeof settingsEn> = {
         'Soundfont : des instruments enregistrés, comme pour les tablatures et les partitions (réaliste). Léger : un petit synthétiseur calculé, comme sur Obsidian Publish.',
     'settings.item.playVolume.name': 'Volume',
     'settings.item.playVolume.desc':
-        "De 0 à 100. Le volume de toutes les barres de lecture : diagrammes, rythmiques de grattage et de picking, progressions et grilles d'accords. Les barres n'ont pas de contrôle de volume.",
+        "De 0 à 100. Le volume de toutes les barres de lecture : diagrammes, rythmiques et motifs de picking, progressions et grilles d'accords. Les barres n'ont pas de contrôle de volume.",
     'settings.item.playBpm.name': 'Tempo des gammes',
     'settings.item.playBpm.desc':
         'Notes par minute quand une gamme est jouée, de 20 à 240. La barre peut le changer pour un seul bloc.',
@@ -234,9 +234,9 @@ export const settingsFr: Translation<typeof settingsEn> = {
     'settings.item.clicks.desc': 'Par temps : noires, croches, triolets ou doubles croches.',
     'settings.item.metronomeVolume.name': 'Volume',
     'settings.item.metronomeVolume.desc': 'De 0 à 1.',
-    'settings.item.trainerStep.name': "Palier de l'entraînement progressif",
+    'settings.item.trainerStep.name': 'Palier de la montée en tempo',
     'settings.item.trainerStep.desc': 'BPM ajoutés à chaque palier.',
-    'settings.item.trainerBars.name': "Mesures de l'entraînement progressif",
+    'settings.item.trainerBars.name': 'Mesures de la montée en tempo',
     'settings.item.trainerBars.desc':
         'Mesures entre deux paliers (le bouton « + » passe au palier suivant tout de suite).',
     'settings.item.countIn.name': 'Décompte',
@@ -351,7 +351,7 @@ export const settingsFr: Translation<typeof settingsEn> = {
         "Morceaux : les notes d'accords qu'ils utilisent (liens).",
     'settings.item.fieldTimeSignature.name': 'Signature rythmique',
     'settings.item.fieldTimeSignature.desc':
-        'Morceaux, rythmiques de grattage et de picking : « 3/4 », « 6/8 »… Le métronome la compte quand il pratique la note.',
+        'Morceaux, rythmiques et motifs de picking : « 3/4 », « 6/8 »… Le métronome la compte quand il pratique la note.',
     'settings.item.fieldShape.name': 'Forme',
     'settings.item.fieldShape.desc': 'Accords et gammes : à vide, barré, CAGED…',
     'settings.item.fieldFrets.name': 'Cases',
@@ -393,11 +393,11 @@ export const settingsFr: Translation<typeof settingsEn> = {
     'settings.item.fieldScaleType.desc': 'Gammes : « Minor pentatonic ».',
     'settings.item.fieldFingeringRight.name': 'Doigté de la gamme',
     'settings.item.fieldFingeringRight.desc': 'Gammes de piano, main droite : « 1 2 3 1 2 3 4 5 ».',
-    'settings.item.fieldStrumPattern.name': 'Rythmique de grattage',
-    'settings.item.fieldStrumPattern.desc': 'Rythmiques de grattage : « D DU UDU ».',
+    'settings.item.fieldStrumPattern.name': 'Rythmique',
+    'settings.item.fieldStrumPattern.desc': 'Rythmiques : « D DU UDU ».',
     'settings.item.fieldStrumFeel.name': 'Feeling',
     'settings.item.fieldStrumFeel.desc':
-        'Rythmiques de grattage : « straight », « swing » ou un taux de swing (« 60% »).',
+        'Rythmiques : « straight », « swing » ou un taux de swing (« 60% »).',
     'settings.item.fieldPickingPattern.name': 'Motif de picking',
     'settings.item.fieldPickingPattern.desc':
         'Motifs de fingerpicking : un nom (« travis », « alternate bass », « 1-2-3-4 ») ou « p i m a ».',

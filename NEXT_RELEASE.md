@@ -1,4 +1,4 @@
-Music Practice now follows Obsidian's language, and French is the first translation. The notation blocks speak French too, and tabs and scores can follow the music, fit on one line and show the names of their notes. These come from music-notation 0.23.0.
+Music Practice now follows Obsidian's language, and French is the first translation. The notation blocks speak French too, and tabs and scores can follow the music, fit on one line and show the names of their notes. These come from music-notation 0.23.0 and 0.23.1.
 
 #### Languages
 
@@ -7,6 +7,7 @@ Music Practice now follows Obsidian's language, and French is the first translat
 - **The notation blocks in French**: the bars under the blocks (Play, Loop, Count-in, Metronome, the tempo, Copy as image, Full screen, Follow the music, Note names), the Tab / Score / Both and Guitar / Piano switches, the playback choices, the texts for screen readers and the messages a block shows when its text has a mistake.
 - **What stays in English, on purpose**: the block syntax (`chord`, `chords`, `tab` and their keywords), the property names in your notes, and the values the plugin stores in your notes (chord roots and qualities, scale types, drill kinds, tags). Only what you see is translated, so a note written in a French vault works in any vault, in any language. In the blocks, note names in letters, chord symbols, scale names inside titles, and what a message quotes from your text or tells you to write stay in English too.
 - **Your own words don't change**: your level names, your rubric lines and the activity name in the settings are your data, so they stay as you typed them. The headings the plugin writes into your notes don't change either.
+- **French wording, checked against real players**: the French texts use the words French-speaking guitarists and teachers use. A strumming pattern is a "rythmique", a scale box is a "position", the speed trainer is "Montée en tempo", Practice next is "Que pratiquer ensuite" and the current focus is "Focus actuel" everywhere. Picking, fingerpicking, power chord, swing, feeling and tap tempo stay in English, as French players say them.
 - **The user guide and the README** stay in English for now.
 - **A French wording looks wrong or odd?** Report it in the [GitHub issues](https://github.com/dsebastien/obsidian-music-practice/issues).
 

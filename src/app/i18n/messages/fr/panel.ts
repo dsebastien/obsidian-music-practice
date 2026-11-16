@@ -33,7 +33,7 @@ export const panelFr: Translation<typeof panelEn> = {
     'panel.item.noMastery': 'Aucune maîtrise',
     'panel.item.reviewOverdue': 'Révision en retard',
     'panel.item.reviewDueSoon': 'Révision bientôt due',
-    'panel.item.focus': 'Priorité actuelle',
+    'panel.item.focus': 'Focus actuel',
     'panel.item.neverPracticed': 'Jamais pratiqué',
     'panel.item.practicedToday': "Pratiqué aujourd'hui",
     'panel.item.practicedAgo': 'Pratiqué il y a {days} j',

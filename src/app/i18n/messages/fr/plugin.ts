@@ -4,7 +4,7 @@ import type { pluginEn } from '../en/plugin'
 /** French texts of the plugin area: exactly the keys of the English table. */
 export const pluginFr: Translation<typeof pluginEn> = {
     // Commands
-    'plugin.command.practiceNext': 'Pratiquer ensuite',
+    'plugin.command.practiceNext': 'Que pratiquer ensuite',
     'plugin.command.practicePlan': 'Planifier une séance de pratique',
     'plugin.command.openPracticePanel': 'Ouvrir le panneau de pratique',
     'plugin.command.pauseTimer': 'Mettre en pause ou reprendre le minuteur de pratique',
@@ -41,7 +41,7 @@ export const pluginFr: Translation<typeof pluginEn> = {
     'plugin.command.identifyChord': 'Identifier cet accord',
     'plugin.command.startMetronome': 'Démarrer le métronome',
     'plugin.command.stopMetronome': 'Arrêter le métronome',
-    'plugin.command.speedTrainer': 'Entraînement progressif pour la note courante',
+    'plugin.command.speedTrainer': 'Montée en tempo pour la note courante',
     'plugin.command.saveMetronomeBpm': 'Enregistrer le BPM du métronome dans sa note',
     'plugin.command.setBpm': 'Définir le BPM de la note courante',
     'plugin.command.startTimer': 'Démarrer le minuteur de pratique',

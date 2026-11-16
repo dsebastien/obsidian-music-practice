@@ -15,12 +15,11 @@ export const backingFr: Translation<typeof backingEn> = {
     'backing.tempo': 'Tempo (BPM)',
     'backing.click': 'Clic',
     'backing.countIn': 'Décompte',
-    'backing.trainer.one': 'Entraînement progressif (+{step} BPM à chaque mesure)',
-    'backing.trainer.other': 'Entraînement progressif (+{step} BPM toutes les {count} mesures)',
-    'backing.trainerUpTo.one':
-        "Entraînement progressif (+{step} BPM à chaque mesure, jusqu'à {target})",
+    'backing.trainer.one': 'Montée en tempo (+{step} BPM à chaque mesure)',
+    'backing.trainer.other': 'Montée en tempo (+{step} BPM toutes les {count} mesures)',
+    'backing.trainerUpTo.one': "Montée en tempo (+{step} BPM à chaque mesure, jusqu'à {target})",
     'backing.trainerUpTo.other':
-        "Entraînement progressif (+{step} BPM toutes les {count} mesures, jusqu'à {target})",
+        "Montée en tempo (+{step} BPM toutes les {count} mesures, jusqu'à {target})",
     'backing.saveBpm': 'Enregistrer le BPM',
     'backing.meter.chord.one':
         "{count} mesure en {label}, un accord par mesure. Les changements s'appliquent au passage suivant.",
