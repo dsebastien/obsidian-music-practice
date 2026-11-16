@@ -10,6 +10,7 @@ import type {
     RootMark
 } from '@dsebastien/music-notation'
 import { t } from '../i18n/i18n'
+import { libraryLanguage } from '../i18n/library-language'
 
 /** How diagrams are drawn unless a block says otherwise (#32). */
 export interface NotationLayout {
@@ -35,14 +36,14 @@ export const ROOT_MARK_LABELS: Record<RootMark, string> = {
 }
 
 /** The render options the layout settings give the library. */
-export type RenderDefaults = LayoutDefaults & Pick<RenderOptions, 'naming' | 'rootMark'>
+export type RenderDefaults = LayoutDefaults &
+    Pick<RenderOptions, 'naming' | 'rootMark' | 'language'>
 
 export const ORIENTATIONS: readonly Orientation[] = ['vertical', 'horizontal']
 
 /**
- * The library's render defaults for the plugin's layout settings.
- * Language of the blocks' own buttons (#112): once the library accepts one, add
- * `language: libraryLanguage()` here (`i18n/library-language.ts`).
+ * The library's render defaults for the plugin's layout settings, and the language of the
+ * blocks' own buttons and messages: Obsidian's (#112, music-notation #136).
  */
 export function layoutDefaults(layout: NotationLayout): RenderDefaults {
     return {
@@ -52,6 +53,8 @@ export function layoutDefaults(layout: NotationLayout): RenderDefaults {
             keyboard: layout.keyboard
         },
         ...(layout.leftHanded ? { hand: 'left' as const } : {}),
+        // English is the library's default: no option, so English output is unchanged.
+        ...(libraryLanguage() !== 'en' ? { language: libraryLanguage() } : {}),
         // Letters are the library's default: no option, so letters output is unchanged.
         ...(layout.naming !== 'letters' ? { naming: layout.naming } : {}),
         // Color is the library's default: no option, so the output is unchanged.
