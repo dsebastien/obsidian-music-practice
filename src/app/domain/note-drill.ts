@@ -11,6 +11,7 @@ import {
     readChord,
     scaleNoteSet
 } from '@dsebastien/music-notation'
+import { t, type MessageKey } from '../i18n/i18n'
 import { progressionOf } from './progression'
 import { progressionFences } from './backing'
 import type { ReviewResult } from './review'
@@ -21,6 +22,7 @@ import {
     earQuestion,
     earSpots,
     earWords,
+    earSettingLabel,
     guidedItems,
     isEarTrainingKind,
     parseEarSetting,
@@ -83,6 +85,26 @@ export const KIND_LABELS: Record<DrillKind, string> = {
     'scales-ear': 'Scales by ear',
     'degrees-ear': 'Degrees by ear'
 }
+
+/** The kinds' names as the screen shows them (`KIND_LABELS` is what notes store). */
+const KIND_NAMES: Record<DrillKind, MessageKey> = {
+    'fretboard': 'drills.kind.fretboard',
+    'keyboard': 'drills.kind.keyboard',
+    'chords': 'drills.kind.chords',
+    'scales': 'drills.kind.scales',
+    'fretboard-ear': 'drills.kind.fretboardEar',
+    'keyboard-ear': 'drills.kind.keyboardEar',
+    'intervals-ear': 'drills.kind.intervalsEar',
+    'chords-ear': 'drills.kind.chordsEar',
+    'scales-ear': 'drills.kind.scalesEar',
+    'degrees-ear': 'drills.kind.degreesEar'
+}
+
+/** A kind's name for the screen. */
+export const kindLabel = (kind: DrillKind): string => t(KIND_NAMES[kind])
+
+/** Every kind, in the setup's order. */
+export const DRILL_KINDS = Object.keys(KIND_NAMES) as DrillKind[]
 
 export function kindOfLabel(label: unknown): DrillKind | null {
     if (typeof label !== 'string') return null
@@ -208,6 +230,103 @@ export function settingWords(setting: DrillSetting): string {
             return earWords(setting)
     }
 }
+
+const SOURCE_NAMES: Record<DrillSource, MessageKey> = {
+    notes: 'drills.source.notes',
+    pieces: 'drills.source.pieces',
+    focus: 'drills.source.focus',
+    library: 'drills.source.library'
+}
+
+/** Where chords or scales come from, in words for the screen ("from my notes"). */
+export const sourceWords = (source: DrillSource): string => t(SOURCE_NAMES[source])
+
+const SOURCE_CHOICES: Record<DrillSource, MessageKey> = {
+    notes: 'drills.sourceChoice.notes',
+    pieces: 'drills.sourceChoice.pieces',
+    focus: 'drills.sourceChoice.focus',
+    library: 'drills.sourceChoice.library'
+}
+
+/** A source as the setup's dropdown names it. */
+export const sourceChoice = (source: DrillSource): string => t(SOURCE_CHOICES[source])
+
+const FAMILY_NAMES: Record<string, MessageKey> = {
+    'Major': 'drills.family.major',
+    'Minor': 'drills.family.minor',
+    '7th': 'drills.family.seventh',
+    'Major 7th': 'drills.family.major7',
+    'Minor 7th': 'drills.family.minor7',
+    'Sus': 'drills.family.sus',
+    'Diminished': 'drills.family.diminished',
+    'Augmented': 'drills.family.augmented',
+    'Power': 'drills.family.power',
+    '6th and 9th': 'drills.family.sixthNinth'
+}
+
+/** A chord family's name for the screen (the family itself, in English, is what notes store). */
+export const familyLabel = (family: string): string => {
+    const key = FAMILY_NAMES[family]
+    return key ? t(key) : family
+}
+
+const stringsLabel = (numbers: number[]): string => {
+    const sorted = [...numbers].sort((a, b) => a - b)
+    const run = sorted.every((n, i) => i === 0 || n === sorted[i - 1]! + 1)
+    if (sorted.length === 1) return t('drills.setting.string', { n: sorted[0]! })
+    if (run && sorted.length > 2)
+        return t('drills.setting.stringsRun', { from: sorted[0]!, to: sorted.at(-1)! })
+    return t('drills.setting.stringsList', {
+        list: sorted.slice(0, -1).join(', '),
+        last: sorted.at(-1)!
+    })
+}
+const askLabel = (ask: DrillAsk): string[] =>
+    ask === 'both' ? [] : [t(ask === 'find' ? 'drills.setting.askFind' : 'drills.setting.askName')]
+const noteEarLabel = (s: { exact: boolean; reference: boolean }): string[] => [
+    ...(s.exact ? [t('drills.setting.exactOctave')] : []),
+    ...(s.reference ? [t('drills.setting.withReference')] : [])
+]
+
+/**
+ * The setting in words for the screen: `settingWords` in the language Obsidian runs in. What
+ * notes store (`settingWords`, English) is never shown through this, and never parsed from it.
+ */
+export function settingLabel(setting: DrillSetting): string {
+    const frets = (s: { frets: [number, number] }) =>
+        t('drills.setting.frets', { from: s.frets[0], to: s.frets[1] })
+    const keys = (s: { keys: [number, number] }) =>
+        t('drills.setting.keys', { from: keyName(s.keys[0]), to: keyName(s.keys[1]) })
+    switch (setting.kind) {
+        case 'fretboard':
+            return [stringsLabel(setting.strings), frets(setting), ...askLabel(setting.ask)].join(
+                ', '
+            )
+        case 'keyboard':
+            return [keys(setting), ...askLabel(setting.ask)].join(', ')
+        case 'chords':
+            return [
+                ...(setting.family
+                    ? [t('drills.setting.family', { family: familyLabel(setting.family) })]
+                    : []),
+                sourceWords(setting.source)
+            ].join(', ')
+        case 'scales':
+            return [sourceWords(setting.source), ...askLabel(setting.ask)].join(', ')
+        case 'fretboard-ear':
+            return [stringsLabel(setting.strings), frets(setting), ...noteEarLabel(setting)].join(
+                ', '
+            )
+        case 'keyboard-ear':
+            return [keys(setting), ...noteEarLabel(setting)].join(', ')
+        default:
+            return earSettingLabel(setting)
+    }
+}
+
+/** A drill's name for the screen: its kind and its setting ("Fretboard notes, string 5, frets 0-5"). */
+export const drillHeading = (setting: DrillSetting): string =>
+    `${kindLabel(setting.kind)}, ${settingLabel(setting)}`
 
 /** The drill note's title, without the type's affixes: "Fretboard notes, string 5, frets 0-5". */
 export const drillTitle = (setting: DrillSetting): string =>
@@ -572,7 +691,7 @@ function questionAt(
             type: setting.kind === 'fretboard-ear' ? 'hear-fret' : 'hear-key',
             spot,
             // Never the note's name: it is what you hear.
-            prompt: `Find the note you hear${setting.exact ? ' (exact octave)' : ''}`,
+            prompt: t(setting.exact ? 'drills.prompt.hearExact' : 'drills.prompt.hear'),
             pitch: midiOf(spot)!,
             note: spot,
             exact: setting.exact,
@@ -588,7 +707,7 @@ function questionAt(
             ? {
                   type: 'find-fret',
                   spot,
-                  prompt: `Find ${note} on string ${s}`,
+                  prompt: t('drills.prompt.findFret', { note, string: s! }),
                   string: s!,
                   pitch,
                   note
@@ -596,7 +715,7 @@ function questionAt(
             : {
                   type: 'name-fret',
                   spot,
-                  prompt: 'Name the marked note',
+                  prompt: t('drills.prompt.nameFret'),
                   string: s!,
                   fret: f!,
                   pitch,
@@ -607,27 +726,33 @@ function questionAt(
         const pitch = midiOf(spot)!
         const note = noteName(pitch)
         return find
-            ? { type: 'find-key', spot, prompt: `Find ${spot}`, pitch, note }
-            : { type: 'name-key', spot, prompt: 'Name the marked key', pitch, note }
+            ? {
+                  type: 'find-key',
+                  spot,
+                  prompt: t('drills.prompt.findKey', { note: spot }),
+                  pitch,
+                  note
+              }
+            : { type: 'name-key', spot, prompt: t('drills.prompt.nameKey'), pitch, note }
     }
     if (setting.kind === 'chords')
         return {
             type: 'name-chord',
             spot,
-            prompt: 'Name this chord',
+            prompt: t('drills.prompt.nameChord'),
             choices: filled(choicesFor(spot, pool, random), spot, libraryChords(), random)
         }
     return find
         ? {
               type: 'find-scale',
               spot,
-              prompt: `Find the notes of ${spot}`,
+              prompt: t('drills.prompt.findScale', { scale: spot }),
               classes: scaleClasses(spot)
           }
         : {
               type: 'name-scale',
               spot,
-              prompt: 'Name this scale',
+              prompt: t('drills.prompt.nameScale'),
               choices: filled(choicesFor(spot, pool, random), spot, libraryScales(), random)
           }
 }

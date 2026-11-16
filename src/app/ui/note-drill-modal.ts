@@ -5,6 +5,8 @@
  */
 import { Modal, Notice, setIcon } from 'obsidian'
 import type { App } from 'obsidian'
+import { t, tn, type MessageKey } from '../i18n/i18n'
+import type { ReviewResult } from '../domain/review'
 import {
     attachPick,
     emptyNoteSet,
@@ -38,15 +40,18 @@ import {
     type DrawnPick,
     type DrillMark,
     CHORD_FAMILIES,
-    KIND_LABELS,
-    drillTitle,
+    DRILL_KINDS,
+    drillHeading,
+    familyLabel,
+    kindLabel,
+    sourceChoice,
     isRight,
     mergeStats,
     rulesFor,
     noteName,
     questions,
     scoreOf,
-    settingWords,
+    settingLabel,
     weakSpots,
     type Answer,
     type DrillAsk,
@@ -69,6 +74,7 @@ import {
     EAR_KEYS,
     EAR_SCALES,
     INTERVALS,
+    earItemLabel,
     guidedItems,
     intervalName,
     intervalWords,
@@ -116,6 +122,13 @@ const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 const STRINGS = [64, 59, 55, 50, 45, 40]
 const keyName = (pitch: number) => `${noteName(pitch)}${Math.floor(pitch / 12) - 1}`
 
+/** The review a drill gave, in words. */
+const REVIEW_LABELS: Record<ReviewResult, MessageKey> = {
+    good: 'drills.review.good',
+    shaky: 'drills.review.shaky',
+    failed: 'drills.review.failed'
+}
+
 /** A phone or a small tablet held upright: keyboard drills start on one octave there. */
 const NARROW = '(pointer: coarse) and (max-width: 640px)'
 
@@ -156,7 +169,7 @@ export class NoteDrillModal extends Modal {
     private closed = false
 
     override onOpen(): void {
-        this.setTitle(this.earTraining ? 'Ear training' : 'Drill notes, chords or scales')
+        this.setTitle(this.earTraining ? t('drills.modal.titleEar') : t('drills.modal.titleDrills'))
         this.contentEl.addClass('mp-modal', 'mp-note-drill')
         // R plays the note of a drill by ear again.
         this.scope.register([], 'r', () => {
@@ -201,7 +214,7 @@ export class NoteDrillModal extends Modal {
         el.empty()
         const notes = this.deps.notes()
         if (notes.length) {
-            el.createEl('p', { cls: 'mp-muted', text: 'Your drills: start one again.' })
+            el.createEl('p', { cls: 'mp-muted', text: t('drills.modal.yourDrills') })
             const list = el.createDiv({ cls: 'mp-list' })
             for (const note of notes) {
                 const weak = weakSpots(
@@ -209,10 +222,10 @@ export class NoteDrillModal extends Modal {
                     rulesFor(this.deps.rules(), note.setting.kind)
                 ).length
                 const row = list.createEl('button', { cls: 'mp-drill-pair' })
-                row.createSpan({ text: drillTitle(note.setting) })
+                row.createSpan({ text: drillHeading(note.setting) })
                 row.createSpan({
                     cls: 'mp-muted',
-                    text: weak ? `${weak} weak spots` : 'no weak spot'
+                    text: weak ? tn('drills.modal.weakSpots', weak) : t('drills.modal.noWeakSpot')
                 })
                 row.addEventListener('click', () => {
                     this.setting = note.setting
@@ -220,9 +233,14 @@ export class NoteDrillModal extends Modal {
                 })
             }
         }
-        el.createEl('h4', { text: 'New drill' })
+        el.createEl('h4', { text: t('drills.modal.newDrill') })
         const form = el.createDiv({ cls: 'mp-note-drill-form' })
-        const kind = this.select(form, 'Kind', Object.entries(KIND_LABELS), this.setting.kind)
+        const kind = this.select(
+            form,
+            t('drills.modal.kind'),
+            DRILL_KINDS.map((k) => [k, kindLabel(k)]),
+            this.setting.kind
+        )
         kind.addEventListener('change', () => {
             this.setting = drillDefaults(kind.value as DrillKind, this.narrow())
             this.renderSetup()
@@ -234,7 +252,7 @@ export class NoteDrillModal extends Modal {
             const strings = form.createDiv({
                 cls: 'mp-field mp-note-drill-strings mp-note-drill-row-start'
             })
-            strings.createSpan({ text: 'Strings' })
+            strings.createSpan({ text: t('drills.modal.strings') })
             // The open strings' note, as the setting names it (Mi in solfège).
             const e = noteShown('E', this.deps.naming())
             const row = strings.createDiv({
@@ -247,7 +265,12 @@ export class NoteDrillModal extends Modal {
                     text: String(n),
                     attr: {
                         'aria-pressed': String(s.strings.includes(n)),
-                        'aria-label': `String ${n}${n === 1 ? ` (high ${e})` : n === 6 ? ` (low ${e})` : ''}`
+                        'aria-label':
+                            n === 1
+                                ? t('drills.modal.stringHigh', { n, note: e })
+                                : n === 6
+                                  ? t('drills.modal.stringLow', { n, note: e })
+                                  : t('drills.modal.string', { n })
                     }
                 })
                 button.addEventListener('click', () => {
@@ -262,7 +285,7 @@ export class NoteDrillModal extends Modal {
             }
             this.number(
                 form,
-                'From fret',
+                t('drills.modal.fromFret'),
                 s.frets[0],
                 0,
                 24,
@@ -270,7 +293,7 @@ export class NoteDrillModal extends Modal {
             )
             this.number(
                 form,
-                'To fret',
+                t('drills.modal.toFret'),
                 s.frets[1],
                 0,
                 24,
@@ -279,10 +302,18 @@ export class NoteDrillModal extends Modal {
             if (s.kind === 'fretboard-ear') this.earOptions(form, s)
         } else if (s.kind === 'keyboard' || s.kind === 'keyboard-ear') {
             if (s.kind === 'keyboard') this.ask(form, s)
-            this.keyField(form, 'Lowest key', s.keys[0], (p) => (s.keys = [p, s.keys[1]])).addClass(
-                'mp-note-drill-row-start'
+            this.keyField(
+                form,
+                t('drills.modal.lowestKey'),
+                s.keys[0],
+                (p) => (s.keys = [p, s.keys[1]])
+            ).addClass('mp-note-drill-row-start')
+            this.keyField(
+                form,
+                t('drills.modal.highestKey'),
+                s.keys[1],
+                (p) => (s.keys = [s.keys[0], p])
             )
-            this.keyField(form, 'Highest key', s.keys[1], (p) => (s.keys = [s.keys[0], p]))
             if (s.kind === 'keyboard-ear') this.earOptions(form, s)
         } else if (isEarTraining(s)) {
             this.earTrainingSetup(form, s)
@@ -290,21 +321,21 @@ export class NoteDrillModal extends Modal {
             this.instrument(form, s)
             const source = this.select(
                 form,
-                'Where from',
-                [
-                    ['notes', 'My notes'],
-                    ['pieces', 'My pieces (chords without a note)'],
-                    ['focus', 'My focus (what it needs, without a note)'],
-                    ['library', 'The library']
-                ].filter(([v]) => s.kind === 'chords' || v !== 'pieces'),
+                t('drills.modal.whereFrom'),
+                (['notes', 'pieces', 'focus', 'library'] as const)
+                    .filter((v) => s.kind === 'chords' || v !== 'pieces')
+                    .map((v) => [v, sourceChoice(v)]),
                 s.source
             )
             source.addEventListener('change', () => (s.source = source.value as DrillSource))
             if (s.kind === 'chords') {
                 const family = this.select(
                     form,
-                    'Chord family',
-                    [['', 'Any'], ...CHORD_FAMILIES.map((f) => [f.name, f.name])],
+                    t('drills.modal.chordFamily'),
+                    [
+                        ['', t('drills.modal.any')],
+                        ...CHORD_FAMILIES.map((f) => [f.name, familyLabel(f.name)])
+                    ],
                     s.family ?? ''
                 )
                 family.addEventListener('change', () => {
@@ -318,17 +349,17 @@ export class NoteDrillModal extends Modal {
         if (silent)
             el.createEl('p', {
                 cls: 'mp-muted mp-note-drill-silent',
-                text: 'Drills by ear play their notes: turn on playback in the settings first.'
+                text: t('drills.modal.needsPlayback')
             })
         const actions = el.createDiv({ cls: 'mp-actions' })
-        const startButton = actions.createEl('button', { cls: 'mod-cta', text: 'Start' })
+        const startButton = actions.createEl('button', { cls: 'mod-cta', text: t('common.start') })
         startButton.disabled = silent
         startButton.addEventListener('click', () => {
             if (
                 (this.setting.kind === 'keyboard' || this.setting.kind === 'keyboard-ear') &&
                 this.setting.keys[0] >= this.setting.keys[1]
             ) {
-                new Notice('The lowest key must be below the highest key.')
+                new Notice(t('drills.modal.keysOrder'))
                 return
             }
             // Ear training needs at least one way (up, down, together) or style (block, arpeggio).
@@ -339,8 +370,8 @@ export class NoteDrillModal extends Modal {
             ) {
                 new Notice(
                     ear.kind === 'chords-ear'
-                        ? 'Pick how the chords sound: block, arpeggio or both.'
-                        : 'Pick how the intervals sound: going up, going down or together.'
+                        ? t('drills.modal.pickStyles')
+                        : t('drills.modal.pickWays')
                 )
                 return
             }
@@ -458,10 +489,10 @@ export class NoteDrillModal extends Modal {
     private earTrainingSetup(form: HTMLElement, s: EarTrainingSetting): void {
         const sound = this.select(
             form,
-            'Sound',
+            t('drills.modal.sound'),
             [
-                ['piano', 'Piano'],
-                ['guitar', 'Guitar']
+                ['piano', t('drills.instrument.piano')],
+                ['guitar', t('drills.instrument.guitar')]
             ],
             s.instrument
         )
@@ -492,7 +523,7 @@ export class NoteDrillModal extends Modal {
             case 'intervals-ear':
                 this.toggles(
                     form,
-                    'Intervals',
+                    t('drills.modal.intervals'),
                     INTERVALS.map((n) => ({
                         value: String(n),
                         text: intervalName(n),
@@ -505,15 +536,22 @@ export class NoteDrillModal extends Modal {
                 ways(
                     ['up', 'down', 'together'],
                     s.ways,
-                    { up: 'Going up', down: 'Going down', together: 'Together (harmonic)' },
+                    {
+                        up: t('drills.modal.wayUp'),
+                        down: t('drills.modal.wayDown'),
+                        together: t('drills.modal.wayTogether')
+                    },
                     (v) => (s.ways = v as IntervalWay[])
                 )
                 return
             case 'chords-ear':
                 this.toggles(
                     form,
-                    'Chords',
-                    CHORD_QUALITIES.map((q) => ({ value: q.name, text: q.name })),
+                    t('drills.modal.chords'),
+                    CHORD_QUALITIES.map((q) => ({
+                        value: q.name,
+                        text: earItemLabel('chords-ear', q.name)
+                    })),
                     s.qualities,
                     (v) => (s.qualities = v),
                     2
@@ -521,15 +559,21 @@ export class NoteDrillModal extends Modal {
                 ways(
                     ['block', 'arpeggio'],
                     s.styles,
-                    { block: 'Block (all at once)', arpeggio: 'Arpeggio (one by one)' },
+                    {
+                        block: t('drills.modal.styleBlock'),
+                        arpeggio: t('drills.modal.styleArpeggio')
+                    },
                     (v) => (s.styles = v as ChordStyle[])
                 )
                 return
             case 'scales-ear':
                 this.toggles(
                     form,
-                    'Scales and modes',
-                    EAR_SCALES.map((x) => ({ value: x.name, text: x.name })),
+                    t('drills.modal.scalesModes'),
+                    EAR_SCALES.map((x) => ({
+                        value: x.name,
+                        text: earItemLabel('scales-ear', x.name)
+                    })),
                     s.scales,
                     (v) => (s.scales = v),
                     2
@@ -539,14 +583,20 @@ export class NoteDrillModal extends Modal {
                 const naming = this.deps.naming()
                 const key = this.select(
                     form,
-                    'Key',
-                    [['', 'Any key'], ...EAR_KEYS.map((k) => [k, `${noteShown(k, naming)} major`])],
+                    t('drills.modal.key'),
+                    [
+                        ['', t('drills.modal.anyKey')],
+                        ...EAR_KEYS.map((k) => [
+                            k,
+                            t('drills.modal.keyMajor', { key: noteShown(k, naming) })
+                        ])
+                    ],
                     s.key ?? ''
                 )
                 key.addEventListener('change', () => (s.key = key.value || null))
                 this.check(
                     form,
-                    'Chromatic degrees (b2, b3, #4, b6, b7)',
+                    t('drills.modal.chromatic'),
                     s.chromatic,
                     (on) => (s.chromatic = on),
                     true
@@ -558,18 +608,23 @@ export class NoteDrillModal extends Modal {
 
     /** A drill by ear's two options: the exact octave, and a reference note first. */
     private earOptions(parent: HTMLElement, s: { exact: boolean; reference: boolean }): void {
-        this.check(parent, 'Exact octave', s.exact, (on) => (s.exact = on), true)
-        this.check(parent, 'Reference note first', s.reference, (on) => (s.reference = on))
+        this.check(parent, t('drills.modal.exactOctave'), s.exact, (on) => (s.exact = on), true)
+        this.check(
+            parent,
+            t('drills.modal.referenceFirst'),
+            s.reference,
+            (on) => (s.reference = on)
+        )
     }
 
     private ask(parent: HTMLElement, s: { ask: DrillAsk }): void {
         const select = this.select(
             parent,
-            'Questions',
+            t('drills.modal.questions'),
             [
-                ['both', 'Find and name'],
-                ['find', 'Find on the drawing'],
-                ['name', 'Name what is shown']
+                ['both', t('drills.modal.askBoth')],
+                ['find', t('drills.modal.askFind')],
+                ['name', t('drills.modal.askName')]
             ],
             s.ask
         )
@@ -579,10 +634,10 @@ export class NoteDrillModal extends Modal {
     private instrument(parent: HTMLElement, s: { instrument: DrillInstrument }): void {
         const select = this.select(
             parent,
-            'Instrument',
+            t('drills.modal.instrument'),
             [
-                ['guitar', 'Guitar'],
-                ['piano', 'Piano']
+                ['guitar', t('drills.instrument.guitar')],
+                ['piano', t('drills.instrument.piano')]
             ],
             s.instrument
         )
@@ -594,7 +649,7 @@ export class NoteDrillModal extends Modal {
     private async begin(): Promise<void> {
         // A drill by ear plays its notes: without playback (a drill note started again) it can't run.
         if (isEarKind(this.setting.kind) && !this.deps.play()) {
-            new Notice('Drills by ear play their notes: turn on playback in the settings first.')
+            new Notice(t('drills.modal.needsPlayback'))
             this.renderSetup()
             return
         }
@@ -604,7 +659,7 @@ export class NoteDrillModal extends Modal {
         this.setting = setting
         this.next = null
         this.contentEl.empty()
-        this.contentEl.createDiv({ cls: 'mp-muted', text: 'Preparing the questions…' })
+        this.contentEl.createDiv({ cls: 'mp-muted', text: t('drills.modal.preparing') })
         const pool = await this.deps.pool(setting)
         if (run !== this.run || this.closed) return
         this.pool = pool
@@ -618,8 +673,8 @@ export class NoteDrillModal extends Modal {
         if (!this.list.length) {
             new Notice(
                 setting.kind === 'chords' || setting.kind === 'scales'
-                    ? `Nothing to ask ${settingWords(setting)}: pick another source.`
-                    : 'Nothing to ask.'
+                    ? t('drills.modal.nothingToAskFor', { setting: settingLabel(setting) })
+                    : t('drills.modal.nothingToAsk')
             )
             this.renderSetup()
             return
@@ -646,7 +701,11 @@ export class NoteDrillModal extends Modal {
         el.empty()
         el.createDiv({
             cls: 'mp-muted',
-            text: `${drillTitle(this.setting)} · ${this.index + 1} of ${this.list.length}`
+            text: t('drills.modal.progress', {
+                title: drillHeading(this.setting),
+                n: this.index + 1,
+                total: this.list.length
+            })
         })
         // The prompt is announced: the question changed.
         el.createDiv({
@@ -749,7 +808,11 @@ export class NoteDrillModal extends Modal {
             right,
             seconds: this.seconds()
         })
-        feedback.setText(right ? 'Right.' : (said ?? `It was ${expectedShown(q, naming)}.`))
+        feedback.setText(
+            right
+                ? t('drills.modal.right')
+                : (said ?? t('drills.modal.itWas', { answer: expectedShown(q, naming) }))
+        )
         feedback.toggleClass('mp-note-drill-right', right)
         feedback.toggleClass('mp-note-drill-wrong', !right)
         this.offerNote(q, actions)
@@ -760,7 +823,7 @@ export class NoteDrillModal extends Modal {
         }
         const button = actions.createEl('button', {
             cls: 'mod-cta mp-note-drill-next',
-            text: this.index + 1 < this.list.length ? 'Next' : 'See the score'
+            text: this.index + 1 < this.list.length ? t('common.next') : t('drills.modal.seeScore')
         })
         button.addEventListener('click', go)
         this.next = go
@@ -772,13 +835,17 @@ export class NoteDrillModal extends Modal {
         const s = this.setting
         if (s.kind !== 'chords' && s.kind !== 'scales') return
         if (this.deps.noteOf(s.kind, q.spot, s.instrument)) return
-        const create = actions.createEl('button', { text: 'Create note' })
+        const create = actions.createEl('button', { text: t('drills.modal.createNote') })
         create.addEventListener('click', () => {
             create.disabled = true
             void this.deps
                 .createNote(s.kind, q.spot, s.instrument)
                 .then((path) => {
-                    new Notice(`Created ${path.replace(/^.*\//, '').replace(/\.md$/, '')}.`)
+                    new Notice(
+                        t('drills.modal.created', {
+                            name: path.replace(/^.*\//, '').replace(/\.md$/, '')
+                        })
+                    )
                     create.remove()
                 })
                 .catch((error: unknown) => {
@@ -845,14 +912,17 @@ export class NoteDrillModal extends Modal {
             attr: { 'aria-keyshortcuts': 'R' }
         })
         setIcon(again.createSpan({ cls: 'mp-note-drill-play-icon' }), 'volume-2')
-        again.createSpan({ text: 'Play again' })
+        again.createSpan({ text: t('drills.modal.playAgain') })
         again.createEl('kbd', { text: 'R', attr: { 'aria-hidden': 'true' } })
         again.addEventListener('click', replay)
         if (q.kind === 'degrees-ear')
             tools
-                .createEl('button', { text: 'Key' })
+                .createEl('button', { text: t('drills.modal.cadence') })
                 .addEventListener('click', () => this.sound(q.sound, sound, null))
-        const show = tools.createEl('button', { cls: 'mp-note-drill-show', text: 'Show me' })
+        const show = tools.createEl('button', {
+            cls: 'mp-note-drill-show',
+            text: t('drills.modal.showMe')
+        })
         this.replay = replay
         const intervals = q.kind === 'intervals-ear'
         // Intervals and degrees are short labels (m3, b6): narrower cells, more on a row.
@@ -867,7 +937,7 @@ export class NoteDrillModal extends Modal {
                 show.disabled = true
                 this.finish(q, isRight(q, { choice }), feedback, actions)
             },
-            (c) => c,
+            (c) => earItemLabel(q.kind, c),
             intervals
                 ? (c) => intervalWords(INTERVALS.find((n) => intervalName(n) === c) ?? 0) || c
                 : undefined
@@ -880,7 +950,13 @@ export class NoteDrillModal extends Modal {
                 if (q.choices[i] === q.answer) b.addClass('mp-note-drill-is-right')
             }
             // Shown is not known: it counts as a miss, and the map brings it back sooner.
-            this.finish(q, false, feedback, actions, `It was ${q.answer}.`)
+            this.finish(
+                q,
+                false,
+                feedback,
+                actions,
+                t('drills.modal.itWas', { answer: earItemLabel(q.kind, q.answer) })
+            )
             this.sound(q.sound, sound, null)
         })
         this.sound(q.sound, sound, q.last)
@@ -1029,11 +1105,14 @@ export class NoteDrillModal extends Modal {
                     s.kind === 'fretboard-ear' || s.kind === 'keyboard-ear' ? referenceOf(s) : null
                 const buttons = answer.createDiv({ cls: 'mp-note-drill-hear' })
                 buttons
-                    .createEl('button', { text: 'Play again', attr: { 'aria-keyshortcuts': 'R' } })
+                    .createEl('button', {
+                        text: t('drills.modal.playAgain'),
+                        attr: { 'aria-keyshortcuts': 'R' }
+                    })
                     .addEventListener('click', replay)
                 if (reference !== null)
                     buttons
-                        .createEl('button', { text: 'Reference' })
+                        .createEl('button', { text: t('drills.modal.reference') })
                         .addEventListener('click', () => this.hear(q, reference, false))
                 this.replay = replay
                 this.hear(q, q.reference, true)
@@ -1107,7 +1186,16 @@ export class NoteDrillModal extends Modal {
                 let state = startScale()
                 const show = () =>
                     left.setText(
-                        `${state.found.length} of ${q.classes.length} notes found${state.misses ? `, ${state.misses} wrong` : ''}`
+                        state.misses
+                            ? t('drills.modal.foundWrong', {
+                                  found: state.found.length,
+                                  total: q.classes.length,
+                                  misses: state.misses
+                              })
+                            : t('drills.modal.found', {
+                                  found: state.found.length,
+                                  total: q.classes.length
+                              })
                     )
                 show()
                 this.pick(svg, (pick) => {
@@ -1122,17 +1210,25 @@ export class NoteDrillModal extends Modal {
                             outcome.right,
                             feedback,
                             actions,
-                            state.misses ? `All found, with ${state.misses} wrong.` : undefined
+                            state.misses
+                                ? t('drills.modal.allFoundWrong', { misses: state.misses })
+                                : undefined
                         )
                 })
                 answer
-                    .createEl('button', { text: 'Show the notes' })
+                    .createEl('button', { text: t('drills.modal.showNotes') })
                     .addEventListener('click', () => {
                         if (this.answered) return
                         const missing = q.classes
                             .filter((c) => !state.found.includes(c))
                             .map((c) => noteShown(NOTES[c]!, this.deps.naming()))
-                        this.finish(q, false, feedback, actions, `Missing: ${missing.join(' ')}.`)
+                        this.finish(
+                            q,
+                            false,
+                            feedback,
+                            actions,
+                            t('drills.modal.missing', { notes: missing.join(' ') })
+                        )
                     })
                 this.layer?.focus()
                 return
@@ -1149,11 +1245,14 @@ export class NoteDrillModal extends Modal {
         const el = this.contentEl
         el.empty()
         const score = scoreOf(this.answers)
-        el.createDiv({ cls: 'mp-drill-title', text: `${score.right} of ${score.total} right` })
+        el.createDiv({
+            cls: 'mp-drill-title',
+            text: t('drills.modal.score', { right: score.right, total: score.total })
+        })
         if (score.right)
             el.createDiv({
                 cls: 'mp-muted',
-                text: `${score.seconds.toFixed(1)} s on average for a right answer`
+                text: t('drills.modal.average', { seconds: score.seconds.toFixed(1) })
             })
         const note = this.deps.noteFor(this.setting)
         const before = note ? this.deps.statsOf(note.path) : new Map<string, SpotStat>()
@@ -1172,19 +1271,19 @@ export class NoteDrillModal extends Modal {
             const coming = nextGuidedItem(s, after, rules.clearStreak)
             const text =
                 next.length > now
-                    ? `Save it, and the next drill adds ${next.at(-1)}.`
+                    ? t('drills.modal.nextAdds', { item: earItemLabel(s.kind, next.at(-1)!) })
                     : coming
-                      ? `Next to come: ${coming}, once you know these.`
+                      ? t('drills.modal.nextComing', { item: earItemLabel(s.kind, coming) })
                       : null
             if (text) el.createDiv({ cls: 'mp-muted', text })
         }
         const actions = el.createDiv({ cls: 'mp-actions' })
-        const save = actions.createEl('button', { cls: 'mod-cta', text: 'Save' })
+        const save = actions.createEl('button', { cls: 'mod-cta', text: t('common.save') })
         actions
-            .createEl('button', { text: 'Again' })
+            .createEl('button', { text: t('drills.modal.again') })
             .addEventListener('click', () => void this.begin())
         actions
-            .createEl('button', { text: 'Another drill' })
+            .createEl('button', { text: t('drills.modal.anotherDrill') })
             .addEventListener('click', () => this.renderSetup())
         save.addEventListener('click', () => {
             save.disabled = true
@@ -1192,19 +1291,27 @@ export class NoteDrillModal extends Modal {
                 .save(this.setting, this.answers)
                 .then((saved) => {
                     new Notice(
-                        `Saved: ${saved.score.right} of ${saved.score.total} right (review: ${saved.review}).`
+                        t('drills.modal.saved', {
+                            right: saved.score.right,
+                            total: saved.score.total,
+                            review: t(REVIEW_LABELS[saved.review])
+                        })
                     )
                     this.deps.addToPanel(saved.path)
                     save.remove()
                     const log = actions.createEl('button', {
                         cls: 'mod-cta',
-                        text: 'Log this drill'
+                        text: t('drills.modal.logDrill')
                     })
                     log.addEventListener('click', () => {
                         this.close()
                         this.deps.log(
                             saved.path,
-                            `${drillTitle(this.setting)}: ${saved.score.right} of ${saved.score.total} right`
+                            t('drills.modal.logNote', {
+                                title: drillHeading(this.setting),
+                                right: saved.score.right,
+                                total: saved.score.total
+                            })
                         )
                     })
                     actions.prepend(log)
@@ -1228,7 +1335,7 @@ export class NoteDrillModal extends Modal {
             c.createDiv({ text })
             if (!stat) {
                 c.addClass('mp-note-drill-unasked')
-                c.setAttr('aria-label', `${text}: not asked yet`)
+                c.setAttr('aria-label', t('drills.modal.notAsked', { spot: text }))
                 return c
             }
             const slow = stat.seconds >= rules.fastSeconds
@@ -1237,7 +1344,12 @@ export class NoteDrillModal extends Modal {
             c.toggleClass('mp-note-drill-slow', slow)
             c.setAttr(
                 'aria-label',
-                `${text}: ${stat.right} of ${stat.asked} right, ${stat.seconds.toFixed(1)} s${slow ? ', slow' : ''}`
+                t(slow ? 'drills.modal.cellSlow' : 'drills.modal.cell', {
+                    spot: text,
+                    right: stat.right,
+                    asked: stat.asked,
+                    seconds: stat.seconds.toFixed(1)
+                })
             )
             return c
         }
@@ -1249,7 +1361,7 @@ export class NoteDrillModal extends Modal {
             for (let f = s.frets[0]; f <= s.frets[1]; f++)
                 grid.createDiv({ cls: 'mp-muted', text: String(f) })
             for (const n of s.strings) {
-                grid.createDiv({ cls: 'mp-muted', text: `S${n}` })
+                grid.createDiv({ cls: 'mp-muted', text: t('drills.modal.stringShort', { n }) })
                 for (let f = s.frets[0]; f <= s.frets[1]; f++)
                     cell(
                         grid,
