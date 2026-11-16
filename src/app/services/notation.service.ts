@@ -1,13 +1,19 @@
 import { MarkdownPreviewRenderer, MarkdownRenderChild, MarkdownView } from 'obsidian'
 import type { MarkdownSectionInformation, Plugin, Workspace } from 'obsidian'
 import { t } from '../i18n/i18n'
+import { libraryLanguage } from '../i18n/library-language'
 import {
     LANGUAGES,
     blockFromProperties,
     renderBlock,
     textTabToAlphaTex
 } from '@dsebastien/music-notation'
-import type { NotationLanguage, RenderOptions, RenderResult } from '@dsebastien/music-notation'
+import type {
+    Naming,
+    NotationLanguage,
+    RenderOptions,
+    RenderResult
+} from '@dsebastien/music-notation'
 import { lookupGuitarVoicing } from '@dsebastien/music-notation/voicings'
 import { renderTab } from '@dsebastien/music-notation/tab'
 import type { Staves, TabResult } from '@dsebastien/music-notation/tab'
@@ -48,6 +54,12 @@ export interface TabHost {
     tempoUnit?: () => TempoUnit
     /** The reader switched the unit on a bar: saved for the next scores. */
     saveTempoUnit?: (unit: TempoUnit) => void
+    /**
+     * Settings → Notation → Note names (letters, solfège, German): how a tab or a score writes
+     * the names of its notes when they are on (`names: on`, the bar's Note names button;
+     * music-notation #112).
+     */
+    naming?: () => Naming
 }
 
 /** What a block's actions (Edit as alphaTex, Keep this view) know about it. */
@@ -105,12 +117,16 @@ export const textTabOf = (source: string): string | null => {
 const asCode = (el: HTMLElement, language: string, source: string) =>
     el.createEl('pre').createEl('code', { cls: `language-${language}`, text: source })
 
-/** A tab block's setting line, as the library reads them at the top of the block. */
-const SETTING = /^\s*(staves|file|tracks?)\s*:/i
+/**
+ * A tab block's setting line, as the library reads them at the top of the block: the same keys as
+ * its `parseTabSource` (`engine`, `layout` and `names` since music-notation 0.23.0).
+ */
+const SETTING = /^\s*(staves|file|tracks?|engine|layout|names)\s*:/i
 
 /**
- * A tab block's settings (`staves:`, `file:`, `tracks:` lines at the top, with the blank lines and
- * `//` comments among them) and the text after them; no settings when it has none.
+ * A tab block's settings (`staves:`, `file:`, `tracks:`, `engine:`, `layout:`, `names:` lines at
+ * the top, with the blank lines and `//` comments among them) and the text after them; no settings
+ * when it has none.
  */
 export function splitSettings(source: string): { settings: string[]; rest: string } {
     const lines = source.split('\n')
@@ -149,21 +165,17 @@ export interface TextTabBlock {
     edit: (() => void) | null
 }
 
-/** The block line an alphaTab message points at (`line 3, column 5: …`, from 1); null without one. */
-export const errorLineOf = (message: string | null): number | null => {
-    const m = /^line (\d+), column \d+:/.exec(message ?? '')
-    return m ? Number(m[1]) : null
-}
-
 /**
- * Under a tab or score error: the block's text, folded, with the line the message points at
- * marked (#61). Without it, the text stays hidden until the note is edited.
+ * Under a tab or score error: the block's text, folded, with the line the error points at marked
+ * (#61; from 1, null without one). Without it, the text stays hidden until the note is edited.
+ * The line is the library's own (`ready` gives it since music-notation 0.23.0): the message is
+ * translated, so it is no longer read out of it.
  */
-export function showSource(el: HTMLElement, source: string, error: string | null): HTMLElement {
+export function showSource(el: HTMLElement, source: string, line: number | null): HTMLElement {
     const details = el.createEl('details', { cls: 'mp-tab-source' })
     details.createEl('summary', { text: t('notation.blockText') })
     const code = details.createEl('pre').createEl('code')
-    const marked = errorLineOf(error)
+    const marked = line
     source.split('\n').forEach((line, i) => {
         code.createSpan({
             cls: i + 1 === marked ? 'mp-tab-source-line mp-tab-source-error' : 'mp-tab-source-line',
@@ -253,8 +265,11 @@ class TabChild extends MarkdownRenderChild {
                 loading.remove()
                 const keep = this.keepView
                 this.result = renderTab(this.language, this.source, this.containerEl, {
-                    // Library language (#112): `language: libraryLanguage()` once it accepts one.
                     alphaTab,
+                    // The bar's buttons and the messages in Obsidian's language (#112).
+                    language: libraryLanguage(),
+                    // Note names on the notes follow the Note names setting (music-notation #112).
+                    ...(this.host.naming ? { naming: this.host.naming() } : {}),
                     assets: this.host.runtime.assets(win),
                     resolveFile: (link) => this.host.resolveFile(link, this.sourcePath),
                     ...(this.host.volume ? { volume: this.host.volume } : {}),
@@ -265,12 +280,12 @@ class TabChild extends MarkdownRenderChild {
                     ...(keep ? { onKeepView: (staves: Staves) => keep(staves) } : {})
                 })
                 const result = this.result
-                void result.ready.then(({ ok, error }) => {
+                void result.ready.then(({ ok, line }) => {
                     if (this.gone || result !== this.result) return
                     if (ok) this.host.decorate?.(result, this.sourcePath)
                     // A text tab alphaTab can't draw shows as code, as before (#84).
                     if (this.textTab) this.showText(result.el, ok, result.api)
-                    else if (!ok) showSource(result.el, this.source, error)
+                    else if (!ok) showSource(result.el, this.source, line ?? null)
                 })
             })
             .catch((error: unknown) => {

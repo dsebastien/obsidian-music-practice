@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 import {
     NotationBlocks,
-    errorLineOf,
     isTextTab,
     processorExists,
-    showSource
+    showSource,
+    splitSettings
 } from './notation.service'
 import type { NotationHost, NotationToggles, TabHost } from './notation.service'
 import type {
@@ -646,6 +646,26 @@ describe('NotationBlocks: exercise tabs under fretboards (#70)', () => {
     })
 })
 
+describe('splitSettings', () => {
+    it('takes every setting line the library reads at the top of a tab block', () => {
+        // layout:, names: and engine: are settings since music-notation 0.23.0: a text tab under
+        // them is still a text tab, and Edit as alphaTex keeps them.
+        const source =
+            'staves: both\nlayout: line\n// a note\nnames: on\nengine: light\n\n:4 0.6 2.5'
+        expect(splitSettings(source)).toEqual({
+            settings: ['staves: both', 'layout: line', '// a note', 'names: on', 'engine: light'],
+            rest: ':4 0.6 2.5'
+        })
+        expect(splitSettings(':4 0.6 2.5')).toEqual({ settings: [], rest: ':4 0.6 2.5' })
+    })
+
+    it('a text tab under layout: and names: lines is still read as a text tab', () => {
+        expect(
+            isTextTab('layout: line\nnames: on\ne|---0---|\nB|---1---|\nG|---0---|\nD|---2---|')
+        ).toBe(true)
+    })
+})
+
 describe('isTextTab', () => {
     it('tells a plain-text tab from alphaTex', () => {
         expect(isTextTab('e|---0---|\nB|---1---|\nG|---0---|\nD|---2---|')).toBe(true)
@@ -703,15 +723,18 @@ const textOf = (node: Node): string[] =>
     node.children.flatMap((child) => [...(child.text ? [child.text] : []), ...textOf(child)])
 
 describe('Tab and score errors show the block text', () => {
-    it('reads the line an alphaTab message points at', () => {
-        expect(errorLineOf("line 3, column 5: Unexpected token ')'")).toBe(3)
-        expect(errorLineOf("staves: use tab, score or both, got 'x'")).toBeNull()
-        expect(errorLineOf(null)).toBeNull()
+    it('marks no line when the error has no place in the block', () => {
+        const { el, node } = nodeEl()
+        showSource(el, ':4 0.6\n:4 zz.6', null)
+        const lines = node.children[0]!.children[1]!.children[0]!.children
+        expect(lines.map((l) => l.cls?.includes('mp-tab-source-error'))).toEqual([false, false])
     })
 
     it('folds the text under the message, the error line marked', () => {
         const { el, node } = nodeEl()
-        showSource(el, ':4 0.6\n\n:4 zz.6', 'line 3, column 4: Unexpected value')
+        // The line comes from the library as a number (music-notation 0.23.0): the message is
+        // translated, so nothing is read out of it.
+        showSource(el, ':4 0.6\n\n:4 zz.6', 3)
         const details = node.children[0]!
         expect(details.tag).toBe('details')
         expect(details.children[0]).toMatchObject({ tag: 'summary', text: 'Block text' })

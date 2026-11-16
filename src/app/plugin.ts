@@ -601,6 +601,7 @@ export class MusicPracticePlugin extends Plugin {
                 keepView: (request, staves) => void this.textTabs.keepView(request, staves),
                 volume: () => volumeOf(this.settings.playback),
                 tempoUnit: () => this.settings.playback.tempoUnit,
+                naming: () => namingOf(this.settings.notationLayout.naming) ?? 'letters',
                 saveTempoUnit: (unit) => {
                     if (this.settings.playback.tempoUnit === unit) return
                     void this.updateSettings((draft) => {
