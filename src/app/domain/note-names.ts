@@ -4,12 +4,20 @@
  */
 import { chordInNaming, noteInNaming, shownText, type Naming } from '@dsebastien/music-notation'
 import type { DrillKind, Question } from './note-drill'
+import { t } from '../i18n/i18n'
+import { earItemLabel } from './ear-training'
 
 /** The settings' words for each naming, in the library's order. */
 export const NAMING_LABELS: Record<Naming, string> = {
-    letters: 'Letters (C D E)',
-    solfege: 'Solfège (Do Ré Mi)',
-    german: 'German (H for B)'
+    get letters() {
+        return t('notation.naming.letters')
+    },
+    get solfege() {
+        return t('notation.naming.solfege')
+    },
+    get german() {
+        return t('notation.naming.german')
+    }
 }
 
 const NOTE = /^([A-G](?:#|b|♯|♭){0,2})(-?\d+)?$/
@@ -43,11 +51,14 @@ export function promptShown(q: Question, naming: Naming): string {
     if (naming === 'letters') return q.prompt
     switch (q.type) {
         case 'find-fret':
-            return `Find ${noteShown(q.note, naming)} on string ${q.string}`
+            return t('notation.prompt.findFret', {
+                note: noteShown(q.note, naming),
+                string: q.string
+            })
         case 'find-key':
-            return `Find ${noteShown(q.spot, naming)}`
+            return t('notation.prompt.findKey', { note: noteShown(q.spot, naming) })
         case 'find-scale':
-            return `Find the notes of ${scaleShown(q.spot, naming)}`
+            return t('notation.prompt.findScale', { scale: scaleShown(q.spot, naming) })
         default:
             return q.prompt
     }
@@ -57,13 +68,13 @@ export function promptShown(q: Question, naming: Naming): string {
 export function expectedShown(q: Question, naming: Naming): string {
     if ('note' in q) return noteShown(q.note, naming)
     // Ear training names no note: an interval, a quality, a scale type or a degree.
-    if (q.type === 'hear-name') return q.answer
+    if (q.type === 'hear-name') return earItemLabel(q.kind, q.answer)
     return q.type === 'name-chord' ? chordShown(q.spot, naming) : scaleShown(q.spot, naming)
 }
 
 /** A choice of a chord or scale question. */
 export function choiceShown(q: Question, choice: string, naming: Naming): string {
-    if (q.type === 'hear-name') return choice
+    if (q.type === 'hear-name') return earItemLabel(q.kind, choice)
     return q.type === 'name-chord' ? chordShown(choice, naming) : scaleShown(choice, naming)
 }
 
@@ -76,7 +87,7 @@ export function spotShown(kind: DrillKind, spot: string, naming: Naming): string
 
 /**
  * A diagram title the plugin writes into a block (Easiest way, Triads): the library never
- * rewrites a `title:` line, so the plugin shows it in the naming itself. Titles are never read.
+ * rewrites a title line, so the plugin shows it in the naming itself. Titles are never read.
  */
 export function titleShown(title: string, naming: Naming | undefined): string {
     return naming && naming !== 'letters' ? shownText(title, naming) : title

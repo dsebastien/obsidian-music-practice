@@ -4,17 +4,19 @@
  */
 import { baseFretOf, parseFrets } from '@dsebastien/music-notation'
 import type { GeneratedVoicing, VoicingOptions, VoicingShape } from '@dsebastien/music-notation'
+import { t } from '../i18n/i18n'
 
 /** Where on the neck: anywhere, the first position, or a fret range. */
 export type VoicingArea = 'all' | 'open' | '1-5' | '5-9' | '9-12' | '12-15'
 
-export const VOICING_AREAS: { value: VoicingArea; label: string }[] = [
-    { value: 'all', label: 'Whole neck' },
-    { value: 'open', label: 'First position' },
-    { value: '1-5', label: 'Frets 1–5' },
-    { value: '5-9', label: 'Frets 5–9' },
-    { value: '9-12', label: 'Frets 9–12' },
-    { value: '12-15', label: 'Frets 12–15' }
+/** The neck areas with their labels (the labels follow the language, so this is a function). */
+export const voicingAreas = (): { value: VoicingArea; label: string }[] => [
+    { value: 'all', label: t('tools.voicings.areaAll') },
+    { value: 'open', label: t('tools.voicings.areaOpen') },
+    { value: '1-5', label: t('tools.voicings.areaFrets', { from: 1, to: 5 }) },
+    { value: '5-9', label: t('tools.voicings.areaFrets', { from: 5, to: 9 }) },
+    { value: '9-12', label: t('tools.voicings.areaFrets', { from: 9, to: 12 }) },
+    { value: '12-15', label: t('tools.voicings.areaFrets', { from: 12, to: 15 }) }
 ]
 
 export interface VoicingFilter {
@@ -113,7 +115,7 @@ export function voicingNoteTitle(
 
 /** "1. E-shape barre", "2. 5fr", for the voicing buttons. */
 export const voicingLabel = (voicing: GeneratedVoicing, rank: number): string =>
-    `${rank}. ${voicing.shape ?? `${voicing.baseFret}fr`}`
+    `${rank}. ${voicing.shape ?? t('tools.voicings.baseFret', { fret: voicing.baseFret })}`
 
 /**
  * A note's frets property as frets: text ("x02220", "x-10-12-12-11-10") or a number YAML read
@@ -161,5 +163,10 @@ export function voicingConflict(note: {
         return null
     }
     const other = note.voicingShape ?? voicing.shape
-    return `This note is ${own ? `the ${own} shape` : 'another shape'}: add ${other ? `the ${other}` : 'this voicing'} as its own note.`
+    if (own) {
+        return other
+            ? t('tools.voicings.conflictOwnOther', { own, other })
+            : t('tools.voicings.conflictOwn', { own })
+    }
+    return other ? t('tools.voicings.conflictOther', { other }) : t('tools.voicings.conflictNone')
 }

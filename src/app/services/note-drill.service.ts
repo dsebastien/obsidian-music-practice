@@ -5,9 +5,11 @@
  * that has none yet.
  */
 import type { TFile } from 'obsidian'
+import { t } from '../i18n/i18n'
 import { parseChord } from '@dsebastien/music-notation'
 import { lookupGuitarVoicing } from '@dsebastien/music-notation/voicings'
 import { chordTitle, safeTitle, scaleTitle } from '../domain/chord'
+import { instrumentLabel } from '../domain/ear-training'
 import type { FieldNames } from '../domain/fields'
 import { levelChange } from '../domain/log'
 import type { LearningType, NoteModel } from '../domain/note-model'
@@ -347,13 +349,15 @@ export class NoteDrillService {
         const type = this.typeOf(instrument, kind === 'chords' ? 'chord' : 'scale')
         if (!type)
             throw new Error(
-                `This vault has no ${instrument} ${kind === 'chords' ? 'chord' : 'scale'} note type.`
+                t(kind === 'chords' ? 'drills.error.noChordType' : 'drills.error.noScaleType', {
+                    instrument: instrumentLabel(instrument)
+                })
             )
         const on = (language: 'chord' | 'fretboard' | 'keyboard') =>
             this.deps.blocksOn?.(language) ?? true
         if (kind === 'chords') {
             const chord = parseChord(name)
-            if (!chord) throw new Error(`"${name}" is not a chord the library reads.`)
+            if (!chord) throw new Error(t('drills.error.notChord', { name }))
             const voicing = instrument === 'guitar' ? lookupGuitarVoicing(chord.symbol, 0) : null
             const file = await this.deps.create(type, {
                 title: safeTitle(chordTitle(chord)),
@@ -364,7 +368,7 @@ export class NoteDrillService {
             return file.path
         }
         const m = /^([A-G][#b]?)\s+(.+)$/.exec(name.trim())
-        if (!m) throw new Error(`"${name}" is not a scale the library reads.`)
+        if (!m) throw new Error(t('drills.error.notScale', { name }))
         const f = this.deps.fields()
         const scaleType = m[2]!.charAt(0).toUpperCase() + m[2]!.slice(1)
         const language = instrument === 'piano' ? 'keyboard' : 'fretboard'
@@ -386,18 +390,22 @@ export class NoteDrillService {
         const ear = isEarTraining(setting)
         const instrument = instrumentOf(setting)
         const type = this.drillType(setting)
-        const typeWords = ear ? 'music exercise' : `${instrument} exercise`
         if (!type)
             throw new Error(
                 ear
-                    ? 'This vault has no music exercise note type to keep ear training drills in.'
-                    : `This vault has no ${instrument} exercise note type to keep drills in.`
+                    ? t('drills.error.noEarType')
+                    : t('drills.error.noDrillType', { instrument: instrumentLabel(instrument) })
             )
         const f = this.deps.fields()
         for (const field of [f.drillKind, f.drillSetting, f.drillStats])
             if (!type.fields.has(field))
                 throw new Error(
-                    `The ${typeWords} type has no "${field}" property: add it to keep drill results.`
+                    ear
+                        ? t('drills.error.noEarProperty', { field })
+                        : t('drills.error.noDrillProperty', {
+                              instrument: instrumentLabel(instrument),
+                              field
+                          })
                 )
         // Ear training notes say so in `exercise_kind`, with the type's own value when it lists them.
         const allowed = type.allowedValues[f.exerciseKind]

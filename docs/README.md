@@ -24,6 +24,7 @@ Learn an instrument in Obsidian: log practice in under a minute, run a practice 
 - [Shortcuts from outside Obsidian](usage.md#shortcuts-from-outside-obsidian): start the timer, log or plan from a phone, a Stream Deck or an NFC tag.
 - Works with the Obsidian Starter Kit, or on its own.
 - Every rule is a setting, with sensible defaults.
+- In English or in French: the plugin [follows Obsidian's language](configuration.md#language).
 - [All the ways to play a chord](usage.md#all-the-ways-to-play-a-chord), easiest first, by neck area and root string.
 - [Triads](usage.md#triads) and [chord transitions](usage.md#chord-transitions).
 - [Tabs and scores](notation.md#tabs-and-scores) with playback, and [imports](usage.md#imports).

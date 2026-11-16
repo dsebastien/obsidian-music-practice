@@ -7,8 +7,57 @@ import { createDefaultSettings } from '../types/plugin-settings.intf'
 import { parseSetting, readSetting, validateSetting, writeSetting } from './setting-paths'
 import { BLOCK_LANGUAGES } from '../services/notation.service'
 import type { BlockLanguage } from '../services/notation.service'
-import { ORIENTATIONS, ROOT_MARK_LABELS } from '../domain/notation-layout'
+import { ROOT_MARK_LABELS } from '../domain/notation-layout'
 import { NAMING_LABELS } from '../domain/note-names'
+import { interpolate, messageIn, currentLanguage, t, tn } from '../i18n/i18n'
+import type { MessageKey, MessageParams } from '../i18n/i18n'
+
+/** The text of a key built from an id (the id types make a missing key a compile error). */
+const say = (key: MessageKey): string => messageIn(currentLanguage(), key) ?? key
+
+type IdOf<Suffix extends string> = MessageKey extends infer K
+    ? K extends `settings.${Suffix}`
+        ? K
+        : never
+    : never
+
+/** Ids of the rows that have a name and a description. */
+type ItemId = IdOf<`item.${string}.name`> extends `settings.item.${infer I}.name` ? I : never
+
+/** Ids of the rows that have a name only. */
+type LabelId = IdOf<`label.${string}`> extends `settings.label.${infer I}` ? I : never
+
+/** The text row of each notation block language, in the order the settings list them. */
+const TOGGLE_IDS: Record<
+    BlockLanguage,
+    | 'toggleChord'
+    | 'toggleChords'
+    | 'toggleKeyboard'
+    | 'toggleFretboard'
+    | 'toggleTab'
+    | 'toggleScore'
+    | 'toggleStrum'
+    | 'togglePicking'
+    | 'toggleProgression'
+    | 'toggleCircle'
+> = {
+    chord: 'toggleChord',
+    chords: 'toggleChords',
+    keyboard: 'toggleKeyboard',
+    fretboard: 'toggleFretboard',
+    tab: 'toggleTab',
+    score: 'toggleScore',
+    strum: 'toggleStrum',
+    picking: 'togglePicking',
+    progression: 'toggleProgression',
+    circle: 'toggleCircle'
+}
+
+const RUBRIC_HEADINGS = {
+    chord: 'settings.group.rubricChord',
+    piece: 'settings.group.rubricPiece',
+    pattern: 'settings.group.rubricPattern'
+} as const
 
 /**
  * Settings tab, declared rather than rendered (Obsidian 1.13+).
@@ -39,15 +88,20 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
     private validate = (key: string) => (value: unknown) =>
         validateSetting(this.plugin.settings, key, value)
 
-    private num(key: string, name: string, desc: string): SettingDefinition {
-        return { name, desc, control: { type: 'number', key, validate: this.validate(key) } }
+    private num(key: string, id: ItemId): SettingDefinition {
+        return {
+            name: say(`settings.item.${id}.name`),
+            desc: say(`settings.item.${id}.desc`),
+            control: { type: 'number', key, validate: this.validate(key) }
+        }
     }
 
     /** A notation block toggle, keyed `notation.<language>`. */
-    private notationToggle(language: BlockLanguage, name: string, desc: string): SettingDefinition {
+    private notationToggle(language: BlockLanguage): SettingDefinition {
+        const id = TOGGLE_IDS[language]
         return {
-            name,
-            desc: `${desc} Code blocks named "${language}".`,
+            name: say(`settings.item.${id}.name`),
+            desc: t('settings.toggleDesc', { desc: say(`settings.item.${id}.desc`), language }),
             control: { type: 'toggle', key: `notation.${language}` }
         }
     }
@@ -55,162 +109,127 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
     /** A default orientation dropdown, keyed `notationLayout.<language>`. */
     private orientation(
         language: 'chord' | 'fretboard' | 'keyboard',
-        name: string,
-        desc: string
+        id: 'chordOrientation' | 'fretboardOrientation' | 'keyboardOrientation'
     ): SettingDefinition {
         return {
-            name,
-            desc: `${desc} A block can say otherwise with "orientation:".`,
+            name: say(`settings.item.${id}.name`),
+            desc: t('settings.orientationDesc', { desc: say(`settings.item.${id}.desc`) }),
             control: {
                 type: 'dropdown',
                 key: `notationLayout.${language}`,
-                options: Object.fromEntries(
-                    ORIENTATIONS.map((o) => [o, o.charAt(0).toUpperCase() + o.slice(1)])
-                )
+                options: {
+                    vertical: t('settings.option.vertical'),
+                    horizontal: t('settings.option.horizontal')
+                }
             }
         }
     }
 
-    private text(key: string, name: string, desc: string): SettingDefinition {
-        return { name, desc, control: { type: 'text', key, validate: this.validate(key) } }
+    private text(key: string, id: ItemId, params?: MessageParams): SettingDefinition {
+        return {
+            name: say(`settings.item.${id}.name`),
+            desc: params
+                ? interpolate(say(`settings.item.${id}.desc`), params)
+                : say(`settings.item.${id}.desc`),
+            control: { type: 'text', key, validate: this.validate(key) }
+        }
+    }
+
+    /** A text row with a name and no description. */
+    private labelled(key: string, id: LabelId): SettingDefinition {
+        return {
+            name: say(`settings.label.${id}`),
+            desc: '',
+            control: { type: 'text', key, validate: this.validate(key) }
+        }
+    }
+
+    /** A toggle row. */
+    private toggle(key: string, id: ItemId): SettingDefinition {
+        return {
+            name: say(`settings.item.${id}.name`),
+            desc: say(`settings.item.${id}.desc`),
+            control: { type: 'toggle', key }
+        }
+    }
+
+    /** A page of the settings (a sub-screen with its own rows). */
+    private pageTexts(id: 'rules' | 'rubric' | 'fields' | 'local' | 'types') {
+        return {
+            name: say(`settings.page.${id}.name`),
+            desc: say(`settings.page.${id}.desc`)
+        }
     }
 
     override getSettingDefinitions(): SettingDefinitionItem[] {
         return [
             {
-                name: 'Note types',
-                desc: 'Where the learning and session note types come from.',
+                name: t('settings.label.noteTypes'),
                 searchable: false,
                 // Read at each opening: the Starter Kit can be enabled or disabled meanwhile.
                 render: (setting): void => {
                     const { source, model } = this.plugin.describeModel()
-                    const counts = `${model?.learningTypes.length ?? 0} learning types, ${model?.sessionTypes.length ?? 0} session types`
+                    const counts = t('settings.noteTypes.counts', {
+                        learning: tn(
+                            'settings.noteTypes.learning',
+                            model?.learningTypes.length ?? 0
+                        ),
+                        sessions: tn('settings.noteTypes.session', model?.sessionTypes.length ?? 0)
+                    })
                     setting.setDesc(
-                        source === 'starter-kit'
-                            ? `From the Obsidian Starter Kit: ${counts}. Its note types own the statuses, folders, templates and date stamps.`
-                            : `From this plugin's standalone note model (the Obsidian Starter Kit isn't available): ${counts}.`
+                        t(
+                            source === 'starter-kit'
+                                ? 'settings.noteTypes.starterKit'
+                                : 'settings.noteTypes.standalone',
+                            { counts }
+                        )
                     )
                 }
             },
-            this.num(
-                'defaultPlanMinutes',
-                'Default practice plan length',
-                'Minutes offered when you plan a practice session.'
-            ),
-            this.text(
-                'notesHeading',
-                'Session notes heading',
-                'Heading of the session note section that receives the note of a log ("Notes").'
-            ),
-            this.text(
-                'activityName',
-                'Activity name',
-                'The name Log practice proposes for a new activity, {subject} being the instrument ("Learn {subject}": "Learn Guitar"). Without the Obsidian Starter Kit and session_types, the activity your sessions count towards when no earlier session links one.'
-            ),
+            this.num('defaultPlanMinutes', 'planMinutes'),
+            this.text('notesHeading', 'notesHeading'),
+            {
+                name: t('settings.item.activityName.name'),
+                desc: t('settings.item.activityName.desc', { token: '{subject}' }),
+                control: {
+                    type: 'text',
+                    key: 'activityName',
+                    validate: this.validate('activityName')
+                }
+            },
             {
                 type: 'group',
-                heading: 'Notation blocks',
+                heading: t('settings.group.notation'),
                 items: [
-                    this.notationToggle(
-                        'chord',
-                        'Chord diagrams',
-                        'Guitar diagrams and piano chords.'
+                    ...(Object.keys(TOGGLE_IDS) as BlockLanguage[]).map((l) =>
+                        this.notationToggle(l)
                     ),
-                    this.notationToggle(
-                        'chords',
-                        'Chord charts',
-                        'ChordPro: chords over lyrics, transposable.'
-                    ),
-                    this.notationToggle(
-                        'keyboard',
-                        'Keyboards',
-                        'Scales, chords and notes on a piano keyboard.'
-                    ),
-                    this.notationToggle(
-                        'fretboard',
-                        'Fretboards',
-                        'Scales, chords and notes on a guitar neck.'
-                    ),
-                    this.notationToggle(
-                        'tab',
-                        'Tabs',
-                        'Tablature in alphaTex (or a Guitar Pro or MusicXML file), with playback.'
-                    ),
-                    this.notationToggle(
-                        'score',
-                        'Scores',
-                        'Standard notation in alphaTex (or a score file), with playback.'
-                    ),
-                    this.notationToggle(
-                        'strum',
-                        'Strumming patterns',
-                        'Down and up strums on a beat grid, with accents and chord changes, playable.'
-                    ),
-                    this.notationToggle(
-                        'picking',
-                        'Picking patterns',
-                        'Fingerpicking (PIMA letters or string numbers, Travis, alternate bass) as a small tab, played in time over a chord or a progression.'
-                    ),
-                    this.notationToggle(
-                        'progression',
-                        'Progressions',
-                        'Roman numerals or Nashville numbers in any key, with their chords.'
-                    ),
-                    this.notationToggle(
-                        'circle',
-                        'Circle of fifths',
-                        "The keys, their relative minors and a key's chords on the wheel."
-                    ),
+                    this.toggle('notationLayout.leftHanded', 'leftHanded'),
+                    this.orientation('chord', 'chordOrientation'),
+                    this.orientation('fretboard', 'fretboardOrientation'),
+                    this.orientation('keyboard', 'keyboardOrientation'),
                     {
-                        name: 'Left-handed',
-                        desc: 'Mirror guitar chord diagrams and fretboards (the low string on the right). A block can say otherwise with "hand: right".',
-                        control: { type: 'toggle', key: 'notationLayout.leftHanded' }
-                    },
-                    this.orientation(
-                        'chord',
-                        'Chord diagram orientation',
-                        'Vertical: the nut on top. Horizontal: the strings across, high string on top, as in tabs.'
-                    ),
-                    this.orientation(
-                        'fretboard',
-                        'Fretboard orientation',
-                        'Horizontal: the high string on top, as in tabs. Vertical: the nut on top, as a chord diagram.'
-                    ),
-                    this.orientation(
-                        'keyboard',
-                        'Keyboard orientation',
-                        'Horizontal: low notes on the left. Vertical: low notes at the bottom. Piano chords follow it.'
-                    ),
-                    {
-                        name: 'Note names',
-                        desc: 'How diagrams and drills show note names: C D E, Do Ré Mi, or German (H is B, B is B flat). Display only: blocks are read as you wrote them, and notes keep letters in their names and properties. A block can say otherwise with "naming:".',
+                        name: t('settings.item.naming.name'),
+                        desc: t('settings.item.naming.desc'),
                         control: {
                             type: 'dropdown',
                             key: 'notationLayout.naming',
-                            options: NAMING_LABELS
+                            options: { ...NAMING_LABELS }
                         }
                     },
                     {
-                        name: 'Root marks',
-                        desc: 'How diagrams and drills mark the root: by its color, or by its color and a shape (a square dot, a square on the key), which you can tell without seeing colors. A block can say otherwise with "root-mark:".',
+                        name: t('settings.item.rootMark.name'),
+                        desc: t('settings.item.rootMark.desc'),
                         control: {
                             type: 'dropdown',
                             key: 'notationLayout.rootMark',
-                            options: ROOT_MARK_LABELS
+                            options: { ...ROOT_MARK_LABELS }
                         }
                     },
-                    this.text(
-                        'diagramImages.folder',
-                        'Diagram images folder',
-                        'Where a right-click on a diagram saves it as a PNG or SVG file: a folder of the vault (Music/Images), made when missing. Empty: the attachment location Obsidian uses for the note (Settings → Files and links).'
-                    ),
+                    this.text('diagramImages.folder', 'imageFolder'),
+                    this.toggle('diagramImages.embed', 'imageEmbed'),
                     {
-                        name: 'Embed saved images',
-                        desc: 'After saving a diagram as an image, put a link to it (an embed) on its own line right after the block in the note.',
-                        control: { type: 'toggle', key: 'diagramImages.embed' }
-                    },
-                    {
-                        name: 'Status',
+                        name: t('settings.label.status'),
                         desc: '',
                         searchable: false,
                         // Read at each opening: registrations change when the plugin reloads.
@@ -220,8 +239,10 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             )
                             setting.setDesc(
                                 taken.length
-                                    ? `Another plugin already draws ${taken.map((l) => `\`\`\`${l}`).join(', ')} blocks, so Music Practice leaves them alone. Turned-off blocks show as code; reload the plugin to let another plugin draw them.`
-                                    : 'Turned-off blocks show as code; reload the plugin to let another plugin draw them.'
+                                    ? t('settings.status.taken', {
+                                          blocks: taken.map((l) => `\`\`\`${l}`).join(', ')
+                                      })
+                                    : t('settings.status.off')
                             )
                         }
                     }
@@ -229,153 +250,87 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
             },
             {
                 type: 'group',
-                heading: 'Playback',
+                heading: t('settings.group.playback'),
                 items: [
+                    this.toggle('playback.enabled', 'playEnabled'),
                     {
-                        name: 'Play the diagrams',
-                        desc: 'A click on a chord, keyboard or fretboard diagram plays it, and a click on a dot or a key plays that note. One bar under each block plays its diagrams one by one or all in turn, with loop, speed and the sound.',
-                        control: { type: 'toggle', key: 'playback.enabled' }
-                    },
-                    {
-                        name: 'Sound',
-                        desc: 'Soundfont: recorded instruments, the same as tabs and scores (realistic). Light: a small computed synthesizer, as on Obsidian Publish.',
+                        name: t('settings.item.playEngine.name'),
+                        desc: t('settings.item.playEngine.desc'),
                         control: {
                             type: 'dropdown',
                             key: 'playback.engine',
-                            options: { soundfont: 'Soundfont', light: 'Light synthesizer' }
+                            options: {
+                                soundfont: t('settings.option.soundfont'),
+                                light: t('settings.option.light')
+                            }
                         }
                     },
-                    this.num(
-                        'playback.volume',
-                        'Volume',
-                        'From 0 to 100. The volume of every play bar: diagrams, strumming and picking patterns, progressions and chord charts. The bars have no volume control.'
-                    ),
-                    this.num(
-                        'playback.bpm',
-                        'Scale tempo',
-                        'Notes per minute when a scale plays, from 20 to 240. The bar can change it for one block.'
-                    ),
-                    this.num(
-                        'playback.strum',
-                        'Strum',
-                        'Milliseconds between two strings when a guitar chord is strummed, from 0 to 200 (12 by default). Piano chords sound together.'
-                    ),
+                    this.num('playback.volume', 'playVolume'),
+                    this.num('playback.bpm', 'playBpm'),
+                    this.num('playback.strum', 'playStrum'),
                     {
-                        name: 'Tab tempo',
-                        desc: 'The unit the bar under a tab or a score shows first: BPM (the tempo the music plays at, with the percent next to it) or percent of the written tempo. The unit button on a bar switches it and saves it here.',
+                        name: t('settings.item.tempoUnit.name'),
+                        desc: t('settings.item.tempoUnit.desc'),
                         control: {
                             type: 'dropdown',
                             key: 'playback.tempoUnit',
-                            options: { bpm: 'BPM', percent: 'Percent' }
+                            options: {
+                                bpm: t('settings.option.bpm'),
+                                percent: t('settings.option.percent')
+                            }
                         }
                     }
                 ]
             },
             {
                 type: 'group',
-                heading: 'Metronome',
+                heading: t('settings.group.metronome'),
                 items: [
-                    this.num(
-                        'metronome.beatsPerBar',
-                        'Beats per bar',
-                        'From 2 to 12; the first is accented.'
-                    ),
+                    this.num('metronome.beatsPerBar', 'beatsPerBar'),
                     {
-                        name: 'Clicks',
-                        desc: 'Per beat: quarter notes, eighths, triplets or sixteenths.',
+                        name: t('settings.item.clicks.name'),
+                        desc: t('settings.item.clicks.desc'),
                         control: {
                             type: 'dropdown',
                             key: 'metronome.subdivision',
                             options: {
-                                '1': 'Quarter notes',
-                                '2': 'Eighths',
-                                '3': 'Triplets',
-                                '4': 'Sixteenths'
+                                '1': t('settings.option.quarter'),
+                                '2': t('settings.option.eighth'),
+                                '3': t('settings.option.triplet'),
+                                '4': t('settings.option.sixteenth')
                             }
                         }
                     },
-                    this.num('metronome.volume', 'Volume', 'From 0 to 1.'),
-                    this.num(
-                        'metronome.trainerStep',
-                        'Speed trainer step',
-                        'BPM added at each step.'
-                    ),
-                    this.num(
-                        'metronome.trainerBars',
-                        'Speed trainer bars',
-                        'Bars between two steps (the "+" button steps at once).'
-                    ),
-                    this.num(
-                        'metronome.countInBars',
-                        'Count-in',
-                        'Bars of clicks before the first bar, from 0 (none) to 4. When it is on, a chord change drill counts 3, 2, 1 before its minute.'
-                    ),
-                    {
-                        name: 'Flash on each beat',
-                        desc: 'A light that flashes on each beat, beat one in another color: for noisy rooms.',
-                        control: { type: 'toggle', key: 'metronome.flash' }
-                    },
-                    this.num(
-                        'drillSeconds',
-                        'Chord change drill length',
-                        'Seconds, from 10 to 600 (a minute is the classic drill).'
-                    ),
-                    this.num(
-                        'drills.questions',
-                        'Questions per drill',
-                        'Note, chord and scale drills: questions in one drill, from 1 to 100.'
-                    ),
-                    this.num(
-                        'drills.weakShare',
-                        'Weak spots share',
-                        'Percent of the questions asked about your weak spots (most misses, slowest answers), from 0 to 100.'
-                    ),
-                    this.num(
-                        'drills.clearStreak',
-                        'Right answers to clear a weak spot',
-                        'Right answers in a row, each faster than the time below, after which a spot is no longer weak (1 to 10).'
-                    ),
-                    this.num(
-                        'drills.fastSeconds',
-                        'Fast answer',
-                        'Seconds: a right answer faster than this counts toward clearing a weak spot (0.5 to 10). Ear training has its own, below.'
-                    ),
-                    this.num(
-                        'drills.earFastSeconds',
-                        'Fast answer, ear training',
-                        'Seconds, for intervals, chords, scales and degrees by ear: naming what you hear takes longer (0.5 to 20, 4 by default). It also decides when guided ear training adds the next item.'
-                    ),
-                    {
-                        name: 'Guided ear training',
-                        desc: 'Ear training drills start with two intervals, chords, scales or degrees, and add the next one once you know them all (each spot cleared, as above). Off: every one you picked from the start.',
-                        control: { type: 'toggle', key: 'drills.guided' }
-                    }
+                    this.num('metronome.volume', 'metronomeVolume'),
+                    this.num('metronome.trainerStep', 'trainerStep'),
+                    this.num('metronome.trainerBars', 'trainerBars'),
+                    this.num('metronome.countInBars', 'countIn'),
+                    this.toggle('metronome.flash', 'flash'),
+                    this.num('drillSeconds', 'drillSeconds'),
+                    this.num('drills.questions', 'drillQuestions'),
+                    this.num('drills.weakShare', 'weakShare'),
+                    this.num('drills.clearStreak', 'clearStreak'),
+                    this.num('drills.fastSeconds', 'fastSeconds'),
+                    this.num('drills.earFastSeconds', 'earFastSeconds'),
+                    this.toggle('drills.guided', 'guided')
                 ]
             },
             {
                 type: 'group',
-                heading: 'Play-along',
+                heading: t('settings.group.playAlong'),
                 items: [
+                    this.toggle('playAlong.enabled', 'playAlong'),
+                    this.num('playAlong.preRoll', 'preRoll'),
                     {
-                        name: 'Play-along player',
-                        desc: 'A playalong code block plays a recording of the vault (audio or video) with an A-B loop, the speed without a pitch change, its sections and a count-in before each pass.',
-                        control: { type: 'toggle', key: 'playAlong.enabled' }
-                    },
-                    this.num(
-                        'playAlong.preRoll',
-                        'Pre-roll',
-                        'Seconds played before A at each pass of the loop, from 0 to 2 (0.2 by default), so the first note is not cut.'
-                    ),
-                    {
-                        name: 'Status',
+                        name: t('settings.label.status'),
                         desc: '',
                         searchable: false,
                         // Read at each opening: registrations change when the plugin reloads.
                         render: (setting): void => {
                             setting.setDesc(
                                 this.plugin.playAlongStatus() === 'taken'
-                                    ? 'Another plugin already draws playalong blocks, so Music Practice leaves them alone.'
-                                    : 'Turned off, the blocks show as code; reload the plugin to let another plugin draw them.'
+                                    ? t('settings.playAlongStatus.taken')
+                                    : t('settings.playAlongStatus.off')
                             )
                         }
                     }
@@ -383,418 +338,203 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
             },
             {
                 type: 'page',
-                name: 'Rules',
-                desc: 'Mastery levels, spaced review, practice score and practice plans.',
+                ...this.pageTexts('rules'),
                 items: [
                     {
                         type: 'group',
-                        heading: 'Mastery levels',
+                        heading: t('settings.group.masteryLevels'),
                         items: [
-                            this.num('rules.levels.want', 'Want to learn', 'Wishlist level.'),
-                            this.num('rules.levels.learning', 'Learning', 'First active level.'),
-                            this.num(
-                                'rules.levels.slow',
-                                'Can play slowly',
-                                'Reaching it starts spaced review.'
-                            ),
-                            this.num(
-                                'rules.levels.tempo',
-                                'Can play at tempo',
-                                'Offered when the target BPM is reached.'
-                            ),
-                            this.num(
-                                'rules.levels.rusty',
-                                'Rusty',
-                                'Where a failed review drops a mastered item.'
-                            ),
-                            this.num(
-                                'rules.levels.mastered',
-                                'Mastered',
-                                'Done; mastered items stay in review.'
-                            )
+                            this.num('rules.levels.want', 'levelWant'),
+                            this.num('rules.levels.learning', 'levelLearning'),
+                            this.num('rules.levels.slow', 'levelSlow'),
+                            this.num('rules.levels.tempo', 'levelTempo'),
+                            this.num('rules.levels.rusty', 'levelRusty'),
+                            this.num('rules.levels.mastered', 'levelMastered')
                         ]
                     },
                     {
                         type: 'group',
-                        heading: 'Spaced review',
+                        heading: t('settings.group.spacedReview'),
                         items: [
-                            this.num(
-                                'rules.review.firstInterval',
-                                'First interval (days)',
-                                'Set when an item reaches "Can play slowly", and after a failed review.'
-                            ),
-                            this.num(
-                                'rules.review.maxInterval',
-                                'Maximum interval (days)',
-                                'Good reviews never push the interval past this.'
-                            ),
-                            this.num(
-                                'rules.review.goodMultiplier',
-                                'Good review multiplier',
-                                'A good review multiplies the interval by this.'
-                            ),
-                            this.num(
-                                'rules.review.dueSoonMaxDays',
-                                'Due soon window (days)',
-                                'At most this many days before the interval ends.'
-                            ),
-                            this.num(
-                                'rules.review.dueSoonDivisor',
-                                'Due soon divisor',
-                                'The window is also at most the interval divided by this.'
-                            )
+                            this.num('rules.review.firstInterval', 'firstInterval'),
+                            this.num('rules.review.maxInterval', 'maxInterval'),
+                            this.num('rules.review.goodMultiplier', 'goodMultiplier'),
+                            this.num('rules.review.dueSoonMaxDays', 'dueSoonMaxDays'),
+                            this.num('rules.review.dueSoonDivisor', 'dueSoonDivisor')
                         ]
                     },
                     {
                         type: 'group',
-                        heading: 'Practice score',
+                        heading: t('settings.group.practiceScore'),
                         items: [
-                            this.num(
-                                'rules.score.priorityBase',
-                                'Priority base',
-                                'Priority points are this minus the priority number.'
-                            ),
-                            this.num(
-                                'rules.score.priorityUnknown',
-                                'Points without a priority',
-                                'When the priority is TBD or missing.'
-                            ),
-                            this.num(
-                                'rules.score.priorityTbd',
-                                'TBD priority number',
-                                'The priority number that means "to be defined".'
-                            ),
-                            this.num(
-                                'rules.score.stalenessNeverPracticed',
-                                'Never practiced',
-                                'Staleness points of an item never practiced.'
-                            ),
-                            this.num(
-                                'rules.score.stalenessMaxDays',
-                                'Staleness cap without interval (days)',
-                                'Days since practiced count up to this.'
-                            ),
-                            this.num(
-                                'rules.score.stalenessIntervalCap',
-                                'Staleness cap with interval',
-                                'Days since practiced divided by the interval, capped at this.'
-                            ),
+                            this.num('rules.score.priorityBase', 'priorityBase'),
+                            this.num('rules.score.priorityUnknown', 'priorityUnknown'),
+                            this.num('rules.score.priorityTbd', 'priorityTbd'),
+                            this.num('rules.score.stalenessNeverPracticed', 'neverPracticed'),
+                            this.num('rules.score.stalenessMaxDays', 'stalenessMaxDays'),
+                            this.num('rules.score.stalenessIntervalCap', 'stalenessIntervalCap'),
                             this.num(
                                 'rules.score.stalenessIntervalWeight',
-                                'Staleness weight with interval',
-                                'That ratio is multiplied by this.'
+                                'stalenessIntervalWeight'
                             ),
-                            this.num(
-                                'rules.score.bpmGapDivisor',
-                                'BPM gap divisor',
-                                'The missing BPM percentage is divided by this.'
-                            ),
-                            this.num(
-                                'rules.score.perUnlock',
-                                'Points per unlock',
-                                'For each item at "Want to learn" that links to this one.'
-                            ),
-                            this.num(
-                                'rules.score.maxUnlocks',
-                                'Unlocks counted',
-                                'At most this many unlocks count.'
-                            ),
-                            this.num(
-                                'rules.score.rustyBonus',
-                                'Rusty bonus',
-                                'Extra points for Rusty items.'
-                            )
+                            this.num('rules.score.bpmGapDivisor', 'bpmGapDivisor'),
+                            this.num('rules.score.perUnlock', 'perUnlock'),
+                            this.num('rules.score.maxUnlocks', 'maxUnlocks'),
+                            this.num('rules.score.rustyBonus', 'rustyBonus')
                         ]
                     },
                     {
                         type: 'group',
-                        heading: 'Practice plan',
+                        heading: t('settings.group.practicePlan'),
                         items: [
-                            this.text(
-                                'rules.plan.split',
-                                'Blocks (%)',
-                                'Warm-up, focus, review and fun, adding up to 100: "15, 50, 20, 15".'
-                            ),
-                            this.num(
-                                'rules.plan.minMinutesPerItem',
-                                'Minutes per item (minimum)',
-                                'Each planned item gets at least this many minutes.'
-                            ),
-                            this.num(
-                                'rules.plan.maxItemsPerBlock',
-                                'Items per block (maximum)',
-                                'Fewer items, more depth.'
-                            ),
-                            this.text(
-                                'rules.plan.warmUpKinds',
-                                'Warm-up kinds',
-                                'Kinds practiced in the warm-up, comma-separated: "technique, exercise".'
-                            )
+                            this.text('rules.plan.split', 'planSplit'),
+                            this.num('rules.plan.minMinutesPerItem', 'minMinutes'),
+                            this.num('rules.plan.maxItemsPerBlock', 'maxItems'),
+                            this.text('rules.plan.warmUpKinds', 'warmUpKinds')
                         ]
                     }
                 ]
             },
             {
                 type: 'page',
-                name: 'Rubric',
-                desc: "What each mastery level means, shown when you change an item's mastery.",
+                ...this.pageTexts('rubric'),
                 items: (['chord', 'piece', 'pattern'] as const).map((group) => ({
                     type: 'group' as const,
-                    heading:
-                        group === 'chord'
-                            ? 'Chords'
-                            : group === 'piece'
-                              ? 'Arrangements and pieces'
-                              : 'Scales, techniques, exercises and other kinds',
+                    heading: t(RUBRIC_HEADINGS[group]),
                     items: [
-                        this.text(`rubric.${group}.learning`, 'Learning', ''),
-                        this.text(`rubric.${group}.slow`, 'Can play slowly', ''),
-                        this.text(`rubric.${group}.tempo`, 'Can play at tempo', ''),
-                        this.text(`rubric.${group}.mastered`, 'Mastered', '')
+                        this.labelled(`rubric.${group}.learning`, 'learning'),
+                        this.labelled(`rubric.${group}.slow`, 'slow'),
+                        this.labelled(`rubric.${group}.tempo`, 'tempo'),
+                        this.labelled(`rubric.${group}.mastered`, 'mastered')
                     ]
                 }))
             },
             {
                 type: 'page',
-                name: 'Property names',
-                desc: 'Frontmatter properties the plugin reads and writes. Review and time properties follow the Kanban Action Planner when it is installed.',
+                ...this.pageTexts('fields'),
                 items: [
                     {
                         type: 'group',
-                        heading: 'Learning notes',
+                        heading: t('settings.group.learningNotes'),
                         items: [
-                            this.text('fields.lastPracticed', 'Last practiced', ''),
-                            this.text('fields.bpmCurrent', 'Current BPM', ''),
-                            this.text('fields.bpmTarget', 'Target BPM', ''),
-                            this.text('fields.priority', 'Priority', ''),
-                            this.text('fields.prerequisites', 'Prerequisites', ''),
-                            this.text('fields.theory', 'Theory', ''),
-                            this.text(
-                                'fields.sources',
-                                'Sources',
-                                'Pieces: links to where they come from; imported score files are added here.'
-                            ),
-                            this.text('fields.key', 'Key', 'Pieces: "G major", "E minor".'),
-                            this.text(
-                                'fields.pieceChords',
-                                'Chords used',
-                                'Pieces: the chord notes they use (links).'
-                            ),
-                            this.text(
-                                'fields.timeSignature',
-                                'Time signature',
-                                'Pieces, strumming and picking patterns: "3/4", "6/8"… The metronome counts it when it practices the note.'
-                            ),
-                            this.text(
-                                'fields.shape',
-                                'Shape',
-                                'Chords and scales: open, barre, CAGED…'
-                            ),
-                            this.text('fields.chordSymbol', 'Chord symbol', ''),
-                            this.text('fields.chordRoot', 'Chord root', ''),
-                            this.text('fields.chordQuality', 'Chord quality', ''),
-                            this.text('fields.frets', 'Frets', 'Guitar chords: "x02220".'),
-                            this.text('fields.fingers', 'Fingers', 'Guitar chords: "x01230".'),
-                            this.text(
-                                'fields.position',
-                                'Position',
-                                'Guitar chords: the first fret shown.'
-                            ),
-                            this.text('fields.pitches', 'Pitches', 'Piano chords: "A3 C#4 E4".'),
-                            this.text('fields.fingering', 'Fingering', 'Piano chords: "5 3 1".'),
-                            this.text(
-                                'fields.trains',
-                                'Trains',
-                                'Exercises: what they train (links).'
-                            ),
-                            this.text(
-                                'fields.changesBest',
-                                'Best changes',
-                                'Chord change drills: best changes per minute.'
-                            ),
-                            this.text(
-                                'fields.changesLast',
-                                'Last changes',
-                                'Chord change drills: changes in the last drill.'
-                            ),
-                            this.text(
-                                'fields.drillKind',
-                                'Drill kind',
-                                'Note drills: what the drill note drills (Fretboard notes, Keyboard notes, Chord names, Scale shapes).'
-                            ),
-                            this.text(
-                                'fields.drillSetting',
-                                'Drill setting',
-                                'Note drills: the setting in words ("string 5, frets 0-5").'
-                            ),
-                            this.text(
-                                'fields.publicNote',
-                                'Public note',
-                                'Learning notes: whether the note is published. New drill notes get false; publishing stays your choice.'
-                            ),
-                            this.text(
-                                'fields.drillStats',
-                                'Drill weak spots',
-                                'Note drills: the weak-spot map ("s5f3 C: 7/9 1.8s").'
-                            ),
-                            this.text(
-                                'fields.exerciseKind',
-                                'Exercise kind',
-                                'Music exercises: what kind of exercise. Ear training drill notes get Ear training.'
-                            ),
-                            this.text('fields.scaleRoot', 'Scale root', 'Scales: "A".'),
-                            this.text(
-                                'fields.scaleType',
-                                'Scale type',
-                                'Scales: "Minor pentatonic".'
-                            ),
-                            this.text(
-                                'fields.fingeringRight',
-                                'Scale fingering',
-                                'Piano scales, right hand: "1 2 3 1 2 3 4 5".'
-                            ),
-                            this.text(
-                                'fields.strumPattern',
-                                'Strumming pattern',
-                                'Strumming patterns: "D DU UDU".'
-                            ),
-                            this.text(
-                                'fields.strumFeel',
-                                'Feel',
-                                'Strumming patterns: "straight", "swing" or a swing ratio ("60%").'
-                            ),
-                            this.text(
-                                'fields.pickingPattern',
-                                'Picking pattern',
-                                'Fingerpicking patterns: a name ("travis", "alternate bass", "1-2-3-4") or "p i m a".'
-                            ),
-                            this.text('fields.lastReviewed', 'Last reviewed', ''),
-                            this.text('fields.reviewInterval', 'Review interval', ''),
-                            this.text('fields.reviewCount', 'Review count', '')
+                            this.labelled('fields.lastPracticed', 'lastPracticed'),
+                            this.labelled('fields.bpmCurrent', 'bpmCurrent'),
+                            this.labelled('fields.bpmTarget', 'bpmTarget'),
+                            this.labelled('fields.priority', 'priority'),
+                            this.labelled('fields.prerequisites', 'prerequisites'),
+                            this.labelled('fields.theory', 'theory'),
+                            this.text('fields.sources', 'fieldSources'),
+                            this.text('fields.key', 'fieldKey'),
+                            this.text('fields.pieceChords', 'fieldPieceChords'),
+                            this.text('fields.timeSignature', 'fieldTimeSignature'),
+                            this.text('fields.shape', 'fieldShape'),
+                            this.labelled('fields.chordSymbol', 'chordSymbol'),
+                            this.labelled('fields.chordRoot', 'chordRoot'),
+                            this.labelled('fields.chordQuality', 'chordQuality'),
+                            this.text('fields.frets', 'fieldFrets'),
+                            this.text('fields.fingers', 'fieldFingers'),
+                            this.text('fields.position', 'fieldPosition'),
+                            this.text('fields.pitches', 'fieldPitches'),
+                            this.text('fields.fingering', 'fieldFingering'),
+                            this.text('fields.trains', 'fieldTrains'),
+                            this.text('fields.changesBest', 'fieldChangesBest'),
+                            this.text('fields.changesLast', 'fieldChangesLast'),
+                            this.text('fields.drillKind', 'fieldDrillKind'),
+                            this.text('fields.drillSetting', 'fieldDrillSetting'),
+                            this.text('fields.publicNote', 'fieldPublicNote'),
+                            this.text('fields.drillStats', 'fieldDrillStats'),
+                            this.text('fields.exerciseKind', 'fieldExerciseKind'),
+                            this.text('fields.scaleRoot', 'fieldScaleRoot'),
+                            this.text('fields.scaleType', 'fieldScaleType'),
+                            this.text('fields.fingeringRight', 'fieldFingeringRight'),
+                            this.text('fields.strumPattern', 'fieldStrumPattern'),
+                            this.text('fields.strumFeel', 'fieldStrumFeel'),
+                            this.text('fields.pickingPattern', 'fieldPickingPattern'),
+                            this.labelled('fields.lastReviewed', 'lastReviewed'),
+                            this.labelled('fields.reviewInterval', 'reviewInterval'),
+                            this.labelled('fields.reviewCount', 'reviewCount')
                         ]
                     },
                     {
                         type: 'group',
-                        heading: 'Sessions and activities',
+                        heading: t('settings.group.sessionsActivities'),
                         items: [
-                            this.text('fields.date', 'Session date', ''),
-                            this.text('fields.startTime', 'Start time', ''),
-                            this.text(
-                                'fields.timeSpent',
-                                'Minutes',
-                                'On learning notes, sessions and activities.'
-                            ),
-                            this.text('fields.quality', 'Session quality', ''),
-                            this.text('fields.practiced', 'Practiced items', ''),
-                            this.text(
-                                'fields.practicedMinutes',
-                                'Minutes per item',
-                                'On sessions: "<minutes> [[<note>]]" for each practiced item. Learning notes get their minutes from it.'
-                            ),
-                            this.text('fields.activities', 'Activities', ''),
-                            this.text(
-                                'fields.sessionTypes',
-                                'Session types',
-                                'On activities: the session note types that count for them (guitar-practice-sessions).'
-                            ),
-                            this.text(
-                                'fields.timeEntries',
-                                'Time entries',
-                                'On activities. Read to compute their minutes; a log removes the entry of a Kanban Action Planner timer it takes over.'
-                            ),
-                            this.text('fields.lastSession', 'Last session date', 'On activities.')
+                            this.labelled('fields.date', 'date'),
+                            this.labelled('fields.startTime', 'startTime'),
+                            this.text('fields.timeSpent', 'fieldTimeSpent'),
+                            this.labelled('fields.quality', 'quality'),
+                            this.labelled('fields.practiced', 'practiced'),
+                            this.text('fields.practicedMinutes', 'fieldPracticedMinutes'),
+                            this.labelled('fields.activities', 'activities'),
+                            this.text('fields.sessionTypes', 'fieldSessionTypes'),
+                            this.text('fields.timeEntries', 'fieldTimeEntries'),
+                            this.text('fields.lastSession', 'fieldLastSession')
                         ]
                     }
                 ]
             },
             {
                 type: 'page',
-                name: 'Standalone note model',
-                desc: 'Used when the Obsidian Starter Kit is not available. Learning notes are the notes tagged type/<domain>/<subject>/<kind> (for example type/music/guitar/chord) with a mastery level.',
+                ...this.pageTexts('local'),
                 items: [
-                    this.text(
-                        'local.domains',
-                        'Domains',
-                        'Comma-separated: only type/<domain>/… tags of these domains mark learning notes ("music").'
-                    ),
-                    this.text(
-                        'local.statusProperty',
-                        'Mastery property',
-                        'The property holding the level ("20 - Learning").'
-                    ),
+                    this.text('local.domains', 'localDomains'),
+                    this.text('local.statusProperty', 'localStatus'),
                     {
                         type: 'group',
-                        heading: 'Level names',
+                        heading: t('settings.group.levelNames'),
                         items: [
-                            this.text('local.levelNames.want', 'Want to learn', ''),
-                            this.text('local.levelNames.learning', 'Learning', ''),
-                            this.text('local.levelNames.slow', 'Can play slowly', ''),
-                            this.text('local.levelNames.tempo', 'Can play at tempo', ''),
-                            this.text('local.levelNames.rusty', 'Rusty', ''),
-                            this.text('local.levelNames.mastered', 'Mastered', '')
+                            this.labelled('local.levelNames.want', 'want'),
+                            this.labelled('local.levelNames.learning', 'learning'),
+                            this.labelled('local.levelNames.slow', 'slow'),
+                            this.labelled('local.levelNames.tempo', 'tempo'),
+                            this.labelled('local.levelNames.rusty', 'rusty'),
+                            this.labelled('local.levelNames.mastered', 'mastered')
                         ]
                     },
-                    this.num(
-                        'local.topPriority',
-                        'Current focus priority',
-                        'Items at this priority number are the current focus.'
-                    ),
-                    this.text(
-                        'local.startedField',
-                        'Started date property',
-                        'Stamped on reaching Learning (empty: none).'
-                    ),
-                    this.text(
-                        'local.masteredField',
-                        'Mastered date property',
-                        'Stamped on reaching Mastered (empty: none).'
-                    ),
-                    this.text(
-                        'local.sessionFolder',
-                        'Session folder',
-                        'Tokens: {year} {month} {date} {domain} {subject} {Subject}.'
-                    ),
-                    this.text(
-                        'local.sessionSuffix',
-                        'Session name suffix',
-                        'Appended to session note names; same tokens.'
-                    ),
-                    this.text(
-                        'local.sessionTemplate',
-                        'Session template',
-                        'Optional note used as the template of new session notes (vault path).'
-                    )
+                    this.num('local.topPriority', 'localTopPriority'),
+                    this.text('local.startedField', 'localStarted'),
+                    this.text('local.masteredField', 'localMastered'),
+                    this.text('local.sessionFolder', 'localFolder', {
+                        tokens: '{year} {month} {date} {domain} {subject} {Subject}'
+                    }),
+                    this.text('local.sessionSuffix', 'localSuffix'),
+                    this.text('local.sessionTemplate', 'localTemplate')
                 ]
             },
             {
                 type: 'page',
-                name: 'Note types in use',
-                desc: 'The learning and session types the plugin found.',
+                ...this.pageTexts('types'),
                 items: [
                     {
-                        name: 'Types',
+                        name: t('settings.label.types'),
                         searchable: false,
                         render: (setting): (() => void) => {
                             setting.infoEl.remove()
                             setting.settingEl.addClass('settings-stack')
                             const el = setting.settingEl.createDiv({ cls: 'mp-modal' })
                             const { model } = this.plugin.describeModel()
-                            el.createDiv({ cls: 'mp-section-title', text: 'Learning types' })
+                            el.createDiv({
+                                cls: 'mp-section-title',
+                                text: t('settings.types.learning')
+                            })
                             const list = el.createDiv({ cls: 'mp-list' })
-                            for (const t of model?.learningTypes ?? []) {
+                            for (const type of model?.learningTypes ?? []) {
                                 const row = list.createDiv({ cls: 'mp-item' })
-                                row.createDiv({ cls: 'mp-item-name', text: t.name })
+                                row.createDiv({ cls: 'mp-item-name', text: type.name })
                                 row.createDiv({
                                     cls: 'mp-item-meta',
-                                    text: `${t.typeTag} · ${t.statusProperty}: ${t.statusValues.join(', ')}`
+                                    text: `${type.typeTag} · ${type.statusProperty}: ${type.statusValues.join(', ')}`
                                 })
                             }
-                            el.createDiv({ cls: 'mp-section-title', text: 'Session types' })
+                            el.createDiv({
+                                cls: 'mp-section-title',
+                                text: t('settings.types.session')
+                            })
                             const sessions = el.createDiv({ cls: 'mp-list' })
-                            for (const t of model?.sessionTypes ?? []) {
+                            for (const type of model?.sessionTypes ?? []) {
                                 const row = sessions.createDiv({ cls: 'mp-item' })
-                                row.createDiv({ cls: 'mp-item-name', text: t.name })
-                                row.createDiv({ cls: 'mp-item-meta', text: t.typeTag })
+                                row.createDiv({ cls: 'mp-item-name', text: type.name })
+                                row.createDiv({ cls: 'mp-item-meta', text: type.typeTag })
                             }
                             return () => el.remove()
                         }
@@ -802,12 +542,12 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                 ]
             },
             {
-                name: 'Reset to defaults',
-                desc: 'Restore the rules, rubric, property names and standalone note model. Asks first.',
+                name: t('settings.item.reset.name'),
+                desc: t('settings.item.reset.desc'),
                 render: (setting): void => {
                     setting.addButton((button) =>
                         button
-                            .setButtonText('Reset')
+                            .setButtonText(t('common.reset'))
                             .setDestructive()
                             .onClick(() => new ResetModal(this.app, () => this.reset()).open())
                     )
@@ -818,7 +558,7 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                 // No heading: renderSupportSection draws its own.
                 items: [
                     {
-                        name: 'Support',
+                        name: t('settings.label.support'),
                         // Not a setting — keep it out of the settings search.
                         searchable: false,
                         render: (setting): (() => void) => {
@@ -845,7 +585,7 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
             draft.fields = defaults.fields
             draft.local = defaults.local
         })
-        new Notice('Music Practice settings reset to their defaults.')
+        new Notice(t('settings.reset.done'))
         this.update()
     }
 
@@ -859,7 +599,7 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
         const parsed = parseSetting(key, value)
         const error = parsed.ok ? validateSetting(this.plugin.settings, key, value) : parsed.error
         if (error || !parsed.ok) {
-            new Notice(error ?? 'Invalid value.')
+            new Notice(error ?? t('settings.error.invalid'))
             throw new Error(error ?? `Setting "${key}" is invalid.`)
         }
         await this.plugin.updateSettings((draft) => writeSetting(draft, key, parsed.value))
@@ -873,7 +613,7 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
         })
         const imgEl = linkEl.createEl('img')
         imgEl.src = BUY_ME_A_COFFEE_BADGE_DATA_URL
-        imgEl.alt = 'Buy me a coffee'
+        imgEl.alt = t('settings.support.coffeeAlt')
         imgEl.width = width
     }
 }
@@ -888,14 +628,16 @@ class ResetModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle('Reset Music Practice settings?')
+        this.setTitle(t('settings.reset.title'))
         this.contentEl.createEl('p', {
-            text: 'The rules, rubric, property names and standalone note model go back to their defaults. Your notes are not touched.'
+            text: t('settings.reset.body')
         })
         const actions = this.contentEl.createDiv({ cls: 'mp-actions' })
-        actions.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close())
         actions
-            .createEl('button', { cls: 'mod-warning', text: 'Reset' })
+            .createEl('button', { text: t('common.cancel') })
+            .addEventListener('click', () => this.close())
+        actions
+            .createEl('button', { cls: 'mod-warning', text: t('common.reset') })
             .addEventListener('click', () => {
                 void this.onConfirm().then(() => this.close())
             })

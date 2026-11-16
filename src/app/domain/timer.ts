@@ -1,3 +1,5 @@
+import { t, tn } from '../i18n/i18n'
+
 /** Elapsed time for the status bar: `m:ss`, or `h:mm:ss` past an hour. */
 export function formatElapsed(ms: number): string {
     const total = Math.max(0, Math.floor(ms / 1000))
@@ -48,13 +50,17 @@ const DAY = 24 * HOUR
 /** A span in words: "12 min", "4 h 12 min", "5 days 3 h", "less than a minute". */
 export function formatDuration(ms: number): string {
     const total = Math.max(0, ms)
-    if (total < MINUTE) return 'less than a minute'
+    if (total < MINUTE) return t('log.duration.lessThanMinute')
     const days = Math.floor(total / DAY)
     const hours = Math.floor((total % DAY) / HOUR)
     const minutes = Math.floor((total % HOUR) / MINUTE)
-    if (days > 0) return `${days} ${days === 1 ? 'day' : 'days'}${hours ? ` ${hours} h` : ''}`
-    if (hours > 0) return `${hours} h${minutes ? ` ${minutes} min` : ''}`
-    return `${minutes} min`
+    if (days > 0)
+        return hours ? tn('log.duration.daysHours', days, { hours }) : tn('log.duration.days', days)
+    if (hours > 0)
+        return minutes
+            ? t('log.duration.hoursMinutes', { hours, minutes })
+            : t('log.duration.hours', { hours })
+    return t('log.duration.minutes', { minutes })
 }
 
 /** Time on the clock since the timer started, pauses included; 0 when no timer runs. */
@@ -68,17 +74,21 @@ export const isStaleTimer = (timer: TimerState, now: number): boolean =>
 /** "Started 5 days 3 h ago: forgotten? Discard or log it.", or null for a recent timer. */
 export function staleTimerLabel(timer: TimerState, now: number): string | null {
     if (!isStaleTimer(timer, now)) return null
-    return `Started ${formatDuration(timerAge(timer, now))} ago: forgotten? Discard or log it.`
+    return t('log.timer.stale', { duration: formatDuration(timerAge(timer, now)) })
 }
 
 /** The question before a discard, with how long the timer ran (and its practice when paused). */
 export function discardTimerMessage(timer: TimerState, now: number): string {
     const age = timerAge(timer, now)
     const practiced = timerElapsed(timer, now)
-    const extra = age - practiced >= MINUTE ? `, ${formatDuration(practiced)} of practice` : ''
-    return `Discard the practice timer (${formatDuration(age)}${extra})? Nothing is logged.`
+    return age - practiced >= MINUTE
+        ? t('log.timer.discardPracticed', {
+              duration: formatDuration(age),
+              practiced: formatDuration(practiced)
+          })
+        : t('log.timer.discard', { duration: formatDuration(age) })
 }
 
 /** Why a new timer can't start, and how to get rid of the running one. */
 export const timerRunningMessage = (timer: TimerState, now: number): string =>
-    `The practice timer is already running (started ${formatDuration(timerAge(timer, now))} ago). Stop it to log the session, or run Discard practice timer.`
+    t('log.timer.running', { duration: formatDuration(timerAge(timer, now)) })

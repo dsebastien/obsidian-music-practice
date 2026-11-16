@@ -1,3 +1,4 @@
+import { t, tn } from '../i18n/i18n'
 import { Modal, Notice } from 'obsidian'
 import type { App } from 'obsidian'
 import { PROGRESSION_STRUMS, type ProgressionStrum } from '@dsebastien/music-notation'
@@ -38,11 +39,16 @@ export interface BackingModalDeps {
     saveBpm?: (bpm: number) => void
 }
 
-const STRUM_LABELS: Record<ProgressionStrum, string> = {
-    beats: 'A strum on each beat',
-    bar: 'One strum a bar',
-    arpeggio: 'Arpeggio'
-}
+const STRUM_KEYS = {
+    beats: 'backing.strum.beats',
+    bar: 'backing.strum.bar',
+    arpeggio: 'backing.strum.arpeggio'
+} as const satisfies Record<ProgressionStrum, string>
+
+const METER_KEYS = {
+    chord: { plain: 'backing.meter.chord', dotted: 'backing.meter.chordDotted' },
+    chart: { plain: 'backing.meter.chart', dotted: 'backing.meter.chartDotted' }
+} as const
 
 /** A strum choice: a style, the block's own pattern, or a linked strumming pattern note. */
 type StrumChoice = { strum: ProgressionStrum } | { pattern: string }
@@ -77,7 +83,7 @@ export class BackingModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle(`In time: ${this.deps.name}`)
+        this.setTitle(t('backing.title', { name: this.deps.name }))
         const { contentEl } = this
         contentEl.addClass('mp-modal')
         contentEl.addClass('mp-backing')
@@ -85,7 +91,7 @@ export class BackingModal extends Modal {
         if (this.deps.sources.length > 1) {
             this.select(
                 row,
-                'Progression',
+                t('backing.progression'),
                 this.deps.sources.map((s, i) => [String(i), s.label]),
                 '0',
                 (v) => {
@@ -97,12 +103,12 @@ export class BackingModal extends Modal {
                 }
             )
         }
-        this.strumSelect = this.select(row, 'Strum', [], '0', (v) => {
+        this.strumSelect = this.select(row, t('backing.strum'), [], '0', (v) => {
             this.strum = Number(v)
             this.restart()
         })
         this.fillStrums()
-        const tempo = row.createEl('label', { cls: 'mp-field', text: 'Tempo (BPM)' })
+        const tempo = row.createEl('label', { cls: 'mp-field', text: t('backing.tempo') })
         const input = tempo.createEl('input', {
             type: 'number',
             attr: { min: String(MIN_BACKING_BPM), max: String(MAX_BACKING_BPM) }
@@ -111,16 +117,18 @@ export class BackingModal extends Modal {
         input.addEventListener('change', () => this.setBpm(Number(input.value)))
         this.bpmInput = input
         const toggles = contentEl.createDiv({ cls: 'mp-form-row' })
-        this.toggle(toggles, 'Click', this.click, (on) => {
+        this.toggle(toggles, t('backing.click'), this.click, (on) => {
             this.click = on
             this.deps.track.update({ click: on })
         })
-        this.toggle(toggles, 'Count-in', this.countIn, (on) => (this.countIn = on))
+        this.toggle(toggles, t('backing.countIn'), this.countIn, (on) => (this.countIn = on))
         const { trainerStep, trainerBars } = this.deps.settings()
-        const target = this.deps.bpmTarget ? `, up to ${this.deps.bpmTarget}` : ''
+        const target = this.deps.bpmTarget
         this.toggle(
             toggles,
-            `Speed trainer (+${trainerStep} BPM every ${trainerBars} bars${target})`,
+            target
+                ? tn('backing.trainerUpTo', trainerBars, { step: trainerStep, target })
+                : tn('backing.trainer', trainerBars, { step: trainerStep }),
             this.trainerOn,
             (on) => {
                 this.trainerOn = on
@@ -135,10 +143,10 @@ export class BackingModal extends Modal {
         if (this.deps.saveBpm) {
             const save = this.deps.saveBpm
             actions
-                .createEl('button', { text: 'Save BPM' })
+                .createEl('button', { text: t('backing.saveBpm') })
                 .addEventListener('click', () => save(this.deps.track.state.bpm))
         }
-        this.playButton = actions.createEl('button', { cls: 'mod-cta', text: 'Play' })
+        this.playButton = actions.createEl('button', { cls: 'mod-cta', text: t('common.play') })
         this.playButton.addEventListener('click', () => {
             if (this.deps.track.state.running) this.deps.track.stop()
             else this.start()
@@ -163,14 +171,14 @@ export class BackingModal extends Modal {
         const own = this.current().strum
         const choices: [StrumChoice, string][] = []
         if (own && !(PROGRESSION_STRUMS as readonly string[]).includes(own.toLowerCase()))
-            choices.push([{ pattern: own }, `The block's pattern (${own})`])
+            choices.push([{ pattern: own }, t('backing.strum.blockPattern', { pattern: own })])
         const first = (PROGRESSION_STRUMS as readonly string[]).includes(own?.toLowerCase() ?? '')
             ? (own!.toLowerCase() as ProgressionStrum)
             : null
         const styles = first
             ? [first, ...PROGRESSION_STRUMS.filter((s) => s !== first)]
             : [...PROGRESSION_STRUMS]
-        for (const s of styles) choices.push([{ strum: s }, STRUM_LABELS[s]])
+        for (const s of styles) choices.push([{ strum: s }, t(STRUM_KEYS[s])])
         for (const p of this.deps.patterns) choices.push([{ pattern: p.text }, p.name])
         return choices
     }
@@ -201,9 +209,13 @@ export class BackingModal extends Modal {
         })
         const meter = backingMeter(source.time, this.deps.noteTime)
         const counted = meter.beatUnit >= 8 && meter.beatsPerBar % 3 === 0 && meter.beatsPerBar >= 6
+        const bars = backingBars(source.chords, meter.beatsPerBar)
+        const chart = source.chords.some((c) => typeof c !== 'string' && c.beats !== undefined)
         if (this.meterEl)
             this.meterEl.setText(
-                `${backingBars(source.chords, meter.beatsPerBar)} bars of ${meter.label}, ${source.chords.some((c) => typeof c !== 'string' && c.beats !== undefined) ? "as the chart's bar lines say" : 'one chord a bar'}${counted ? ', counted in dotted beats' : ''}. Changes apply from the next pass.`
+                tn(METER_KEYS[chart ? 'chart' : 'chord'][counted ? 'dotted' : 'plain'], bars, {
+                    label: meter.label
+                })
             )
     }
 
@@ -256,7 +268,8 @@ export class BackingModal extends Modal {
 
     private refresh(): void {
         const state = this.deps.track.state
-        if (this.playButton) this.playButton.setText(state.running ? 'Stop' : 'Play')
+        if (this.playButton)
+            this.playButton.setText(state.running ? t('common.stop') : t('common.play'))
         this.chips.forEach((chip, i) => chip.toggleClass('is-playing', state.chord === i))
         if (state.running && state.bpm !== this.bpm) {
             // The trainer moved the tempo: show it.
@@ -267,9 +280,14 @@ export class BackingModal extends Modal {
             this.statusEl.setText(
                 state.running
                     ? state.bar === null
-                        ? `Counting in at ${state.bpm} BPM…`
-                        : `Bar ${state.bar + 1} of ${this.chips.length}, pass ${state.pass}, ${state.bpm} BPM`
-                    : 'Stopped.'
+                        ? t('backing.status.countingIn', { bpm: state.bpm })
+                        : t('backing.status.playing', {
+                              bar: state.bar + 1,
+                              total: this.chips.length,
+                              pass: state.pass,
+                              bpm: state.bpm
+                          })
+                    : t('backing.status.stopped')
             )
     }
 

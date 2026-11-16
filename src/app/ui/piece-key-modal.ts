@@ -4,6 +4,7 @@ import { renderBlock } from '@dsebastien/music-notation'
 import type { RenderOptions, RenderResult } from '@dsebastien/music-notation'
 import { fitBlock, sameKey } from '../domain/piece-key'
 import type { PieceKey } from '../domain/piece-key'
+import { t } from '../i18n/i18n'
 
 export interface PieceKeyDeps {
     /** The piece's name, for the title. */
@@ -33,33 +34,43 @@ export class PieceKeyModal extends Modal {
 
     override onOpen(): void {
         const { result, setKey } = this.deps
-        this.setTitle(`Key and scales: ${this.deps.name}`)
+        this.setTitle(t('tools.pieceKey.title', { name: this.deps.name }))
         const { contentEl } = this
         contentEl.addClass('mp-modal')
-        contentEl.createDiv({ cls: 'mp-item-meta', text: `Chords: ${result.chords.join(' ')}` })
+        contentEl.createDiv({
+            cls: 'mp-item-meta',
+            text: t('tools.pieceKey.chords', { chords: result.chords.join(' ') })
+        })
         const key = result.key
         const head = contentEl.createDiv({ cls: 'mp-item-head' })
         head.createEl('strong', {
-            text: key ? `Key: ${key}${result.blues ? ' (blues)' : ''}` : 'No key found'
+            text: key
+                ? t(result.blues ? 'tools.pieceKey.keyBlues' : 'tools.pieceKey.key', { key })
+                : t('tools.pieceKey.noKey')
         })
         if (result.alternatives.length)
             contentEl.createDiv({
                 cls: 'mp-item-meta',
-                text: `Not clear: ${[key, ...result.alternatives].join(' or ')} fit about as well.`
+                text: t('tools.pieceKey.notClear', {
+                    keys: [key, ...result.alternatives].join(t('tools.pieceKey.or'))
+                })
             })
         if (result.outside.length)
             contentEl.createDiv({
                 cls: 'mp-item-meta',
-                text: `Outside the key: ${result.outside.join(' ')}`
+                text: t('tools.pieceKey.outside', { chords: result.outside.join(' ') })
             })
 
         if (result.scales.length) {
-            contentEl.createEl('h3', { text: 'Scales that fit' })
+            contentEl.createEl('h3', { text: t('tools.pieceKey.scales') })
             const list = contentEl.createEl('ol', { cls: 'mp-list' })
             for (const scale of result.scales)
                 list.createEl('li', {
                     text: scale.outside.length
-                        ? `${scale.name} (outside: ${scale.outside.join(' ')})`
+                        ? t('tools.pieceKey.scaleOutside', {
+                              name: scale.name,
+                              chords: scale.outside.join(' ')
+                          })
                         : scale.name
                 })
         }
@@ -72,18 +83,22 @@ export class PieceKeyModal extends Modal {
             )
 
         const actions = contentEl.createDiv({ cls: 'mp-actions' })
-        actions.createEl('button', { text: 'Close' }).addEventListener('click', () => this.close())
+        actions
+            .createEl('button', { text: t('common.close') })
+            .addEventListener('click', () => this.close())
         if (key && setKey) {
             const done = sameKey(this.deps.currentKey, key)
             const button = actions.createEl('button', {
                 cls: done ? '' : 'mod-cta',
-                text: done ? `Key is ${key}` : `Set the key to ${key}`
+                text: done
+                    ? t('tools.pieceKey.isKey', { key })
+                    : t('tools.pieceKey.setKey', { key })
             })
             button.disabled = done
             button.addEventListener('click', () => {
                 void setKey(key)
                     .then(() => {
-                        new Notice(`Key set to ${key}.`)
+                        new Notice(t('tools.pieceKey.keySet', { key }))
                         this.close()
                     })
                     .catch(

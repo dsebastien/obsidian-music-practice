@@ -3,6 +3,7 @@
  * ```progression blocks, its ```chords charts or the chord notes it links. Pure: no Obsidian
  * imports (a drawn progression block is read through the attributes the library puts on it).
  */
+import { t } from '../i18n/i18n'
 import {
     chartChords,
     MAX_PROGRESSION_BARS,
@@ -127,7 +128,7 @@ export function chartBacking(
     }
     if (!chords.some((c) => typeof c === 'string' || c.chord !== null)) return null
     return {
-        label: 'Chord chart',
+        label: t('backing.source.chart'),
         chords: chords.slice(0, MAX_PROGRESSION_BARS),
         time,
         tempo,
@@ -150,7 +151,7 @@ export function chordsBacking(symbols: readonly string[]): BackingSource | null 
     const chords = symbols.map((s) => readChord(s.trim())?.symbol).filter((s): s is string => !!s)
     return chords.length
         ? {
-              label: 'Linked chord notes',
+              label: t('backing.source.linked'),
               chords: chords.slice(0, MAX_PROGRESSION_BARS),
               time: null,
               tempo: null,

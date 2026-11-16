@@ -6,12 +6,19 @@ import type { BlockName } from '../domain/plan'
 import type { LearningItem } from '../domain/practice'
 import type { PracticeRules } from '../domain/rules'
 import { renderItemRow } from './item-row'
+import { t } from '../i18n/i18n'
 
-const BLOCK_TITLE: Record<BlockName, string> = {
-    'warm-up': 'Warm-up',
-    'focus': 'Focus',
-    'review': 'Review',
-    'fun': 'Fun'
+const blockTitle = (block: BlockName): string => {
+    switch (block) {
+        case 'warm-up':
+            return t('log.plan.block.warm-up')
+        case 'focus':
+            return t('log.plan.block.focus')
+        case 'review':
+            return t('log.plan.block.review')
+        case 'fun':
+            return t('log.plan.block.fun')
+    }
 }
 
 /** A practice session for the minutes you have. */
@@ -34,12 +41,12 @@ export class PracticePlanModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle('Practice plan')
+        this.setTitle(t('log.plan.title'))
         const { contentEl } = this
         contentEl.addClass('mp-modal')
         new Setting(contentEl)
-            .setName('Minutes')
-            .setDesc('How long you can practice now.')
+            .setName(t('log.plan.minutes'))
+            .setDesc(t('log.plan.minutesDesc'))
             .addText((text) => {
                 text.inputEl.type = 'number'
                 text.inputEl.min = '5'
@@ -64,16 +71,19 @@ export class PracticePlanModal extends Modal {
         if (planned.length === 0) {
             el.createDiv({
                 cls: 'mp-empty',
-                text: 'Nothing to practice yet: no active or due learning notes.'
+                text: t('log.plan.empty')
             })
             return
         }
         for (const block of planned) {
             const header = el.createEl('h4', {
                 cls: 'mp-section-title',
-                text: BLOCK_TITLE[block.block]
+                text: blockTitle(block.block)
             })
-            header.createSpan({ cls: 'mp-section-minutes', text: `${block.minutes} min` })
+            header.createSpan({
+                cls: 'mp-section-minutes',
+                text: t('log.minutesShort', { minutes: block.minutes })
+            })
             const list = el.createDiv({ cls: 'mp-list' })
             for (const p of block.items)
                 renderItemRow(this.app, list, this.model, p.item, { minutes: p.minutes })
@@ -83,13 +93,18 @@ export class PracticePlanModal extends Modal {
         const paths = () => planned.flatMap((b) => b.items.map((p) => p.item.path))
         const actions = el.createDiv({ cls: 'mp-actions' })
         if (onUseInPanel) {
-            actions.createEl('button', { text: 'Use in panel' }).addEventListener('click', () => {
-                this.close()
-                onUseInPanel(paths())
-            })
+            actions
+                .createEl('button', { text: t('log.plan.useInPanel') })
+                .addEventListener('click', () => {
+                    this.close()
+                    onUseInPanel(paths())
+                })
         }
         if (onLog) {
-            const button = actions.createEl('button', { cls: 'mod-cta', text: 'Log this session' })
+            const button = actions.createEl('button', {
+                cls: 'mod-cta',
+                text: t('log.plan.logSession')
+            })
             button.addEventListener('click', () => {
                 this.close()
                 onLog(

@@ -13,6 +13,7 @@ import {
 import type { ExerciseDirection, ExerciseRhythm } from '@dsebastien/music-notation'
 import type { FieldNames } from './fields'
 import { cagedShape } from './practice-blocks'
+import { t } from '../i18n/i18n'
 
 type Properties = Record<string, unknown>
 
@@ -95,17 +96,21 @@ const plays = (subject: ExerciseSubject, at: ExercisePosition): boolean => {
  * arpeggio, the CAGED shapes. Only those the library plays.
  */
 export function exercisePositions(subject: ExerciseSubject): ExercisePosition[] {
-    const caged = CAGED.map((letter) => ({ label: `${letter} shape`, shape: letter }))
+    const caged = CAGED.map((letter) => ({
+        label: t('tools.exercise.cagedShape', { letter }),
+        shape: letter
+    }))
     const list: ExercisePosition[] = []
     if ('scale' in subject.notes && subject.size === 5) {
-        for (let n = 1; n <= 5; n++) list.push({ label: `Box ${n}`, position: n })
+        for (let n = 1; n <= 5; n++)
+            list.push({ label: t('tools.exercise.box', { n }), position: n })
     }
     list.push(...caged)
     if ('scale' in subject.notes && subject.size >= 6) {
         const set = scaleNoteSet(subject.notes.scale)
         const count = set ? positionCount(set, '3nps') : 0
         for (let n = 1; n <= count; n++)
-            list.push({ label: `3NPS ${n}`, shape: '3nps', position: n })
+            list.push({ label: t('tools.exercise.nps', { n }), shape: '3nps', position: n })
     }
     return list.filter((at) => plays(subject, at))
 }
@@ -121,11 +126,11 @@ export function defaultPosition(positions: ExercisePosition[], shape: unknown): 
     const nps = /^3\s*nps(?:\s*(\d+))?$/i.exec(text)
     const found = positions.findIndex((at) =>
         box
-            ? at.label === `Box ${box[1]}`
+            ? at.shape === undefined && at.position === Number(box[1])
             : letter
               ? at.shape === letter
               : nps
-                ? at.label === `3NPS ${nps[1] ?? 1}`
+                ? at.shape === '3nps' && at.position === Number(nps[1] ?? 1)
                 : false
     )
     return Math.max(0, found)

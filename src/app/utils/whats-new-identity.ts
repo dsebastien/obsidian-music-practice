@@ -1,3 +1,5 @@
+import { t } from '../i18n/i18n'
+
 /**
  * Pure helpers describing the identity of the "What's new" view. Kept out of
  * the view module so they can be unit tested without the Obsidian runtime.
@@ -16,5 +18,5 @@ export function getWhatsNewViewType(pluginId: string): string {
 
 /** Tab title. Kept short: tab headers truncate aggressively. */
 export function getWhatsNewTitle(pluginName: string, version: string): string {
-    return `What's new: ${pluginName} ${version}`
+    return t('whatsnew.title', { plugin: pluginName, version })
 }

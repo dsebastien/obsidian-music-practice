@@ -3,6 +3,7 @@
  * language, keeps each player's state per note and file, plays one at a time, writes the sections
  * set in the player back into the block, and frees the players when they go.
  */
+import { t } from '../i18n/i18n'
 import { MarkdownRenderChild } from 'obsidian'
 import type { MarkdownPostProcessorContext, MarkdownSectionInformation, Plugin } from 'obsidian'
 import {
@@ -228,7 +229,7 @@ class PlayAlongChild extends MarkdownRenderChild {
     private saveBpm(): void {
         const bpm = this.controller?.playedBpm() ?? null
         if (bpm === null) {
-            this.owner.deps.notice('Tap the tempo first: Save BPM needs it.')
+            this.owner.deps.notice(t('playalong.notice.tapFirst'))
             return
         }
         this.owner.deps.saveBpm(this.sourcePath, bpm)
@@ -240,11 +241,17 @@ class PlayAlongChild extends MarkdownRenderChild {
         const time = controller.position()
         // Read before the question: its modal takes the focus while it is open.
         const focused = this.view?.hasFocus() ?? false
-        const name = await this.owner.deps.askName(`Section ${this.block.sections.length + 1}`)
+        const name = await this.owner.deps.askName(
+            t('playalong.section.default', { n: this.block.sections.length + 1 })
+        )
         // Written even when the block was drawn again meanwhile: it is found by its text.
         if (name === null) return
         const line = sectionLine(time, name)
-        await this.write((body) => insertSection(body, line), "Couldn't add the section", focused)
+        await this.write(
+            (body) => insertSection(body, line),
+            t('playalong.error.addSection'),
+            focused
+        )
     }
 
     /** A tempo was tapped: written as the tempo line once the taps stop for 2 s. */
@@ -253,7 +260,7 @@ class PlayAlongChild extends MarkdownRenderChild {
         if (this.tapTimer !== null) timer.clear(this.tapTimer)
         this.tapTimer = timer.set(() => {
             this.tapTimer = null
-            void this.write((body) => withTempo(body, bpm), "Couldn't write the tempo").then(
+            void this.write((body) => withTempo(body, bpm), t('playalong.error.writeTempo')).then(
                 (ok) => {
                     // The block's tempo line holds it now; a line removed later falls back to the target.
                     if (ok && this.controller?.state.tapped === bpm)
@@ -288,11 +295,15 @@ class PlayAlongChild extends MarkdownRenderChild {
                 change
             )
             .catch((error: unknown) => {
-                deps.notice(`${failure}: ${error instanceof Error ? error.message : String(error)}`)
+                deps.notice(
+                    t('playalong.error.failedWith', {
+                        failure,
+                        message: error instanceof Error ? error.message : String(error)
+                    })
+                )
                 return null
             })
-        if (written === false)
-            deps.notice("Couldn't find this block in the note: it may have changed. Try again.")
+        if (written === false) deps.notice(t('playalong.error.blockNotFound'))
         if (written !== true) this.owner.clearResume(this.key)
         return written === true
     }
@@ -361,19 +372,19 @@ export class PlayAlongBlocks {
         if (block.file === null) {
             deps.showMessage(
                 el,
-                'playalong: name the recording on a line of its own, for example file: [[Song.mp3]]',
+                t('playalong.error.noFileLine', { example: 'file: [[Song.mp3]]' }),
                 source
             )
             return
         }
         const media = deps.resolve(block.file, ctx.sourcePath)
         if (!media) {
-            deps.showMessage(el, `playalong: no file "${block.file}" in the vault`, source)
+            deps.showMessage(el, t('playalong.error.noFile', { file: block.file }), source)
             return
         }
         const kind = mediaKindOf(media.path)
         if (!kind) {
-            deps.showMessage(el, `playalong: "${media.path}" is not an audio or video file`, source)
+            deps.showMessage(el, t('playalong.error.notMedia', { path: media.path }), source)
             return
         }
         ctx.addChild(

@@ -1,5 +1,6 @@
 import { Modal } from 'obsidian'
 import type { App } from 'obsidian'
+import { t } from '../i18n/i18n'
 
 /**
  * Asks for the name of a section set in the play-along player (#75). Resolves with the name typed
@@ -18,12 +19,12 @@ export class SectionNameModal extends Modal {
 
     override onOpen(): void {
         const { contentEl } = this
-        this.setTitle('Add a section')
+        this.setTitle(t('tools.section.title'))
         contentEl.addClass('mp-confirm')
         const input = contentEl.createEl('input', {
             type: 'text',
             cls: 'mp-section-name',
-            attr: { 'aria-label': 'Section name' }
+            attr: { 'aria-label': t('tools.section.nameLabel') }
         })
         input.value = this.proposed
         const add = () => {
@@ -36,8 +37,12 @@ export class SectionNameModal extends Modal {
             add()
         })
         const actions = contentEl.createDiv({ cls: 'mp-actions' })
-        actions.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close())
-        actions.createEl('button', { cls: 'mod-cta', text: 'Add' }).addEventListener('click', add)
+        actions
+            .createEl('button', { text: t('common.cancel') })
+            .addEventListener('click', () => this.close())
+        actions
+            .createEl('button', { cls: 'mod-cta', text: t('common.add') })
+            .addEventListener('click', add)
         input.focus()
         input.select()
     }

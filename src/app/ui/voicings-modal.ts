@@ -13,13 +13,14 @@ import { formatFingers, formatFrets } from '../domain/notation-note'
 import { alignGrid, selectCell, voicingCell } from './voicing-cell'
 import {
     DEFAULT_VOICING_FILTER,
-    VOICING_AREAS,
+    voicingAreas,
     sameFrets,
     voicingLabel,
     voicingOptions,
     type VoicingArea,
     type VoicingFilter
 } from '../domain/voicings'
+import { t, tn } from '../i18n/i18n'
 
 /** At most this many voicings drawn at once: the easiest of the filtered list. */
 const SHOWN = 24
@@ -71,18 +72,27 @@ export class VoicingsModal extends Modal {
         this.symbol = options.symbol
     }
 
+    private titleText(): string {
+        return this.symbol
+            ? t('tools.voicings.title', { symbol: this.symbol })
+            : t('tools.voicings.titleChord')
+    }
+
     override onOpen(): void {
         this.contentEl.addClass('mp-modal')
         this.modalEl.addClass('mp-voicings-modal')
-        this.setTitle(this.symbol ? `Voicings of ${this.symbol}` : 'Voicings of a chord')
+        this.setTitle(this.titleText())
         const el = this.contentEl
         if (!this.options.symbol) {
-            const field = el.createEl('label', { cls: 'mp-field', text: 'Chord' })
-            const input = field.createEl('input', { type: 'text', attr: { placeholder: 'Am7' } })
+            const field = el.createEl('label', { cls: 'mp-field', text: t('tools.voicings.chord') })
+            const input = field.createEl('input', {
+                type: 'text',
+                attr: { placeholder: t('tools.voicings.chordPlaceholder') }
+            })
             const typed = () => {
                 this.symbol = readChord(input.value.trim())?.symbol ?? null
                 this.selected = null
-                this.setTitle(this.symbol ? `Voicings of ${this.symbol}` : 'Voicings of a chord')
+                this.setTitle(this.titleText())
                 this.refresh()
             }
             input.addEventListener('input', () => {
@@ -95,7 +105,7 @@ export class VoicingsModal extends Modal {
             // chords that hold them, to pick one (#76).
             const click = this.options.click
             if (click) {
-                el.createDiv({ cls: 'mp-muted', text: 'Or click the frets of the chord:' })
+                el.createDiv({ cls: 'mp-muted', text: t('tools.voicings.orClick') })
                 const host = el.createDiv()
                 const near = el.createDiv({ cls: 'mp-click-near-box' })
                 this.nearEl = near
@@ -144,14 +154,19 @@ export class VoicingsModal extends Modal {
                 this.refresh()
             })
         }
-        select<VoicingArea>('Neck', VOICING_AREAS, this.filter.area, (v) => (this.filter.area = v))
+        select<VoicingArea>(
+            t('tools.voicings.neck'),
+            voicingAreas(),
+            this.filter.area,
+            (v) => (this.filter.area = v)
+        )
         select(
-            'Root on',
+            t('tools.voicings.rootOn'),
             [
-                { value: '0', label: 'Any string' },
-                { value: '6', label: '6th string' },
-                { value: '5', label: '5th string' },
-                { value: '4', label: '4th string' }
+                { value: '0', label: t('tools.voicings.anyString') },
+                { value: '6', label: t('tools.voicings.string6') },
+                { value: '5', label: t('tools.voicings.string5') },
+                { value: '4', label: t('tools.voicings.string4') }
             ],
             '0',
             (v) => (this.filter.rootString = Number(v))
@@ -166,8 +181,8 @@ export class VoicingsModal extends Modal {
                 this.refresh()
             })
         }
-        toggle('Inversions', (on) => (this.filter.inversions = on))
-        toggle('Stretch', (on) => (this.filter.stretch = on))
+        toggle(t('tools.voicings.inversions'), (on) => (this.filter.inversions = on))
+        toggle(t('tools.voicings.stretch'), (on) => (this.filter.stretch = on))
         this.infoEl = el.createDiv({ cls: 'mp-muted' })
         this.listEl = el.createDiv({ cls: 'mp-voicing-row mp-voicing-grid' })
         this.noteEl = el.createDiv({ cls: 'mp-muted' })
@@ -184,7 +199,7 @@ export class VoicingsModal extends Modal {
         list.empty()
         const symbol = this.symbol
         if (!symbol) {
-            info.setText('Type a chord to see every way to play it.')
+            info.setText(t('tools.voicings.typeChord'))
             this.renderActions()
             return
         }
@@ -192,14 +207,14 @@ export class VoicingsModal extends Modal {
         const shown = all.slice(0, SHOWN)
         info.setText(
             all.length === 0
-                ? 'No voicing fits: widen the neck area, allow inversions or a stretch.'
+                ? t('tools.voicings.none')
                 : all.length > SHOWN
-                  ? `The ${SHOWN} easiest of ${all.length}, easiest first.`
-                  : `${all.length} voicing${all.length === 1 ? '' : 's'}, easiest first.`
+                  ? t('tools.voicings.easiest', { shown: SHOWN, total: all.length })
+                  : tn('tools.voicings.count', all.length)
         )
         const current = this.options.current ?? null
         if (current && shown.some((v) => sameFrets(v.frets, current)))
-            info.appendText(" Dashed: this note's voicing.")
+            info.appendText(` ${t('tools.voicings.dashed')}`)
         shown.forEach((voicing, i) => {
             const isCurrent = current !== null && sameFrets(voicing.frets, current)
             const isSelected =
@@ -208,7 +223,7 @@ export class VoicingsModal extends Modal {
             const button = voicingCell(
                 list,
                 isCurrent ? 'is-current' : '',
-                `${label}${isCurrent ? ' (this note)' : ''}: ${formatFrets(voicing.frets)}`,
+                `${isCurrent ? t('tools.voicings.labelCurrent', { label }) : label}: ${formatFrets(voicing.frets)}`,
                 isSelected,
                 (cell) => {
                     this.selected = voicing
@@ -240,7 +255,9 @@ export class VoicingsModal extends Modal {
         if (!el || !note) return
         el.empty()
         note.empty()
-        el.createEl('button', { text: 'Close' }).addEventListener('click', () => this.close())
+        el.createEl('button', { text: t('common.close') }).addEventListener('click', () =>
+            this.close()
+        )
         const voicing = this.selected
         const symbol = this.symbol
         const ready = voicing !== null && symbol !== null && !this.busy
@@ -274,20 +291,20 @@ export class VoicingsModal extends Modal {
         const blocked =
             voicing && symbol && this.options.cantUse ? this.options.cantUse(voicing, symbol) : null
         if (this.options.pick)
-            action('Use this voicing', () => this.options.pick!(voicing!, symbol!), true)
+            action(t('tools.voicings.useThis'), () => this.options.pick!(voicing!, symbol!), true)
         if (this.options.use)
             action(
-                'Use for this note',
+                t('tools.voicings.useForNote'),
                 () => this.options.use!(voicing!, symbol!),
                 false,
-                isCurrent ? "This is this note's voicing." : blocked
+                isCurrent ? t('tools.voicings.isCurrent') : blocked
             )
         if (this.options.add)
             action(
-                'Add as note',
+                t('tools.voicings.addAsNote'),
                 () => this.options.add!(voicing!, symbol!),
                 !this.options.pick || blocked !== null,
-                isCurrent ? "This is this note's voicing." : null
+                isCurrent ? t('tools.voicings.isCurrent') : null
             )
         if (blocked && !isCurrent) note.setText(blocked)
     }

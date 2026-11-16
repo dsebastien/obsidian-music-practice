@@ -1,6 +1,7 @@
 import { Modal, Notice } from 'obsidian'
 import type { App } from 'obsidian'
 import type { LearningItem } from '../domain/practice'
+import { t } from '../i18n/i18n'
 
 export interface BpmResult {
     current?: number
@@ -30,23 +31,25 @@ export class BpmModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle(`BPM: ${this.item.name}`)
+        this.setTitle(t('metronome.bpmModal.title', { name: this.item.name }))
         const { contentEl } = this
         contentEl.addClass('mp-modal')
         const row = contentEl.createDiv({ cls: 'mp-form-row' })
-        this.field(row, 'Current BPM', this.current, (v) => (this.current = v))
-        this.field(row, 'Target BPM', this.target, (v) => (this.target = v))
+        this.field(row, t('metronome.bpmModal.current'), this.current, (v) => (this.current = v))
+        this.field(row, t('metronome.bpmModal.target'), this.target, (v) => (this.target = v))
         const offer = contentEl.createEl('label', { cls: 'mp-field' })
         const box = offer.createEl('input', { type: 'checkbox' })
         box.checked = this.moveToTempo
         box.addEventListener('change', () => (this.moveToTempo = box.checked))
-        offer.appendText(' Target reached: move to "at tempo"')
+        offer.appendText(` ${t('metronome.bpmModal.moveToTempo')}`)
         this.offerEl = offer
         this.refreshOffer()
         const actions = contentEl.createDiv({ cls: 'mp-actions' })
-        actions.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close())
         actions
-            .createEl('button', { cls: 'mod-cta', text: 'Save' })
+            .createEl('button', { text: t('common.cancel') })
+            .addEventListener('click', () => this.close())
+        actions
+            .createEl('button', { cls: 'mod-cta', text: t('common.save') })
             .addEventListener('click', () => void this.submit())
     }
 

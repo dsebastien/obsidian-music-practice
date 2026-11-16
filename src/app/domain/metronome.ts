@@ -1,4 +1,5 @@
 /** Metronome timing and the speed trainer, without audio (#39). */
+import { tn } from '../i18n/i18n'
 
 export const MIN_BPM = 20
 export const MAX_BPM = 300
@@ -119,7 +120,9 @@ export function meterOf(value: unknown): Meter | null {
 /** How a meter reads in the metronome ("6/8 (2 beats)", "3/4"). */
 export function meterLabel(text: string, meter: Meter): string {
     const clean = text.trim()
-    return meter.subdivision === 3 ? `${clean} (${meter.beatsPerBar} beats)` : clean
+    return meter.subdivision === 3
+        ? tn('metronome.meterBeats', meter.beatsPerBar, { label: clean })
+        : clean
 }
 
 /** Count-in clicks before the first bar: one per beat, so the subdivision doesn't change them. */

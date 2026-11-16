@@ -1,5 +1,6 @@
 import { MarkdownPreviewRenderer, MarkdownRenderChild, MarkdownView } from 'obsidian'
 import type { MarkdownSectionInformation, Plugin, Workspace } from 'obsidian'
+import { t } from '../i18n/i18n'
 import {
     LANGUAGES,
     blockFromProperties,
@@ -160,7 +161,7 @@ export const errorLineOf = (message: string | null): number | null => {
  */
 export function showSource(el: HTMLElement, source: string, error: string | null): HTMLElement {
     const details = el.createEl('details', { cls: 'mp-tab-source' })
-    details.createEl('summary', { text: 'Block text' })
+    details.createEl('summary', { text: t('notation.blockText') })
     const code = details.createEl('pre').createEl('code')
     const marked = errorLineOf(error)
     source.split('\n').forEach((line, i) => {
@@ -240,7 +241,10 @@ class TabChild extends MarkdownRenderChild {
         this.loading?.remove()
         this.clearText()
         const win = (this.containerEl.ownerDocument.defaultView ?? window) as AlphaTabWindow
-        const loading = this.containerEl.createDiv({ cls: 'mn-tab-loading', text: 'Loading…' })
+        const loading = this.containerEl.createDiv({
+            cls: 'mn-tab-loading',
+            text: t('notation.loading')
+        })
         this.loading = loading
         this.host.runtime
             .module(win)
@@ -249,6 +253,7 @@ class TabChild extends MarkdownRenderChild {
                 loading.remove()
                 const keep = this.keepView
                 this.result = renderTab(this.language, this.source, this.containerEl, {
+                    // Library language (#112): `language: libraryLanguage()` once it accepts one.
                     alphaTab,
                     assets: this.host.runtime.assets(win),
                     resolveFile: (link) => this.host.resolveFile(link, this.sourcePath),

@@ -3,6 +3,7 @@
  * vault) and its sections; the player loops a passage, slows it down and counts each pass in.
  * Pure rules, no DOM.
  */
+import { t } from '../i18n/i18n'
 import { bpmFromTaps, clampBpm, MAX_COUNT_IN_BARS } from './metronome'
 
 export const PLAYALONG_LANGUAGE = 'playalong'
@@ -127,16 +128,13 @@ export function parsePlayAlong(source: string): PlayAlongBlock {
         if (tempoMatch) {
             if (tempoLine >= 0) {
                 problems.push(
-                    `Line ${line + 1}: the block already has a tempo (line ${tempoLine + 1})`
+                    t('playalong.problem.tempoTwice', { line: line + 1, other: tempoLine + 1 })
                 )
                 return
             }
             tempoLine = line
             tempo = tempoValue(tempoMatch[1]!)
-            if (tempo === null)
-                problems.push(
-                    `Line ${line + 1}: the tempo must be a number of BPM from 20 to 300 (tempo: 120)`
-                )
+            if (tempo === null) problems.push(t('playalong.problem.tempoRange', { line: line + 1 }))
             return
         }
         const link = linkOf(text)
@@ -146,11 +144,11 @@ export function parsePlayAlong(source: string): PlayAlongBlock {
                 fileLine = line
             } else
                 problems.push(
-                    `Line ${line + 1}: the block already has a file (line ${fileLine + 1})`
+                    t('playalong.problem.fileTwice', { line: line + 1, other: fileLine + 1 })
                 )
             return
         }
-        problems.push(`Line ${line + 1} is not a section: write 0:12 Verse`)
+        problems.push(t('playalong.problem.notSection', { line: line + 1 }))
     })
     // Stable: sections of one time keep their written order.
     sections.sort((x, y) => x.time - y.time || x.line - y.line)
@@ -231,7 +229,7 @@ export type MarkResult = { ok: true; loop: LoopMarks } | { ok: false; message: s
 export function setMark(marks: LoopMarks, which: 'a' | 'b', time: number): MarkResult {
     const other = which === 'a' ? marks.b : marks.a
     if (other !== null && Math.abs(time - other) < MIN_LOOP_SECONDS)
-        return { ok: false, message: 'A and B must be at least half a second apart.' }
+        return { ok: false, message: t('playalong.mark.tooClose') }
     let a = which === 'a' ? time : marks.a
     let b = which === 'b' ? time : marks.b
     if (a !== null && b !== null && a > b) {

@@ -2,6 +2,7 @@
  * Click to enter notes (#76): frets and keys from clicks on a fretboard or keyboard, and the
  * chords that hold the notes when they make no chord the library detects (near matches).
  */
+import { t } from '../i18n/i18n'
 import {
     baseFretOf,
     chordNoteSet,
@@ -360,7 +361,6 @@ export function namedNoteChanges(input: {
 /** What to say under the drawing when no chord and no near match shows. */
 export function clickHint(pitches: readonly number[], near: readonly NearMatch[]): string {
     if (near.length) return ''
-    if (new Set(pitches.map(chroma)).size < 2)
-        return 'Click two notes or more: the chord they make shows here.'
-    return 'No common chord holds all these notes: take one away.'
+    if (new Set(pitches.map(chroma)).size < 2) return t('metronome.click.hintFew')
+    return t('metronome.click.hintNone')
 }

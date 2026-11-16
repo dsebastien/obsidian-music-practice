@@ -1,10 +1,11 @@
 import type { TimedBar } from '@dsebastien/music-notation'
+import { t } from '../i18n/i18n'
 
 /** The play bars that get Save BPM (#88): everything a learning note practices in time. */
 const KINDS: ReadonlySet<TimedBar['kind']> = new Set(['strum', 'picking', 'progression', 'chart'])
 
 /** The button's name for screen readers, the same as the tab player bar's Save BPM (#70). */
-export const SAVE_BPM_LABEL = 'Save the BPM it plays at to this note'
+export const saveBpmLabel = (): string => t('metronome.saveBpmBar.label')
 
 /**
  * The library's `play.timedBar` hook (music-notation 0.12, #77) for a learning note: a Save BPM
@@ -23,8 +24,8 @@ export function saveBpmOnBars(
         const button = bar.element.createEl('button')
         button.type = 'button'
         button.className = 'mp-score-save-bpm'
-        button.setAttribute('aria-label', SAVE_BPM_LABEL)
-        button.setAttribute('title', 'Save BPM')
+        button.setAttribute('aria-label', saveBpmLabel())
+        button.setAttribute('title', t('metronome.saveBpmBar.title'))
         icon(button, 'gauge')
         const click = () => open(Math.round(bar.tempo()))
         button.addEventListener('click', click)

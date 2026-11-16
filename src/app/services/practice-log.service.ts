@@ -52,6 +52,8 @@ import {
     resolveNoteTypeFolder,
     starterKitRunsAutomations
 } from './starter-kit.service'
+import { t } from '../i18n/i18n'
+import { joinNames } from '../domain/join-names'
 
 export interface LogContext {
     rules: PracticeRules
@@ -176,8 +178,7 @@ export class PracticeLogService {
         const subjects = [
             ...new Set(types.map((t) => t.subject).filter((s): s is string => Boolean(s)))
         ]
-        if (subjects.length > 1)
-            throw new Error('Log one instrument at a time: these items belong to several.')
+        if (subjects.length > 1) throw new Error(t('log.service.severalInstruments'))
         if (subjects.length === 1) {
             const t = types.find((x) => x.subject === subjects[0])!
             return model.sessionTypes.filter(
@@ -202,7 +203,7 @@ export class PracticeLogService {
     }
 
     async log(request: LogRequest, options: LogOptions = {}): Promise<LogResult> {
-        if (this.busy) throw new Error('A practice log is already being written.')
+        if (this.busy) throw new Error(t('log.service.busy'))
         this.busy = true
         // The previous undo's watch ends here: this log's session note can have the trashed one's
         // path and body (same day, same request), and must not be taken for a late re-creation.
@@ -244,13 +245,14 @@ export class PracticeLogService {
         }
         if (options.mapTo !== undefined) {
             const file = this.activities.findActivity(options.mapTo, list)
-            if (!file) throw new Error(`Not an activity: ${options.mapTo}.`)
+            if (!file) throw new Error(t('log.service.notAnActivity', { path: options.mapTo }))
             return { ...none, file, name: file.basename, map: file, list }
         }
         if (request.activity === null) return none
         if (typeof request.activity === 'string') {
             const file = this.activities.findActivity(request.activity, list)
-            if (!file) throw new Error(`No activity note named "${request.activity.trim()}".`)
+            if (!file)
+                throw new Error(t('log.service.noActivityNamed', { name: request.activity.trim() }))
             return { ...none, file, name: file.basename, list }
         }
         const choice = this.activities.choiceFor(session, list)
@@ -259,8 +261,15 @@ export class PracticeLogService {
         const { fields } = this.context()
         warnings.push(
             choice.conflict.length
-                ? `${choice.typeName} is listed in "${fields.sessionTypes}" by ${choice.conflict.map((f) => f.basename).join(' and ')}: the session counts for no activity until one of them drops it.`
-                : `No activity lists ${choice.typeName} in "${fields.sessionTypes}": the session counts for no activity. Log practice asks which one to use.`
+                ? t('log.service.warn.conflict', {
+                      type: choice.typeName,
+                      property: fields.sessionTypes,
+                      activities: joinNames(choice.conflict.map((f) => f.basename))
+                  })
+                : t('log.service.warn.noneListed', {
+                      type: choice.typeName,
+                      property: fields.sessionTypes
+                  })
         )
         return none
     }
@@ -277,14 +286,15 @@ export class PracticeLogService {
             const item = byPath.get(log.path)
             const type = item && model.learningTypes.find((t) => t.id === item.typeId)
             const file = this.app.vault.getFileByPath(log.path)
-            if (!item || !type || !file) throw new Error(`Not a learning note: ${log.path}`)
+            if (!item || !type || !file)
+                throw new Error(t('log.service.notLearningNote', { path: log.path }))
             return { item, type, log, file }
         })
         const session = this.sessionTypeFor(
             resolved.map((r) => r.item),
             request.sessionTypeId
         )
-        if (!session) throw new Error('Choose which instrument this session is for.')
+        if (!session) throw new Error(t('log.service.chooseInstrument'))
         const stampDates = !starterKitRunsAutomations(this.app)
         const shares = splitMinutes(request.minutes, resolved.length)
         // Fails now (before writing) when a requested level has no value in its type.
@@ -294,9 +304,7 @@ export class PracticeLogService {
         const plan = this.planActivity(session, request, options, warnings)
         const timer = this.timerOn(plan.file)
         if (timer && !options.adoptTimer)
-            throw new Error(
-                `A Kanban Action Planner timer is running on ${plan.file!.basename}: use it for this log, or stop it first, so the time isn't counted twice.`
-            )
+            throw new Error(t('log.service.kapTimerRunning', { activity: plan.file!.basename }))
         const adopted = timer !== null
         const endMs = adopted ? Date.now() : this.endOf(date, request)
         const startMs = adopted ? timer.startedAt : endMs - request.minutes * 60_000
@@ -319,13 +327,15 @@ export class PracticeLogService {
                 .map((r) => r.item.name)
             if (differs.length)
                 throw new Error(
-                    `Already logged in ${existing.basename}, with other values for ${differs.join(', ')}: nothing was written. Change them with Change mastery or Set BPM, or delete that session note to log again.`
+                    t('log.service.alreadyLogged', {
+                        session: existing.basename,
+                        items: differs.join(', ')
+                    })
                 )
         }
 
         // 2. The session note, before the items (and before any change to an activity).
-        if (adopted && !stopKapTimer(this.app))
-            throw new Error('Could not stop the Kanban Action Planner timer.')
+        if (adopted && !stopKapTimer(this.app)) throw new Error(t('log.service.kapStopFailed'))
         let file: TFile
         if (existing) file = existing
         else {
@@ -415,16 +425,22 @@ export class PracticeLogService {
                     if (time.write !== null) fm[keyOf(fm, fields.timeSpent)] = time.write
                     if (time.decision)
                         warnings.push(
-                            `${item.name}: "${fields.timeSpent}" is ${time.decision.stored} min and its session notes give ${time.decision.computed}: left as it is.`
+                            t('log.service.warn.timeStored', {
+                                item: item.name,
+                                property: fields.timeSpent,
+                                stored: time.decision.stored,
+                                computed: time.decision.computed
+                            })
                         )
                     if (time.notANumber)
                         warnings.push(
-                            `${item.name}: "${fields.timeSpent}" isn't a number, so its time wasn't recomputed.`
+                            t('log.service.warn.timeNotNumber', {
+                                item: item.name,
+                                property: fields.timeSpent
+                            })
                         )
                 } else if (type.fields.has(fields.timeSpent))
-                    warnings.push(
-                        `${item.name}: Obsidian hadn't indexed the session's link yet, so its time wasn't recomputed (its next log does it).`
-                    )
+                    warnings.push(t('log.service.warn.itemNotIndexed', { item: item.name }))
                 changes.push({ path: note.path, keys: changedKeys(before, snapshot(fm)) })
             })
         }
@@ -449,7 +465,10 @@ export class PracticeLogService {
         }
         if (activity && !linksActivity()) {
             warnings.push(
-                `The session note of that log (${existing!.basename}) counts for another activity or none, not ${activity.basename}: its activity was left as it is.`
+                t('log.service.warn.otherActivity', {
+                    session: existing!.basename,
+                    activity: activity.basename
+                })
             )
         } else if (activity) {
             const linkable = session.fields.has(fields.activities)
@@ -465,16 +484,22 @@ export class PracticeLogService {
             const result = outcome.result
             if (!linkable)
                 warnings.push(
-                    `${activity.basename}: the session note has no "${fields.activities}" field, so its time can't count for the activity.`
+                    t('log.service.warn.noActivityField', {
+                        activity: activity.basename,
+                        property: fields.activities
+                    })
                 )
             else if (result === 'not-linked')
                 warnings.push(
-                    `${activity.basename}: Obsidian hadn't indexed the session's link yet, so the activity's time wasn't recomputed${adopted ? " and the timer's time entry is still on it (delete it: the session holds that time)" : ''}. Use the Kanban Action Planner's Recompute tracked time on it in a moment.`
+                    t(
+                        adopted
+                            ? 'log.service.warn.activityNotIndexedTimer'
+                            : 'log.service.warn.activityNotIndexed',
+                        { activity: activity.basename }
+                    )
                 )
             if (result === 'skipped')
-                warnings.push(
-                    `${activity.basename}: its time entries aren't a list, so its time wasn't recomputed.`
-                )
+                warnings.push(t('log.service.warn.entriesNotList', { activity: activity.basename }))
         }
         // A run again right after must find this note: wait until the cache holds it.
         if (!existing) await this.waitForCache(file, session.typeTag)
@@ -611,7 +636,7 @@ export class PracticeLogService {
         choice: Exclude<LowerChoice, null>
     ): Promise<{ keys: KeyChange[]; difference: number; minutes: number | null }> {
         const activity = this.app.vault.getFileByPath(path)
-        if (!activity) throw new Error(`The activity is gone: ${path}`)
+        if (!activity) throw new Error(t('log.service.activityGone', { path }))
         const { fields } = this.context()
         const linked = this.linkedSessions(activity, fields)
         const cache = this.app.metadataCache
@@ -626,7 +651,10 @@ export class PracticeLogService {
             const before = snapshot(fm)
             const now = Date.now()
             const pending = planActivityTime(fm, fields, linked, resolve)
-            if (!pending) throw new Error(`${activity.basename}: its time entries aren't a list.`)
+            if (!pending)
+                throw new Error(
+                    t('log.service.warn.entriesNotList', { activity: activity.basename })
+                )
             const plan = planActivityTime(
                 fm,
                 fields,
@@ -650,11 +678,11 @@ export class PracticeLogService {
      * its session note. Refuses, naming the notes, when any of it changed since.
      */
     async undo(record: UndoRecord): Promise<UndoResult> {
-        if (this.busy) return { ok: false, reason: 'A practice log is being written.' }
+        if (this.busy) return { ok: false, reason: t('log.undo.busy') }
         if (record.reused)
             return {
                 ok: false,
-                reason: 'That run reused the session note of an earlier log: it changed nothing to undo.'
+                reason: t('log.undo.reused')
             }
         this.busy = true
         try {
@@ -669,7 +697,7 @@ export class PracticeLogService {
             if (!session || (record.sessionCtime && session.stat.ctime !== record.sessionCtime))
                 return {
                     ok: false,
-                    reason: `The session note of that log was moved or deleted (${record.sessionPath}): nothing was undone.`
+                    reason: t('log.undo.sessionGone', { path: record.sessionPath })
                 }
             const changed: string[] = []
             if (bodyOf(await this.app.vault.read(session)) !== record.sessionBody)
@@ -678,7 +706,7 @@ export class PracticeLogService {
             for (const f of record.files) {
                 const file = this.app.vault.getFileByPath(f.path)
                 if (!file) {
-                    changed.push(`${f.path} (moved or deleted)`)
+                    changed.push(t('log.undo.movedOrDeleted', { path: f.path }))
                     continue
                 }
                 if (conflicts(await this.frontmatterOf(file), f.keys).length)
@@ -688,7 +716,7 @@ export class PracticeLogService {
             if (changed.length)
                 return {
                     ok: false,
-                    reason: `Changed since the log, nothing was undone: ${changed.join(', ')}.`
+                    reason: t('log.undo.changed', { names: changed.join(', ') })
                 }
             try {
                 for (const { keys, file } of files) {
@@ -703,7 +731,9 @@ export class PracticeLogService {
                 // What was put back stays put back; undoing again finishes the job.
                 return {
                     ok: false,
-                    reason: `The undo stopped halfway (${error instanceof Error ? error.message : String(error)}): run it again to finish.`
+                    reason: t('log.undo.halfway', {
+                        error: error instanceof Error ? error.message : String(error)
+                    })
                 }
             }
             return { ok: true, sessionPath: record.sessionPath, keptKapEntry: record.adoptedTimer }
@@ -865,10 +895,10 @@ export class PracticeLogService {
         const { rules, fields } = this.context()
         const type = this.model().learningTypes.find((t) => t.id === item.typeId)
         const file = this.app.vault.getFileByPath(item.path)
-        if (!type || !file) throw new Error(`Not a learning note: ${item.path}`)
+        if (!type || !file) throw new Error(t('log.service.notLearningNote', { path: item.path }))
         for (const value of [bpm.current, bpm.target])
             if (value !== undefined && (!Number.isInteger(value) || value < 1 || value > 1000))
-                throw new Error('BPM must be a whole number between 1 and 1000.')
+                throw new Error(t('log.service.bpmRange'))
         const stampDates = !starterKitRunsAutomations(this.app)
         await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
             if (bpm.current !== undefined && type.fields.has(fields.bpmCurrent))
@@ -904,7 +934,7 @@ export class PracticeLogService {
         const folder = own
             ? normalizePath(expand(own.folder))
             : resolveNoteTypeFolder(this.app, session.id, date)
-        if (!folder) throw new Error(`${session.name} has no folder.`)
+        if (!folder) throw new Error(t('log.service.noFolder', { session: session.name }))
         const affixes = own ? null : resolveNoteTypeAffixes(this.app, session.id, date)
         const naming = own
             ? { prefix: expand(own.prefix), suffix: expand(own.suffix) }
@@ -918,7 +948,7 @@ export class PracticeLogService {
             const candidate = normalizePath(`${folder}/${sessionFileName(base, n, naming)}`)
             if (!this.app.vault.getAbstractFileByPath(candidate)) path = candidate
         }
-        if (!path) throw new Error(`No free name for "${base}".`)
+        if (!path) throw new Error(t('log.service.noFreeName', { name: base }))
         const template = session.templatePath
             ? this.app.vault.getFileByPath(session.templatePath)
             : null

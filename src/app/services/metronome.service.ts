@@ -2,6 +2,7 @@
  * The metronome: Web Audio clicks scheduled ahead of time (steady while Obsidian is busy), one
  * instance for the whole plugin so the panel, the modal and the commands drive the same one.
  */
+import { t } from '../i18n/i18n'
 import {
     beatOf,
     clampBpm,
@@ -179,7 +180,7 @@ export class Metronome {
     start(): void {
         if (this.state.running) return
         const Context = (this.win as Window & { AudioContext?: typeof AudioContext }).AudioContext
-        if (!Context) throw new Error('This device has no Web Audio: the metronome cannot play.')
+        if (!Context) throw new Error(t('metronome.error.noWebAudio'))
         this.context ??= new Context()
         this.context.resume().catch(() => {})
         this.tick = 0

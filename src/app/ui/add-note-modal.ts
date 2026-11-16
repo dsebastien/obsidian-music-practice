@@ -45,12 +45,14 @@ import type { TriadPick } from './triads-modal'
 import { alignGrid } from './voicing-cell'
 import { readValue, textOfValue, typedKeysOf, valueOfText } from '../domain/click-input'
 import { ClickInput, renderNearMatches } from './click-input'
+import { t } from '../i18n/i18n'
 
 /** voicingIndex of a voicing picked from every way to play the chord (#54). */
 const PICKED = -2
 
 /** Scale roots and types offered when the note type doesn't list its own. */
 const ROOTS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
+/** The stored values of the scale types offered, English in every language. */
 const SCALE_TYPES = [
     'Major',
     'Natural minor',
@@ -65,6 +67,22 @@ const SCALE_TYPES = [
     'Mixolydian',
     'Locrian'
 ]
+
+/** What a reader sees for each of those values: the value is stored, the label is shown. */
+const scaleTypeLabels = (): Record<string, string> => ({
+    'Major': t('notes.add.scaleMajor'),
+    'Natural minor': t('notes.add.scaleNaturalMinor'),
+    'Harmonic minor': t('notes.add.scaleHarmonicMinor'),
+    'Melodic minor': t('notes.add.scaleMelodicMinor'),
+    'Major pentatonic': t('notes.add.scaleMajorPentatonic'),
+    'Minor pentatonic': t('notes.add.scaleMinorPentatonic'),
+    'Blues': t('notes.add.scaleBlues'),
+    'Dorian': t('notes.add.scaleDorian'),
+    'Phrygian': t('notes.add.scalePhrygian'),
+    'Lydian': t('notes.add.scaleLydian'),
+    'Mixolydian': t('notes.add.scaleMixolydian'),
+    'Locrian': t('notes.add.scaleLocrian')
+})
 
 /**
  * Add a learning note: type, name (a chord in symbols, words or frets; a scale's root and type),
@@ -86,7 +104,7 @@ export class AddNoteModal extends Modal {
     private voicingIndex = 0
     /** A voicing picked from every way to play the chord. */
     private picked: GeneratedVoicing | null = null
-    /** A picked triad's string set and inversion, for its title: "(strings 1-3, root position)". */
+    /** A picked triad's string set and inversion, for the note's name ("(strings 1-3, root position)"). */
     private triadDetail: string | null = null
     /** The picked triad's string set and inversion, for its prerequisite (the root position). */
     private triadPick: { set: StringSet; inversion: number } | null = null
@@ -387,12 +405,15 @@ export class AddNoteModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle('Add a learning note')
+        this.setTitle(t('notes.add.title'))
         this.contentEl.addClass('mp-modal')
-        const typeField = this.contentEl.createEl('label', { cls: 'mp-field', text: 'Type' })
+        const typeField = this.contentEl.createEl('label', {
+            cls: 'mp-field',
+            text: t('notes.add.type')
+        })
         const select = typeField.createEl('select', { cls: 'dropdown' })
-        for (const [i, t] of this.types.entries())
-            select.createEl('option', { text: t.name, value: String(i) })
+        for (const [i, type] of this.types.entries())
+            select.createEl('option', { text: type.name, value: String(i) })
         select.addEventListener('change', () => {
             this.type = this.types[Number(select.value)]!
             this.shape = ''
@@ -426,14 +447,16 @@ export class AddNoteModal extends Modal {
             label: string,
             values: string[],
             current: string,
-            set: (v: string) => void
+            set: (v: string) => void,
+            labels: Record<string, string> = {}
         ) => {
             if (!scaleRow) return
             const field = scaleRow.createEl('label', { cls: 'mp-field', text: label })
             const select = field.createEl('select', { cls: 'dropdown' })
             select.createEl('option', { text: '—', value: '' })
             for (const v of values)
-                select.createEl('option', { text: v, value: v }).selected = v === current
+                select.createEl('option', { text: labels[v] ?? v, value: v }).selected =
+                    v === current
             select.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter') void this.submit()
             })
@@ -447,35 +470,38 @@ export class AddNoteModal extends Modal {
             return values?.length ? values : fallback
         }
         picker(
-            'Root',
+            t('notes.add.root'),
             valuesOf(this.fields.scaleRoot, ROOTS),
             this.scaleRoot,
             (v) => (this.scaleRoot = v)
         )
+        const listsScaleTypes = Boolean(this.type.allowedValues[this.fields.scaleType]?.length)
         picker(
-            'Scale or mode',
+            t('notes.add.scaleOrMode'),
             valuesOf(this.fields.scaleType, SCALE_TYPES),
             this.scaleType,
-            (v) => (this.scaleType = v)
+            (v) => (this.scaleType = v),
+            // The note type's own values are shown as they are; ours get their labels.
+            listsScaleTypes ? {} : scaleTypeLabels()
         )
         const nameField = isScale
             ? null
             : el.createEl('label', {
                   cls: 'mp-field',
                   text: guitarChord
-                      ? 'Chord (F#m7, A Major) or frets (x02220)'
+                      ? t('notes.add.nameGuitarChord')
                       : isChord && this.instrument() === 'piano'
-                        ? 'Chord (F#m7, A Major) or keys (C4 E4 G4)'
+                        ? t('notes.add.namePianoChord')
                         : isChord
-                          ? 'Chord (F#m7, A Major)'
+                          ? t('notes.add.nameChord')
                           : isArpeggio
-                            ? 'Chord of the arpeggio (Am7, A Minor 7)'
-                            : 'Name'
+                            ? t('notes.add.nameArpeggio')
+                            : t('notes.add.name')
               })
         const input = (nameField ?? createDiv()).createEl('input', {
             type: 'text',
             attr: {
-                placeholder: isChord || isArpeggio ? 'Am7' : "Knockin on Heaven's Door - Simplified"
+                placeholder: isChord || isArpeggio ? 'Am7' : t('notes.add.namePlaceholder')
             }
         })
         input.value = this.text
@@ -522,9 +548,9 @@ export class AddNoteModal extends Modal {
                     if ((event as KeyboardEvent).key === 'Enter') void this.submit()
                 })
             }
-            strumField('Pattern', this.fields.strumPattern, 'pattern', 'D DU UDU')
-            strumField('Time signature', this.fields.timeSignature, 'time', '4/4')
-            strumField('Feel', this.fields.strumFeel, 'feel', 'straight, swing, 60%')
+            strumField(t('notes.add.pattern'), this.fields.strumPattern, 'pattern', 'D DU UDU')
+            strumField(t('notes.add.timeSignature'), this.fields.timeSignature, 'time', '4/4')
+            strumField(t('notes.add.feel'), this.fields.strumFeel, 'feel', 'straight, swing, 60%')
         }
 
         // Fingerpicking patterns: the pattern (a named one suggested, or PIMA letters / string
@@ -570,21 +596,24 @@ export class AddNoteModal extends Modal {
                 })
             }
             pickingField(
-                'Pattern',
+                t('notes.add.pattern'),
                 this.fields.pickingPattern,
                 'pattern',
-                "Travis, or p i m a p' i m a",
+                t('notes.add.pickingPlaceholder'),
                 PICKING_NAMES
             )
-            pickingField('Time signature', this.fields.timeSignature, 'time', '4/4')
-            pickingField('Chord', this.fields.chordSymbol, 'chord', 'C')
+            pickingField(t('notes.add.timeSignature'), this.fields.timeSignature, 'time', '4/4')
+            pickingField(t('notes.add.chord'), this.fields.chordSymbol, 'chord', 'C')
         }
 
         const row = el.createDiv({ cls: 'mp-form-row' })
         const shapes = this.type.allowedValues[this.fields.shape] ?? []
         this.shapeEl = null
         if (this.type.fields.has(this.fields.shape)) {
-            const shapeField = row.createEl('label', { cls: 'mp-field', text: 'Shape (optional)' })
+            const shapeField = row.createEl('label', {
+                cls: 'mp-field',
+                text: t('notes.add.shape')
+            })
             if (shapes.length) {
                 const s = shapeField.createEl('select', { cls: 'dropdown' })
                 this.shapeEl = s
@@ -610,7 +639,7 @@ export class AddNoteModal extends Modal {
                 })
             }
         }
-        const levelField = row.createEl('label', { cls: 'mp-field', text: 'Mastery' })
+        const levelField = row.createEl('label', { cls: 'mp-field', text: t('notes.add.mastery') })
         const levelSelect = levelField.createEl('select', { cls: 'dropdown' })
         for (const v of this.type.statusValues) {
             const option = levelSelect.createEl('option', { text: v, value: v })
@@ -627,12 +656,12 @@ export class AddNoteModal extends Modal {
         // a diagram. Piano chords get a keyboard diagram from the symbol.
         const voicingField =
             isChord && this.instrument() === 'guitar'
-                ? el.createEl('label', { cls: 'mp-field', text: 'Voicing' })
+                ? el.createEl('label', { cls: 'mp-field', text: t('notes.add.voicing') })
                 : null
         const voicingSelect = voicingField?.createEl('select', { cls: 'dropdown' }) ?? null
         const more =
             voicingField && this.moreVoicings
-                ? voicingField.createEl('button', { text: 'More voicings…' })
+                ? voicingField.createEl('button', { text: t('notes.add.moreVoicings') })
                 : null
         more?.addEventListener('click', (event) => {
             event.preventDefault()
@@ -659,7 +688,7 @@ export class AddNoteModal extends Modal {
         })
         const triadsButton =
             voicingField && this.triads
-                ? voicingField.createEl('button', { text: 'Triads…' })
+                ? voicingField.createEl('button', { text: t('notes.add.triads') })
                 : null
         triadsButton?.addEventListener('click', (event) => {
             event.preventDefault()
@@ -684,8 +713,10 @@ export class AddNoteModal extends Modal {
 
         const preview = el.createDiv({ cls: 'mp-rubric' })
         const actions = el.createDiv({ cls: 'mp-actions' })
-        actions.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close())
-        const submit = actions.createEl('button', { cls: 'mod-cta', text: 'Add' })
+        actions
+            .createEl('button', { text: t('common.cancel') })
+            .addEventListener('click', () => this.close())
+        const submit = actions.createEl('button', { cls: 'mod-cta', text: t('common.add') })
         const refreshVoicings = () => {
             if (!voicingSelect || !voicingField) return
             const symbol = this.symbol()
@@ -696,8 +727,8 @@ export class AddNoteModal extends Modal {
             if (count === 0 && !this.picked) {
                 voicingSelect.createEl('option', {
                     text: this.moreVoicings
-                        ? 'None in the database: see More voicings'
-                        : 'None found: no diagram',
+                        ? t('notes.add.noneInDatabase')
+                        : t('notes.add.noneFound'),
                     value: '-1'
                 })
                 voicingSelect.disabled = true
@@ -708,7 +739,7 @@ export class AddNoteModal extends Modal {
             if (this.voicingIndex >= count) this.voicingIndex = 0
             if (this.picked)
                 voicingSelect.createEl('option', {
-                    text: `Picked: ${formatFrets(this.picked.frets)}`,
+                    text: t('notes.add.pickedFrets', { frets: formatFrets(this.picked.frets) }),
                     value: String(PICKED)
                 })
             for (let i = 0; i < count; i++) {
@@ -719,7 +750,7 @@ export class AddNoteModal extends Modal {
                         value: String(i)
                     })
             }
-            voicingSelect.createEl('option', { text: 'No diagram', value: '-1' })
+            voicingSelect.createEl('option', { text: t('notes.add.noDiagram'), value: '-1' })
             voicingSelect.value = String(this.voicingIndex)
         }
         voicingSelect?.addEventListener('change', () => {
@@ -749,11 +780,14 @@ export class AddNoteModal extends Modal {
                 const block = voicing ? chordBlock(symbol, 'guitar', voicing) : null
                 if (!voicing || !block) continue
                 const selected = i === this.voicingIndex
-                const label = i === PICKED ? 'Picked' : String(i + 1)
+                const label = i === PICKED ? t('notes.add.picked') : String(i + 1)
                 const button = row.createEl('button', {
                     cls: selected ? 'mp-voicing is-selected' : 'mp-voicing',
                     attr: {
-                        'aria-label': `Voicing ${label}: ${formatFrets(voicing.frets)}`,
+                        'aria-label': t('notes.add.voicingLabel', {
+                            label,
+                            frets: formatFrets(voicing.frets)
+                        }),
                         'aria-pressed': String(selected)
                     }
                 })
@@ -843,13 +877,22 @@ export class AddNoteModal extends Modal {
             const spec = this.spec()
             preview.setText(
                 spec
-                    ? `Note: ${spec.title}${spec.chordSymbol ? ` (alias ${spec.chordSymbol})` : ''}`
+                    ? spec.chordSymbol
+                        ? t('notes.add.previewAlias', {
+                              title: spec.title,
+                              alias: spec.chordSymbol
+                          })
+                        : t('notes.add.preview', { title: spec.title })
                     : isChord || isArpeggio
                       ? this.typedFrets() || this.typedKeys()
-                          ? `These ${this.typedFrets() ? 'frets' : 'keys'} make no chord the library knows: type the chord instead.`
-                          : 'Type a chord: its name is spelled out, the symbol becomes an alias.'
+                          ? t(
+                                this.typedFrets()
+                                    ? 'notes.add.noChordFrets'
+                                    : 'notes.add.noChordKeys'
+                            )
+                          : t('notes.add.typeChord')
                       : isScale
-                        ? 'Pick a root and a scale or mode.'
+                        ? t('notes.add.pickScale')
                         : ''
             )
             submit.disabled = !spec

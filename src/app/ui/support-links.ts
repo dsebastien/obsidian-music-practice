@@ -1,4 +1,5 @@
 import { Setting } from 'obsidian'
+import { t } from '../i18n/i18n'
 
 /**
  * Single source of truth for the support calls to action shown across every
@@ -28,43 +29,39 @@ export function renderSupportSection(
     containerEl: HTMLElement,
     renderBadge?: SupportBadgeRenderer
 ): void {
-    new Setting(containerEl).setName('Support').setHeading()
+    new Setting(containerEl).setName(t('settings.support.heading')).setHeading()
 
     new Setting(containerEl)
-        .setName('Join the Knowii community')
-        .setDesc(
-            'Learn to organize your notes and put your knowledge to work, together with fellow knowledge workers.'
-        )
+        .setName(t('settings.support.knowii.name'))
+        .setDesc(t('settings.support.knowii.desc'))
         .addButton((button) => {
             button
                 .setCta()
-                .setButtonText('Join Knowii')
+                .setButtonText(t('settings.support.knowii.button'))
                 .onClick(() => {
                     window.open(KNOWII_COMMUNITY_URL)
                 })
         })
 
     new Setting(containerEl)
-        .setName('Support this plugin')
-        .setDesc('Your support keeps development and maintenance going ❤️')
+        .setName(t('settings.support.plugin.name'))
+        .setDesc(t('settings.support.plugin.desc'))
         .addButton((button) => {
-            button.setButtonText('GitHub Sponsors').onClick(() => {
+            button.setButtonText(t('settings.support.plugin.button')).onClick(() => {
                 window.open(GITHUB_SPONSORS_URL)
             })
         })
 
     new Setting(containerEl)
-        .setName('Stay in touch')
-        .setDesc(
-            'Obsidian, personal knowledge management and note-taking, straight to your inbox and feed.'
-        )
+        .setName(t('settings.support.touch.name'))
+        .setDesc(t('settings.support.touch.desc'))
         .addButton((button) => {
-            button.setButtonText('Newsletter').onClick(() => {
+            button.setButtonText(t('settings.support.touch.newsletter')).onClick(() => {
                 window.open(NEWSLETTER_URL)
             })
         })
         .addButton((button) => {
-            button.setButtonText('YouTube').onClick(() => {
+            button.setButtonText(t('settings.support.touch.youtube')).onClick(() => {
                 window.open(YOUTUBE_CHANNEL_URL)
             })
         })

@@ -9,17 +9,18 @@ import type {
 } from '@dsebastien/music-notation'
 import { exerciseFretboard } from '../domain/exercise'
 import type { ExerciseChoice, ExercisePosition, ExerciseSubject } from '../domain/exercise'
+import { t } from '../i18n/i18n'
 
-const DIRECTIONS: [ExerciseDirection, string][] = [
-    ['both', 'Up and down'],
-    ['up', 'Up'],
-    ['down', 'Down']
+const directions = (): [ExerciseDirection, string][] => [
+    ['both', t('tools.exercise.upDown')],
+    ['up', t('tools.exercise.up')],
+    ['down', t('tools.exercise.down')]
 ]
 
-const RHYTHMS: [ExerciseRhythm, string][] = [
-    ['8ths', '8th notes'],
-    ['triplets', 'Triplets'],
-    ['16ths', '16th notes']
+const rhythms = (): [ExerciseRhythm, string][] => [
+    ['8ths', t('tools.exercise.eighths')],
+    ['triplets', t('tools.exercise.triplets')],
+    ['16ths', t('tools.exercise.sixteenths')]
 ]
 
 /**
@@ -53,24 +54,30 @@ export class ExerciseModal extends Modal {
     private previewEl: HTMLElement | null = null
 
     override onOpen(): void {
-        this.setTitle(`Tab exercise: ${this.subject.name}`)
+        this.setTitle(t('tools.exercise.title', { name: this.subject.name }))
         const { contentEl } = this
         contentEl.addClass('mp-modal')
         const row = contentEl.createDiv({ cls: 'mp-form-row' })
         this.select(
             row,
-            'Position',
+            t('tools.exercise.position'),
             this.positions.map((p, i) => [String(i), p.label]),
             String(this.position),
             (v) => (this.position = Number(v))
         )
-        this.select(row, 'Direction', DIRECTIONS, this.choice.direction, (v) => {
-            this.choice = { ...this.choice, direction: v as ExerciseDirection }
-        })
-        this.select(row, 'Rhythm', RHYTHMS, this.choice.rhythm, (v) => {
+        this.select(
+            row,
+            t('tools.exercise.direction'),
+            directions(),
+            this.choice.direction,
+            (v) => {
+                this.choice = { ...this.choice, direction: v as ExerciseDirection }
+            }
+        )
+        this.select(row, t('tools.exercise.rhythm'), rhythms(), this.choice.rhythm, (v) => {
             this.choice = { ...this.choice, rhythm: v as ExerciseRhythm }
         })
-        const tempo = row.createEl('label', { cls: 'mp-field', text: 'Tempo (BPM)' })
+        const tempo = row.createEl('label', { cls: 'mp-field', text: t('tools.exercise.tempo') })
         const input = tempo.createEl('input', { type: 'number', attr: { min: '20', max: '240' } })
         input.value = String(this.choice.tempo)
         input.addEventListener('change', () => {
@@ -84,13 +91,15 @@ export class ExerciseModal extends Modal {
         })
         contentEl.createEl('p', {
             cls: 'mp-rubric',
-            text: 'The tab plays with the count-in, the metronome and the speed control of its player bar.'
+            text: t('tools.exercise.help')
         })
         this.previewEl = contentEl.createDiv({ cls: 'mp-notation-preview mp-exercise-preview' })
         const actions = contentEl.createDiv({ cls: 'mp-actions' })
-        actions.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close())
         actions
-            .createEl('button', { cls: 'mod-cta', text: 'Insert' })
+            .createEl('button', { text: t('common.cancel') })
+            .addEventListener('click', () => this.close())
+        actions
+            .createEl('button', { cls: 'mod-cta', text: t('tools.exercise.insert') })
             .addEventListener('click', () => {
                 const at = this.positions[this.position]
                 if (!at) return

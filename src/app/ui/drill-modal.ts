@@ -4,6 +4,7 @@ import { renderBlock } from '@dsebastien/music-notation'
 import type { RenderOptions, RenderResult } from '@dsebastien/music-notation'
 import { countOf, type DrillPair } from '../domain/drill'
 import type { LearningItem } from '../domain/practice'
+import { t } from '../i18n/i18n'
 import { ItemSuggestModal } from './practice-panel-view'
 
 export interface DrillDeps {
@@ -48,7 +49,7 @@ export class DrillModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle('Chord change drill')
+        this.setTitle(t('drills.change.title'))
         this.contentEl.addClass('mp-modal')
         // Space counts a change while the drill runs.
         this.scope.register([], ' ', (event) => {
@@ -73,9 +74,7 @@ export class DrillModal extends Modal {
         const pairs = this.deps.suggestions()
         el.createEl('p', {
             cls: 'mp-muted',
-            text: pairs.length
-                ? 'Pairs among your current chords, the slowest first.'
-                : 'Add chord notes to drill changes between them.'
+            text: pairs.length ? t('drills.change.pairsHint') : t('drills.change.noPairs')
         })
         const list = el.createDiv({ cls: 'mp-list' })
         for (const pair of pairs.slice(0, 12)) {
@@ -85,8 +84,8 @@ export class DrillModal extends Modal {
                 cls: 'mp-muted',
                 text:
                     pair.best === null
-                        ? 'never drilled'
-                        : `best ${pair.best}, last ${pair.last ?? '?'}`
+                        ? t('drills.change.neverDrilled')
+                        : t('drills.change.bestLast', { best: pair.best, last: pair.last ?? '?' })
             })
             row.addEventListener('click', () => {
                 this.pair = pair
@@ -94,7 +93,7 @@ export class DrillModal extends Modal {
             })
         }
         el.createDiv({ cls: 'mp-actions' })
-            .createEl('button', { text: 'Pick two chords' })
+            .createEl('button', { text: t('drills.change.pickTwo') })
             .addEventListener('click', () => this.pickTwo())
     }
 
@@ -139,7 +138,7 @@ export class DrillModal extends Modal {
         if (pair.best !== null)
             el.createDiv({
                 cls: 'mp-muted',
-                text: `Best ${pair.best} changes, last ${pair.last ?? '?'}`
+                text: t('drills.change.bestChanges', { best: pair.best, last: pair.last ?? '?' })
             })
         // Both chords side by side, as their notes draw them.
         const sources = [pair.a, pair.b].map((p) => this.deps.chordSource(p))
@@ -155,17 +154,21 @@ export class DrillModal extends Modal {
         const clock = el.createDiv({ cls: 'mp-drill-clock' })
         const counter = el.createEl('button', {
             cls: 'mp-drill-count mod-cta',
-            attr: { 'aria-label': 'Count a change (space bar)' }
+            attr: { 'aria-label': t('drills.change.countAria') }
         })
         const actions = el.createDiv({ cls: 'mp-actions' })
-        const start = actions.createEl('button', { text: 'Start' })
+        const start = actions.createEl('button', { text: t('common.start') })
         if (this.deps.easiestWay)
             actions
-                .createEl('button', { text: 'Easiest way' })
+                .createEl('button', { text: t('drills.change.easiestWay') })
                 .addEventListener('click', () => this.deps.easiestWay?.(pair))
         const result = el.createDiv({ cls: 'mp-drill-result' })
         const show = () => {
-            clock.setText(this.counting > 0 ? `Ready… ${this.counting}` : `${this.remaining} s`)
+            clock.setText(
+                this.counting > 0
+                    ? t('drills.change.ready', { count: this.counting })
+                    : t('drills.change.seconds', { seconds: this.remaining })
+            )
             counter.setText(`+1 · ${this.count}`)
             counter.disabled = !this.running
         }
@@ -226,15 +229,18 @@ export class DrillModal extends Modal {
     private renderResult(el: HTMLElement): void {
         const pair = this.pair!
         el.empty()
-        const field = el.createEl('label', { cls: 'mp-field', text: 'Changes' })
+        const field = el.createEl('label', {
+            cls: 'mp-field',
+            text: t('drills.change.changesLabel')
+        })
         const input = field.createEl('input', { type: 'number', attr: { min: '0' } })
         input.value = String(this.count)
         const actions = el.createDiv({ cls: 'mp-actions' })
-        const save = actions.createEl('button', { cls: 'mod-cta', text: 'Save' })
+        const save = actions.createEl('button', { cls: 'mod-cta', text: t('common.save') })
         save.addEventListener('click', () => {
             const count = countOf(input.value)
             if (count === null) {
-                new Notice('Enter the number of changes, from 0.')
+                new Notice(t('drills.change.badCount'))
                 return
             }
             save.disabled = true
@@ -243,31 +249,37 @@ export class DrillModal extends Modal {
                 .then((saved) => {
                     new Notice(
                         saved.improved
-                            ? `New best: ${count} changes.`
-                            : `${count} changes (best ${saved.best}).`
+                            ? t('drills.change.newBest', { count })
+                            : t('drills.change.result', { count, best: saved.best })
                     )
                     const minutes = Math.max(1, Math.round(this.deps.seconds() / 60))
-                    const note = `${this.deps.nameOf(pair.a)} ↔ ${this.deps.nameOf(pair.b)}: ${count} changes`
+                    const note = t('drills.change.logNote', {
+                        a: this.deps.nameOf(pair.a),
+                        b: this.deps.nameOf(pair.b),
+                        count
+                    })
                     el.empty()
                     const next = el.createDiv({ cls: 'mp-actions' })
                     next.createEl('button', {
                         cls: 'mod-cta',
-                        text: 'Log this drill'
+                        text: t('drills.change.logDrill')
                     }).addEventListener('click', () => {
                         this.close()
                         this.deps.log(saved.path, minutes, note)
                     })
-                    next.createEl('button', { text: 'Again' }).addEventListener('click', () => {
-                        this.pair = { ...pair, note: saved.path, best: saved.best, last: count }
-                        this.renderDrill()
-                    })
-                    next.createEl('button', { text: 'Another pair' }).addEventListener(
+                    next.createEl('button', { text: t('drills.change.again') }).addEventListener(
                         'click',
                         () => {
-                            this.pair = null
-                            this.renderPick()
+                            this.pair = { ...pair, note: saved.path, best: saved.best, last: count }
+                            this.renderDrill()
                         }
                     )
+                    next.createEl('button', {
+                        text: t('drills.change.anotherPair')
+                    }).addEventListener('click', () => {
+                        this.pair = null
+                        this.renderPick()
+                    })
                 })
                 .catch((error: unknown) => {
                     save.disabled = false

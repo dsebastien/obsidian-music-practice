@@ -2,6 +2,7 @@
  * Chord change drills (#40): which pairs to drill, their exercise notes (created on the first
  * drill, linking both chords through `trains`), and saving a drill's count.
  */
+import { t } from '../i18n/i18n'
 import type { App, TFile } from 'obsidian'
 import { afterDrill, pairTitle, pairsOf, type DrillPair } from '../domain/drill'
 import type { FieldNames } from '../domain/fields'
@@ -164,16 +165,10 @@ export class DrillService {
         count: number
     ): Promise<{ path: string; best: number; improved: boolean }> {
         const type = this.exerciseType()
-        if (!type)
-            throw new Error(
-                'This vault has no guitar exercise type to keep chord change drills in.'
-            )
+        if (!type) throw new Error(t('drills.change.noExerciseType'))
         const { trains, changesBest, changesLast } = this.fields()
         for (const field of [trains, changesBest, changesLast])
-            if (!type.fields.has(field))
-                throw new Error(
-                    `The guitar exercise type has no "${field}" property: add it to keep drill results.`
-                )
+            if (!type.fields.has(field)) throw new Error(t('drills.change.noProperty', { field }))
         let path = pair.note
         if (!path || !this.app.vault.getFileByPath(path)) {
             const title = safeTitle(pairTitle(this.nameOf(pair.a), this.nameOf(pair.b)))

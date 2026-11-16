@@ -90,6 +90,7 @@ A chord chart with its chord diagrams, lighting the chord that plays:
 
 - **Works with the [Obsidian Starter Kit](https://store.dsebastien.net/)** (note types, folders, templates and statuses come from it) or on its own: tag your notes `type/music/guitar/chord` and give them a mastery level.
 - **Every rule is a setting**: mastery levels, review intervals, score weights, plan blocks, the rubric, property names, playback. It installs with sensible defaults.
+- **In English or in French**: the plugin follows Obsidian's language. Only what you see is translated; the block syntax, property names and the values stored in your notes stay in English, so your notes work in any vault.
 - **Commands for everything**, and a **public API** so scripts and AI assistants can log and plan practice with the same rules.
 
 ## Documentation

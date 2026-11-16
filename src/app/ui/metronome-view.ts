@@ -7,6 +7,7 @@ import {
     type Subdivision
 } from '../domain/metronome'
 import type { Metronome } from '../services/metronome.service'
+import { t, tn } from '../i18n/i18n'
 
 export interface MetronomeViewDeps {
     settings: () => MetronomeSettings
@@ -15,11 +16,11 @@ export interface MetronomeViewDeps {
     saveBpm: () => void
 }
 
-const SUBDIVISIONS: [Subdivision, string][] = [
-    [1, 'Quarter notes'],
-    [2, 'Eighths'],
-    [3, 'Triplets'],
-    [4, 'Sixteenths']
+const subdivisions = (): [Subdivision, string][] => [
+    [1, t('metronome.subdivision.quarter')],
+    [2, t('metronome.subdivision.eighths')],
+    [3, t('metronome.subdivision.triplets')],
+    [4, t('metronome.subdivision.sixteenths')]
 ]
 
 /**
@@ -38,7 +39,7 @@ export function renderMetronome(
     const nudge = (by: number, label: string) => {
         const b = tempo.createEl('button', {
             text: label,
-            attr: { 'aria-label': `${by > 0 ? '+' : ''}${by} BPM` }
+            attr: { 'aria-label': t('metronome.nudge', { by: `${by > 0 ? '+' : ''}${by}` }) }
         })
         b.addEventListener('click', () => metronome.setBpm(metronome.state.bpm + by))
     }
@@ -47,7 +48,7 @@ export function renderMetronome(
     const bpmInput = tempo.createEl('input', {
         type: 'number',
         cls: 'mp-metronome-bpm',
-        attr: { 'min': '20', 'max': '300', 'aria-label': 'BPM' }
+        attr: { 'min': '20', 'max': '300', 'aria-label': t('metronome.bpm') }
     })
     bpmInput.addEventListener('change', () => metronome.setBpm(Number(bpmInput.value)))
     nudge(1, '+1')
@@ -62,7 +63,7 @@ export function renderMetronome(
     const play = actions.createEl('button', { cls: 'mod-cta' })
     play.addEventListener('click', () => metronome.toggle())
     const taps: number[] = []
-    const tap = actions.createEl('button', { text: 'Tap' })
+    const tap = actions.createEl('button', { text: t('metronome.tap') })
     tap.addEventListener('click', () => {
         taps.push(Date.now())
         const bpm = bpmFromTaps(taps)
@@ -70,7 +71,10 @@ export function renderMetronome(
     })
 
     const options = el.createDiv({ cls: 'mp-form-row' })
-    const beatsField = options.createEl('label', { cls: 'mp-field', text: 'Beats per bar' })
+    const beatsField = options.createEl('label', {
+        cls: 'mp-field',
+        text: t('metronome.beatsPerBar')
+    })
     const beatsSelect = beatsField.createEl('select', { cls: 'dropdown' })
     for (let n = 2; n <= 12; n++)
         beatsSelect.createEl('option', { text: String(n), value: String(n) })
@@ -82,19 +86,19 @@ export function renderMetronome(
             update()
         })
     })
-    const subField = options.createEl('label', { cls: 'mp-field', text: 'Clicks' })
+    const subField = options.createEl('label', { cls: 'mp-field', text: t('metronome.clicks') })
     const subSelect = subField.createEl('select', { cls: 'dropdown' })
-    for (const [value, text] of SUBDIVISIONS)
+    for (const [value, text] of subdivisions())
         subSelect.createEl('option', { text, value: String(value) })
     subSelect.addEventListener('change', () => {
         metronome.clearMeter()
         void deps.saveSettings({ subdivision: Number(subSelect.value) as Subdivision })
     })
-    const countField = options.createEl('label', { cls: 'mp-field', text: 'Count-in' })
+    const countField = options.createEl('label', { cls: 'mp-field', text: t('metronome.countIn') })
     const countSelect = countField.createEl('select', { cls: 'dropdown' })
     for (let n = 0; n <= MAX_COUNT_IN_BARS; n++)
         countSelect.createEl('option', {
-            text: n === 0 ? 'None' : `${n} bar${n > 1 ? 's' : ''}`,
+            text: n === 0 ? t('metronome.countIn.none') : tn('metronome.countIn.bars', n),
             value: String(n)
         })
     countSelect.addEventListener('change', () => {
@@ -102,9 +106,9 @@ export function renderMetronome(
     })
     const flashLabel = options.createEl('label', { cls: 'mp-check' })
     const flashBox = flashLabel.createEl('input', { type: 'checkbox' })
-    flashLabel.appendText(' Flash')
+    flashLabel.appendText(` ${t('metronome.flash')}`)
     flashBox.addEventListener('change', () => void deps.saveSettings({ flash: flashBox.checked }))
-    const volumeField = el.createEl('label', { cls: 'mp-field', text: 'Volume' })
+    const volumeField = el.createEl('label', { cls: 'mp-field', text: t('metronome.volume') })
     const volume = volumeField.createEl('input', {
         type: 'range',
         attr: { min: '0', max: '1', step: '0.05' }
@@ -117,16 +121,16 @@ export function renderMetronome(
     const trainerEl = el.createDiv({ cls: 'mp-metronome-trainer' })
     const trainerLabel = trainerEl.createEl('label', { cls: 'mp-check' })
     const trainerBox = trainerLabel.createEl('input', { type: 'checkbox' })
-    trainerLabel.appendText(' Speed trainer')
+    trainerLabel.appendText(` ${t('metronome.trainer')}`)
     trainerBox.addEventListener('change', () => metronome.setTrainer(trainerBox.checked))
     const trainerInfo = trainerEl.createSpan({ cls: 'mp-muted' })
     const stepUp = trainerEl.createEl('button', {
         text: '+',
-        attr: { 'aria-label': 'Step the tempo up now' }
+        attr: { 'aria-label': t('metronome.stepUp') }
     })
     stepUp.addEventListener('click', () => metronome.stepUp())
 
-    const save = el.createEl('button', { text: 'Save BPM to the note' })
+    const save = el.createEl('button', { text: t('metronome.saveBpm') })
     save.addEventListener('click', () => deps.saveBpm())
 
     // The beat moves up to 20 times a second: only the beat dots follow it; the controls are set
@@ -169,7 +173,7 @@ export function renderMetronome(
         const settings = deps.settings()
         const focused = el.ownerDocument.activeElement
         if (focused !== bpmInput) bpmInput.value = String(s.bpm)
-        play.setText(s.running ? 'Stop' : 'Start')
+        play.setText(s.running ? t('common.stop') : t('common.start'))
         const meter = metronome.meterNow()
         if (focused !== beatsSelect) beatsSelect.value = String(meter.beatsPerBar)
         if (focused !== subSelect) subSelect.value = String(meter.subdivision)
@@ -178,19 +182,31 @@ export function renderMetronome(
         flash.toggle(settings.flash)
         if (focused !== volume) volume.value = String(settings.volume)
         status.setText(
-            s.running && s.countIn ? 'Count-in…' : s.meter ? `${s.meter.label}, from the note` : ''
+            s.running && s.countIn
+                ? t('metronome.status.countIn')
+                : s.meter
+                  ? t('metronome.status.fromNote', { label: s.meter.label })
+                  : ''
         )
         status.toggle(status.getText() !== '')
         showBeat()
         itemEl.setText(
             s.item
-                ? `${s.item.name}${s.item.bpmCurrent || s.item.bpmTarget ? ` · ${s.item.bpmCurrent ?? '?'} → ${s.item.bpmTarget ?? '?'} BPM` : ''}`
-                : 'No note: open one, or pick an item in the practice panel, to save its BPM.'
+                ? s.item.bpmCurrent || s.item.bpmTarget
+                    ? t('metronome.item.withTempo', {
+                          name: s.item.name,
+                          current: s.item.bpmCurrent ?? '?',
+                          target: s.item.bpmTarget ?? '?'
+                      })
+                    : s.item.name
+                : t('metronome.item.none')
         )
         trainerBox.checked = s.trainer !== null
         trainerInfo.setText(
             s.trainer
-                ? ` +${s.trainer.step} every ${s.trainer.everyBars} bars${s.trainer.target && s.trainer.target > s.trainer.start ? `, up to ${s.trainer.target}` : ''}`
+                ? s.trainer.target && s.trainer.target > s.trainer.start
+                    ? ` ${tn('metronome.trainer.infoTarget', s.trainer.everyBars, { step: s.trainer.step, target: s.trainer.target })}`
+                    : ` ${tn('metronome.trainer.info', s.trainer.everyBars, { step: s.trainer.step })}`
                 : ''
         )
         stepUp.toggle(s.trainer !== null)
@@ -222,7 +238,7 @@ export class MetronomeModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle('Metronome')
+        this.setTitle(t('metronome.title'))
         this.contentEl.addClass('mp-modal')
         this.cleanup = renderMetronome(this.contentEl, this.metronome, this.deps)
     }

@@ -16,6 +16,14 @@ Every rule the plugin applies is a setting, with defaults that work on install. 
 | Session notes heading        | Notes           | Section of the session note that receives a log's note.                                                                                                                     |
 | Activity name                | Learn {subject} | The name Log practice proposes for a new activity. Without the Starter Kit and `session_types`: the activity your sessions count towards when no earlier session links one. |
 
+## Language
+
+The plugin follows Obsidian's language: it's in French when Obsidian is in French, and in English for every other language. There is no setting for it. Change the language in Obsidian's **Settings → General → Language**, then restart Obsidian.
+
+Only what the plugin shows is translated. The block syntax (`chord`, `chords`, `tab` and their keywords), the property names and the values the plugin stores in your notes (chord roots and qualities, scale types, drill kinds, tags) stay in English, so a note works in any vault, whatever its language. Your level names, rubric lines and activity name are your data: they stay as you typed them. The headings the plugin writes into notes don't change either.
+
+This guide is in English for now. A French wording looks wrong or odd? Report it in the [GitHub issues](https://github.com/dsebastien/obsidian-music-practice/issues).
+
 ## Notation blocks
 
 One switch per kind of [notation block](notation.md), all on by default: **Chord diagrams** (` ```chord `), **Chord charts** (` ```chords `), **Keyboards**, **Fretboards**, **Tabs** (` ```tab `), **Scores** (` ```score `), **Strumming patterns** (` ```strum `), **Picking patterns** (` ```picking `), **Progressions** (` ```progression `) and **Circle of fifths** (` ```circle `). A block turned off shows as code. Reload the plugin to let another plugin draw it. The status line says when another plugin already draws one of them.

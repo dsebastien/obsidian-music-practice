@@ -1,6 +1,7 @@
 import { SuggestModal } from 'obsidian'
 import type { App } from 'obsidian'
 import { parseChord } from '@dsebastien/music-notation'
+import { t } from '../i18n/i18n'
 
 /** Pick one reading of a chord's notes ("Am7" or "C6/A"), the most common first. */
 export class ChooseChordModal extends SuggestModal<string> {
@@ -10,7 +11,7 @@ export class ChooseChordModal extends SuggestModal<string> {
         private readonly onChoose: (symbol: string) => void
     ) {
         super(app)
-        this.setPlaceholder('These notes can be read several ways: pick one')
+        this.setPlaceholder(t('tools.chooseChord.placeholder'))
     }
 
     override getSuggestions(query: string): string[] {

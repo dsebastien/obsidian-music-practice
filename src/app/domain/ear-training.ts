@@ -4,6 +4,7 @@
  * plays. Pure: the drills (`note-drill.ts`) ask, the modal plays and draws.
  */
 import type { NoteEvent } from '@dsebastien/music-notation'
+import { t, type MessageKey } from '../i18n/i18n'
 import type { SpotStat } from './note-drill'
 
 export type EarInstrument = 'guitar' | 'piano'
@@ -71,35 +72,37 @@ const semitonesOf = (name: string): number | null => {
 /** Every interval, in semitones (the setup's buttons). */
 export const INTERVALS: readonly number[] = INTERVAL_NAMES.map((_, i) => i + 1)
 
+const INTERVAL_WORD_KEYS: readonly MessageKey[] = [
+    'drills.interval.1',
+    'drills.interval.2',
+    'drills.interval.3',
+    'drills.interval.4',
+    'drills.interval.5',
+    'drills.interval.6',
+    'drills.interval.7',
+    'drills.interval.8',
+    'drills.interval.9',
+    'drills.interval.10',
+    'drills.interval.11',
+    'drills.interval.12',
+    'drills.interval.13',
+    'drills.interval.14',
+    'drills.interval.15',
+    'drills.interval.16',
+    'drills.interval.17',
+    'drills.interval.18',
+    'drills.interval.19',
+    'drills.interval.20',
+    'drills.interval.21',
+    'drills.interval.22',
+    'drills.interval.23',
+    'drills.interval.24'
+]
+
 /** The interval's name in words, for screen readers ("perfect 5th"). */
 export function intervalWords(semitones: number): string {
-    const words = [
-        'minor 2nd',
-        'major 2nd',
-        'minor 3rd',
-        'major 3rd',
-        'perfect 4th',
-        'tritone',
-        'perfect 5th',
-        'minor 6th',
-        'major 6th',
-        'minor 7th',
-        'major 7th',
-        'octave',
-        'minor 9th',
-        'major 9th',
-        'minor 10th',
-        'major 10th',
-        'perfect 11th',
-        'augmented 11th',
-        'perfect 12th',
-        'minor 13th',
-        'major 13th',
-        'minor 14th',
-        'major 14th',
-        'two octaves'
-    ]
-    return words[semitones - 1] ?? ''
+    const key = INTERVAL_WORD_KEYS[semitones - 1]
+    return key ? t(key) : ''
 }
 
 /** The guided order of the intervals within an octave: the most distinct first. */
@@ -296,6 +299,103 @@ export function earWords(setting: EarTrainingSetting): string {
             )
     }
     parts.push(setting.instrument)
+    return parts.join(', ')
+}
+
+const QUALITY_LABELS: Record<string, MessageKey> = {
+    'major': 'drills.quality.major',
+    'minor': 'drills.quality.minor',
+    'diminished': 'drills.quality.diminished',
+    'augmented': 'drills.quality.augmented',
+    'sus2': 'drills.quality.sus2',
+    'sus4': 'drills.quality.sus4',
+    'dominant 7th': 'drills.quality.dominant7',
+    'major 7th': 'drills.quality.major7',
+    'minor 7th': 'drills.quality.minor7',
+    'half-diminished': 'drills.quality.halfDiminished',
+    'diminished 7th': 'drills.quality.diminished7'
+}
+
+const SCALE_LABELS: Record<string, MessageKey> = {
+    'major': 'drills.scale.major',
+    'natural minor': 'drills.scale.naturalMinor',
+    'harmonic minor': 'drills.scale.harmonicMinor',
+    'melodic minor': 'drills.scale.melodicMinor',
+    'major pentatonic': 'drills.scale.majorPentatonic',
+    'minor pentatonic': 'drills.scale.minorPentatonic',
+    'blues': 'drills.scale.blues',
+    'dorian': 'drills.scale.dorian',
+    'phrygian': 'drills.scale.phrygian',
+    'lydian': 'drills.scale.lydian',
+    'mixolydian': 'drills.scale.mixolydian',
+    'locrian': 'drills.scale.locrian'
+}
+
+const WAY_LABELS: Record<IntervalWay, MessageKey> = {
+    up: 'drills.ear.wayShort.up',
+    down: 'drills.ear.wayShort.down',
+    together: 'drills.ear.wayShort.together'
+}
+
+const STYLE_LABELS: Record<ChordStyle, MessageKey> = {
+    block: 'drills.ear.styleShort.block',
+    arpeggio: 'drills.ear.styleShort.arpeggio'
+}
+
+const INSTRUMENT_LABELS: Record<EarInstrument, MessageKey> = {
+    guitar: 'drills.instrument.guitar',
+    piano: 'drills.instrument.piano'
+}
+
+/** The instrument's name as shown (lower case, inside a sentence). */
+export const instrumentLabel = (instrument: EarInstrument): string =>
+    t(INSTRUMENT_LABELS[instrument]).toLowerCase()
+
+/**
+ * An item of an ear training drill as shown (an answer button, a feedback line): chord qualities
+ * and scale types are translated; interval names (m3) and degrees (b6) are symbols and stay.
+ * The item itself, in English, is what notes store and what answers are compared with.
+ */
+export function earItemLabel(kind: EarTrainingKind, item: string): string {
+    const map = kind === 'chords-ear' ? QUALITY_LABELS : kind === 'scales-ear' ? SCALE_LABELS : null
+    const key = map?.[item]
+    return key ? t(key) : item
+}
+
+/** The setting in words for the screen: `earWords`, translated (it is not what notes store). */
+export function earSettingLabel(setting: EarTrainingSetting): string {
+    const parts: string[] = []
+    switch (setting.kind) {
+        case 'intervals-ear':
+            parts.push(
+                intervalListWords(setting.intervals),
+                ...inOrder(setting.ways, WAYS).map((w) => t(WAY_LABELS[w]))
+            )
+            break
+        case 'chords-ear':
+            parts.push(
+                ...inOrder(
+                    setting.qualities,
+                    CHORD_QUALITIES.map((q) => q.name)
+                ).map((q) => earItemLabel('chords-ear', q)),
+                ...inOrder(setting.styles, STYLES).map((x) => t(STYLE_LABELS[x]))
+            )
+            break
+        case 'scales-ear':
+            parts.push(
+                ...inOrder(
+                    setting.scales,
+                    EAR_SCALES.map((x) => x.name)
+                ).map((x) => earItemLabel('scales-ear', x))
+            )
+            break
+        case 'degrees-ear':
+            parts.push(
+                setting.chromatic ? t('drills.ear.chromatic') : t('drills.ear.diatonic'),
+                setting.key ? t('drills.ear.inKey', { key: setting.key }) : t('drills.ear.anyKey')
+            )
+    }
+    parts.push(instrumentLabel(setting.instrument))
     return parts.join(', ')
 }
 
@@ -501,10 +601,10 @@ export interface EarQuestion {
     last: number
 }
 
-const WAY_WORDS: Record<IntervalWay, string> = {
-    up: 'going up',
-    down: 'going down',
-    together: 'played together'
+const WAY_WORDS: Record<IntervalWay, MessageKey> = {
+    up: 'drills.ear.way.up',
+    down: 'drills.ear.way.down',
+    together: 'drills.ear.way.together'
 }
 
 const between = (random: () => number, low: number, high: number) =>
@@ -540,7 +640,7 @@ export function earQuestion(
                       ]
             return {
                 ...base,
-                prompt: `Name the interval you hear (${WAY_WORDS[way]})`,
+                prompt: t('drills.prompt.interval', { way: t(WAY_WORDS[way]) }),
                 answer: name ?? spot,
                 sound,
                 again: sound,
@@ -561,7 +661,7 @@ export function earQuestion(
             )
             return {
                 ...base,
-                prompt: 'Name the chord you hear',
+                prompt: t('drills.prompt.chordEar'),
                 answer: spot,
                 sound,
                 again: sound,
@@ -580,7 +680,7 @@ export function earQuestion(
             }))
             return {
                 ...base,
-                prompt: 'Name the scale you hear',
+                prompt: t('drills.prompt.scaleEar'),
                 answer: spot,
                 sound,
                 again: sound,
@@ -610,7 +710,7 @@ export function earQuestion(
             }
             return {
                 ...base,
-                prompt: 'Name the degree of the last note',
+                prompt: t('drills.prompt.degree'),
                 answer: spot,
                 sound: [...cadence, note],
                 again: [{ ...note, time: 0 }],

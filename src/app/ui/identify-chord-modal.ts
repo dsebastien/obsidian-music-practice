@@ -8,6 +8,7 @@ import type { App } from 'obsidian'
 import type { PlayOptions } from '@dsebastien/music-notation'
 import { clickHint, pitchesOfFrets, readValue, type ClickValue } from '../domain/click-input'
 import { ClickInput, renderNearMatches, type ClickLayout } from './click-input'
+import { t } from '../i18n/i18n'
 
 export interface IdentifyChordOptions {
     instrument: 'guitar' | 'piano'
@@ -30,15 +31,15 @@ export class IdentifyChordModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle('Identify this chord')
+        this.setTitle(t('tools.identify.title'))
         this.contentEl.addClass('mp-modal')
         const el = this.contentEl
         el.createEl('p', {
             cls: 'mp-muted',
             text:
                 this.options.instrument === 'guitar'
-                    ? 'Click a string at a fret to play it there; click it again to mute the string.'
-                    : 'Click the keys of the chord; click a key again to take it away.'
+                    ? t('tools.identify.helpGuitar')
+                    : t('tools.identify.helpPiano')
         })
         const host = el.createDiv()
         const result = el.createDiv({ cls: 'mp-click-result', attr: { 'aria-live': 'polite' } })
@@ -51,13 +52,13 @@ export class IdentifyChordModal extends Modal {
             if (read.detected) {
                 result.setText(
                     read.detected.readings.length > 1
-                        ? `This chord reads ${read.detected.readings.length} ways: pick one.`
-                        : `This is ${read.detected.symbol}.`
+                        ? t('tools.identify.ways', { count: read.detected.readings.length })
+                        : t('tools.identify.is', { symbol: read.detected.symbol })
                 )
                 for (const reading of read.detected.readings) {
                     const button = actions.createEl('button', {
                         cls: reading === read.detected.symbol ? 'mod-cta' : '',
-                        text: `Name it ${reading}`
+                        text: t('tools.identify.nameIt', { symbol: reading })
                     })
                     button.addEventListener('click', () => {
                         button.disabled = true
@@ -69,8 +70,8 @@ export class IdentifyChordModal extends Modal {
                                 button.disabled = false
                                 const message =
                                     error instanceof Error ? error.message : String(error)
-                                result.setText(`Couldn't name the chord: ${message}`)
-                                new Notice(`Couldn't name the chord: ${message}`)
+                                result.setText(t('tools.identify.failed', { message }))
+                                new Notice(t('tools.identify.failed', { message }))
                             })
                     })
                 }

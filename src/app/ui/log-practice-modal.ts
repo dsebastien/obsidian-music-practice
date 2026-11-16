@@ -15,6 +15,8 @@ import { rubricFor } from '../domain/rubric'
 import type { RubricSettings } from '../domain/rubric'
 import { clockTime, minutesBetween } from '../domain/timer'
 import { linkTo, renderBadge, renderMeta } from './item-row'
+import { t } from '../i18n/i18n'
+import { joinNames } from '../domain/join-names'
 
 export interface LogPracticePreset {
     minutes?: number
@@ -64,10 +66,11 @@ type ActivityAnswer = { kind: 'existing'; path: string } | { kind: 'create' } | 
 /** Session types logged without an activity since the plugin loaded: offered first next time. */
 const loggedWithout = new Set<string>()
 
-const REVIEW_BUTTONS: { result: ReviewResult; label: string }[] = [
-    { result: 'good', label: 'Good' },
-    { result: 'shaky', label: 'Shaky' },
-    { result: 'failed', label: 'Failed' }
+/** The review results' buttons, labelled when the window opens (the language is set at load). */
+const reviewButtons = (): { result: ReviewResult; label: string }[] => [
+    { result: 'good', label: t('log.modal.review.good') },
+    { result: 'shaky', label: t('log.modal.review.shaky') },
+    { result: 'failed', label: t('log.modal.review.failed') }
 ]
 
 /** Log a practice session in under a minute. */
@@ -141,14 +144,14 @@ export class LogPracticeModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle('Log practice')
+        this.setTitle(t('log.modal.title'))
         const { contentEl } = this
         contentEl.addClass('mp-modal')
 
         const row = contentEl.createDiv({ cls: 'mp-form-row' })
         this.minutesInput = this.field(
             row,
-            'Minutes',
+            t('log.modal.minutes'),
             'number',
             this.minutes ? String(this.minutes) : '',
             (v) => {
@@ -158,16 +161,26 @@ export class LogPracticeModal extends Modal {
         )
         this.minutesInput.min = '1'
         this.minutesInput.max = '1440'
-        this.field(row, 'Date', 'date', this.date, (v) => (this.date = v || isoDate()))
-        this.field(row, 'Focus (optional)', 'text', '', (v) => (this.focus = v), 'Barre chords')
+        this.field(row, t('log.modal.date'), 'date', this.date, (v) => (this.date = v || isoDate()))
+        this.field(
+            row,
+            t('log.modal.focus'),
+            'text',
+            '',
+            (v) => (this.focus = v),
+            t('log.modal.focusExample')
+        )
 
         this.sessionEl = contentEl.createDiv({ cls: 'mp-modal' })
 
-        contentEl.createDiv({ cls: 'mp-section-title', text: 'What did you practice?' })
+        contentEl.createDiv({ cls: 'mp-section-title', text: t('log.modal.pickTitle') })
         const search = contentEl.createEl('input', {
             cls: 'mp-search',
             type: 'search',
-            attr: { 'placeholder': 'Filter items…', 'aria-label': 'Filter items' }
+            attr: {
+                'placeholder': t('log.modal.filterPlaceholder'),
+                'aria-label': t('log.modal.filterLabel')
+            }
         })
         search.addEventListener('input', () => {
             this.query = search.value.trim().toLowerCase()
@@ -175,22 +188,27 @@ export class LogPracticeModal extends Modal {
         })
         this.listEl = contentEl.createDiv({ cls: 'mp-pick-list' })
 
-        const noteField = contentEl.createEl('label', { cls: 'mp-field', text: 'Note (optional)' })
+        const noteField = contentEl.createEl('label', {
+            cls: 'mp-field',
+            text: t('log.modal.note')
+        })
         const note = noteField.createEl('textarea', { attr: { rows: '2' } })
         note.value = this.note
         note.addEventListener('input', () => (this.note = note.value))
 
         const actions = contentEl.createDiv({ cls: 'mp-actions' })
-        actions.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close())
+        actions
+            .createEl('button', { text: t('common.cancel') })
+            .addEventListener('click', () => this.close())
         const discard = this.preset.onDiscardTimer
         if (discard)
             actions
-                .createEl('button', { cls: 'mod-warning', text: 'Discard timer' })
+                .createEl('button', { cls: 'mod-warning', text: t('log.modal.discardTimer') })
                 .addEventListener('click', () => {
                     this.close()
                     discard()
                 })
-        this.submitEl = actions.createEl('button', { cls: 'mod-cta', text: 'Log practice' })
+        this.submitEl = actions.createEl('button', { cls: 'mod-cta', text: t('log.modal.submit') })
         this.submitEl.addEventListener('click', () => void this.submit())
 
         this.renderList()
@@ -218,8 +236,7 @@ export class LogPracticeModal extends Modal {
                 !this.query ||
                 i.name.toLowerCase().includes(this.query)
         )
-        if (visible.length === 0)
-            el.createDiv({ cls: 'mp-empty', text: 'No learning note matches.' })
+        if (visible.length === 0) el.createDiv({ cls: 'mp-empty', text: t('log.modal.noMatch') })
         for (const item of visible.slice(0, 50)) {
             const type = this.typeOf(item)
             const other = Boolean(subject && type?.subject && type.subject !== subject)
@@ -227,12 +244,12 @@ export class LogPracticeModal extends Modal {
             const card = el.createDiv({ cls: `mp-item${isOn ? ' mp-is-selected' : ''}` })
             if (other) {
                 card.addClass('mp-is-dimmed')
-                card.title = 'Another instrument: log it in its own session.'
+                card.title = t('log.modal.otherInstrument')
             }
             const head = card.createDiv({ cls: 'mp-item-head' })
             const box = head.createEl('input', {
                 type: 'checkbox',
-                attr: { 'aria-label': `Practiced ${item.name}` }
+                attr: { 'aria-label': t('log.modal.practiced', { name: item.name }) }
             })
             box.checked = isOn
             box.disabled = other && !isOn
@@ -261,9 +278,9 @@ export class LogPracticeModal extends Modal {
         if (!choices.some((s) => s.id === this.sessionTypeId))
             this.sessionTypeId = choices.length === 1 ? choices[0]!.id : ''
         if (choices.length > 1 && !this.selectedSubject()) {
-            const field = el.createEl('label', { cls: 'mp-field', text: 'Session for' })
+            const field = el.createEl('label', { cls: 'mp-field', text: t('log.modal.sessionFor') })
             const select = field.createEl('select', { cls: 'dropdown' })
-            select.createEl('option', { text: 'Choose…', value: '' })
+            select.createEl('option', { text: t('log.modal.choose'), value: '' })
             for (const s of choices)
                 select.createEl('option', { text: s.name, value: s.id }).selected =
                     s.id === this.sessionTypeId
@@ -276,7 +293,10 @@ export class LogPracticeModal extends Modal {
         const session = choices.find((s) => s.id === this.sessionTypeId)
         const qualities = session?.allowedValues[this.deps.fields.quality] ?? []
         if (qualities.length) {
-            const field = el.createEl('label', { cls: 'mp-field', text: 'Session quality' })
+            const field = el.createEl('label', {
+                cls: 'mp-field',
+                text: t('log.modal.sessionQuality')
+            })
             const select = field.createEl('select', { cls: 'dropdown' })
             select.createEl('option', { text: '—', value: '' })
             for (const v of qualities)
@@ -296,7 +316,7 @@ export class LogPracticeModal extends Modal {
         const box = label.createEl('input', { type: 'checkbox' })
         box.checked = this.adoptTimer
         label.appendText(
-            ` Use the Kanban Action Planner timer running on ${timer.activityName} since ${clockTime(timer.startedAt)} (required: it times this activity)`
+            ` ${t('log.modal.adoptTimer', { activity: timer.activityName, time: clockTime(timer.startedAt) })}`
         )
         box.addEventListener('change', () => {
             this.adoptTimer = box.checked
@@ -347,7 +367,7 @@ export class LogPracticeModal extends Modal {
         el: HTMLElement,
         choice: Extract<ActivityChoice, { kind: 'ask' }>
     ): void {
-        const field = el.createEl('label', { cls: 'mp-field', text: 'Counts for the activity' })
+        const field = el.createEl('label', { cls: 'mp-field', text: t('log.modal.countsFor') })
         const select = field.createEl('select', { cls: 'dropdown' })
         const answer = this.answers.get(choice.typeName)
         const current =
@@ -361,36 +381,42 @@ export class LogPracticeModal extends Modal {
         const option = (text: string, value: string) => {
             select.createEl('option', { text, value }).selected = value === current
         }
-        option('Choose…', '')
+        option(t('log.modal.choose'), '')
         for (const f of choice.candidates) option(f.basename, `existing:${f.path}`)
-        option('New activity…', 'create')
-        option('No activity', 'none')
+        option(t('log.modal.newActivityOption'), 'create')
+        option(t('log.modal.noActivityOption'), 'none')
         const help = el.createDiv({ cls: 'mp-rubric' })
         const why = choice.conflict.length
-            ? `${choice.conflict.map((f) => f.basename).join(' and ')} list ${choice.typeName} in their session types: pick the one it counts for.`
-            : `No activity lists ${choice.typeName} in its session types yet.`
+            ? t('log.modal.conflict', {
+                  activities: joinNames(choice.conflict.map((f) => f.basename)),
+                  type: choice.typeName
+              })
+            : t('log.modal.noneListed', { type: choice.typeName })
         // One activity per type: picking one moves the type away from the others listing it.
         const moved = (path: string) => {
             const others = choice.conflict.filter((f) => f.path !== path).map((f) => f.basename)
             return others.length
-                ? ` It is removed from the session types of ${others.join(' and ')}.`
+                ? ` ${t('log.modal.moved', { activities: joinNames(others) })}`
                 : ''
         }
         const describe = () => {
             const a = this.answers.get(choice.typeName)
             const what =
                 a?.kind === 'existing'
-                    ? `Adds ${choice.typeName} to its session types: later sessions count for it too.${moved(a.path)}`
+                    ? `${t('log.modal.willAdd', { type: choice.typeName })}${moved(a.path)}`
                     : a?.kind === 'create'
-                      ? `Creates this activity with ${choice.typeName} in its session types.`
+                      ? t('log.modal.willCreate', { type: choice.typeName })
                       : a?.kind === 'none'
-                        ? 'This session counts for no activity.'
+                        ? t('log.modal.willNone')
                         : ''
             help.setText(what ? `${why} ${what}` : why)
         }
         let nameInput: HTMLInputElement | null = null
         if (answer?.kind === 'create') {
-            const nameField = el.createEl('label', { cls: 'mp-field', text: 'New activity name' })
+            const nameField = el.createEl('label', {
+                cls: 'mp-field',
+                text: t('log.modal.newActivityName')
+            })
             nameInput = nameField.createEl('input', { type: 'text' })
             nameInput.value = this.newActivityName
             nameInput.addEventListener('input', () => {
@@ -417,7 +443,7 @@ export class LogPracticeModal extends Modal {
 
         const mastery = details.createEl('select', {
             cls: 'dropdown',
-            attr: { 'aria-label': `Mastery of ${item.name}` }
+            attr: { 'aria-label': t('log.modal.masteryLabel', { name: item.name }) }
         })
         for (const value of type.statusValues) {
             const option = mastery.createEl('option', { text: value, value })
@@ -445,8 +471,8 @@ export class LogPracticeModal extends Modal {
                 cls: 'mp-bpm-input',
                 type: 'number',
                 attr: {
-                    'placeholder': `BPM (target ${item.bpmTarget})`,
-                    'aria-label': `BPM reached on ${item.name}`,
+                    'placeholder': t('log.modal.bpmPlaceholder', { target: item.bpmTarget }),
+                    'aria-label': t('log.modal.bpmLabel', { name: item.name }),
                     'min': '1',
                     'max': '1000'
                 }
@@ -474,10 +500,11 @@ export class LogPracticeModal extends Modal {
         if (item.review !== null) {
             const group = details.createDiv({
                 cls: 'mp-segmented',
-                attr: { 'role': 'group', 'aria-label': 'Review result' }
+                attr: { 'role': 'group', 'aria-label': t('log.modal.reviewGroup') }
             })
             const buttons: HTMLButtonElement[] = []
-            for (const { result, label } of REVIEW_BUTTONS) {
+            const reviews = reviewButtons()
+            for (const { result, label } of reviews) {
                 const button = group.createEl('button', {
                     text: label,
                     attr: { 'aria-pressed': String(log.review === result) }
@@ -488,7 +515,7 @@ export class LogPracticeModal extends Modal {
                     if (log.review === result) delete log.review
                     else log.review = result
                     buttons.forEach((b, i) => {
-                        const on = log.review === REVIEW_BUTTONS[i]!.result
+                        const on = log.review === reviews[i]!.result
                         b.toggleClass('mp-is-on', on)
                         b.setAttr('aria-pressed', String(on))
                     })
@@ -511,11 +538,11 @@ export class LogPracticeModal extends Modal {
     private async submit(): Promise<void> {
         if (this.submitting || this.selected.size === 0) return
         if (!(this.minutes > 0)) {
-            new Notice('Enter the minutes practiced.')
+            new Notice(t('log.modal.enterMinutes'))
             return
         }
         if (this.pendingQuestion()) {
-            new Notice('Choose the activity this session counts for.')
+            new Notice(t('log.modal.chooseActivity'))
             return
         }
         const session = this.sessionChoices().find((s) => s.id === this.sessionTypeId)
@@ -547,7 +574,7 @@ export class LogPracticeModal extends Modal {
                 if (answer?.kind === 'none') loggedWithout.add(choice.typeName)
                 else loggedWithout.delete(choice.typeName)
             }
-            new Notice(`Logged ${this.minutes} min: ${logged}`)
+            new Notice(t('log.modal.logged', { minutes: this.minutes, logged }))
             this.preset.onLogged?.()
             this.close()
         } catch (error: unknown) {

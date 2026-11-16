@@ -3,6 +3,7 @@
  * speed, the sections and a count-in before each pass. No DOM here: the media element, the frame
  * clock and the count-in come in, so the rules are tested with fakes.
  */
+import { t } from '../i18n/i18n'
 import {
     clampSpeed,
     countInPlan,
@@ -210,7 +211,7 @@ export class PlayAlongController {
         }
         if (countIn && this.state.countIn && !tempo && !this.toldNoTempo) {
             this.toldNoTempo = true
-            this.deps.notice('Count-in: tap the tempo first (T, or the Tap button).')
+            this.deps.notice(t('playalong.notice.countInNoTempo'))
         }
         media.currentTime = pass ? wrapTarget(start, preRoll) : start
         this.state.position = media.currentTime
@@ -231,7 +232,9 @@ export class PlayAlongController {
             this.status = 'paused'
             this.stopFrames()
             this.deps.notice(
-                `Couldn't play the recording: ${error instanceof Error ? error.message : String(error)}`
+                t('playalong.error.playFailed', {
+                    message: error instanceof Error ? error.message : String(error)
+                })
             )
             this.deps.changed()
         })
@@ -392,7 +395,7 @@ export class PlayAlongController {
     toggleLoop(): void {
         if (this.freed) return
         if (this.state.a === null || this.state.b === null) {
-            this.deps.notice('Set A and B first ([ and ]).')
+            this.deps.notice(t('playalong.notice.setAB'))
             return
         }
         this.state.loop = !this.state.loop
@@ -415,9 +418,7 @@ export class PlayAlongController {
         if (this.freed) return
         const loop = sectionLoop(this.deps.sections, index, this.duration())
         if (!loop) {
-            this.deps.notice(
-                'This section is too short to loop, or the recording is still loading.'
-            )
+            this.deps.notice(t('playalong.notice.sectionTooShort'))
             return
         }
         Object.assign(this.state, loop)
