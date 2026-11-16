@@ -65,7 +65,7 @@ export function messageIn(language: Language, key: string): string | undefined {
 }
 
 export function t<K extends MessageKey>(key: K, ...args: ParamsArgs<K>): string {
-    return interpolate(messageIn(current, key) ?? key, args[0] as MessageParams | undefined)
+    return interpolate(messageIn(current, key) ?? key, args[0])
 }
 
 /** A text that depends on a count: `base.one` or `base.other`, `{count}` filled in. */
