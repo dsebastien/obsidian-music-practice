@@ -47,6 +47,8 @@ void mock.module('obsidian', () => ({
     getFrontMatterInfo: () => ({ exists: false, frontmatter: '' }),
     parseYaml: () => ({}),
     Platform: { isMobile: false },
+    // The plugin's language: English in tests.
+    getLanguage: () => 'en',
     MarkdownPreviewRenderer: class MarkdownPreviewRenderer {},
     PluginSettingTab: class PluginSettingTab {},
     Setting: class Setting {},

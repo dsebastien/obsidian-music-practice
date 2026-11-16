@@ -1,4 +1,5 @@
 import { MarkdownView, Menu, Notice, Platform, Plugin, debounce, setIcon } from 'obsidian'
+import { initLanguage } from './i18n/init'
 import type { Editor, TFile } from 'obsidian'
 import { createDefaultSettings, settingsFrom } from './types/plugin-settings.intf'
 import type { PluginSettings } from './types/plugin-settings.intf'
@@ -456,6 +457,8 @@ export class MusicPracticePlugin extends Plugin {
      */
     override async onload() {
         log('Initializing', 'debug')
+        // The plugin follows Obsidian's language (#112); read before anything shows a text.
+        initLanguage()
         // Before anything is registered: an earlier instance Obsidian still runs holds the view
         // type, the protocol handler and the code block processors (#90).
         if (claimInstance(this, this.app))
