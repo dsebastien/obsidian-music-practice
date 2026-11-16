@@ -1,3 +1,4 @@
+import { t } from '../i18n/i18n'
 import script from 'virtual:alphatab-script'
 import font from 'virtual:alphatab-font'
 import soundfont from 'virtual:alphatab-soundfont'
@@ -83,7 +84,8 @@ export class AlphaTabRuntime {
      * breaking.
      */
     module(win: AlphaTabWindow): Promise<AlphaTabModule> {
-        if (this.isReleased(win)) return Promise.reject(new Error('the window is closed'))
+        if (this.isReleased(win))
+            return Promise.reject(new Error(t('texttab.alphatab.windowClosed')))
         const state = this.state(win)
         if (state.module) return state.module
         const loading = new Promise<AlphaTabModule>((resolve, reject) => {
@@ -93,7 +95,10 @@ export class AlphaTabRuntime {
                 else
                     reject(
                         new Error(
-                            `another plugin loaded alphaTab ${version ?? 'of an unknown release'}; Music Practice needs ${ALPHATAB_VERSION}`
+                            t('texttab.alphatab.otherPlugin', {
+                                version: version ?? t('texttab.alphatab.unknownRelease'),
+                                needed: ALPHATAB_VERSION
+                            })
                         )
                     )
                 return
@@ -118,20 +123,20 @@ export class AlphaTabRuntime {
                 restore()
                 const loaded = win.alphaTab
                 if (!loaded) {
-                    failed('alphaTab did not load')
+                    failed(t('texttab.alphatab.notLoaded'))
                     return
                 }
                 // Freed while loading: the script still ran; take its alphaTab away again.
                 if (this.isReleased(win) || this.windows.get(win) !== state) {
                     delete win.alphaTab
-                    failed('the window is closed')
+                    failed(t('texttab.alphatab.windowClosed'))
                     return
                 }
                 // Our own script: the release this plugin embeds, no check needed.
                 state.ours = loaded
                 resolve(loaded)
             }
-            tag.onerror = () => failed('alphaTab did not load')
+            tag.onerror = () => failed(t('texttab.alphatab.notLoaded'))
             tag.src = this.scriptUrl(win)
         })
         state.module = loading

@@ -1,2 +1,55 @@
-/** English texts of the playalong area (the source; keys are `playalong.*`). */
-export const playalongEn = {} as const
+/** English texts of the play-along area: the player of a ```playalong block (keys are `playalong.*`). */
+export const playalongEn = {
+    'playalong.player': 'Play-along player: {name}',
+    'playalong.play': 'Play (Space)',
+    'playalong.pause': 'Pause (Space)',
+    'playalong.position': 'Position',
+    'playalong.speed': 'Speed',
+    'playalong.slower': 'Slower (−)',
+    'playalong.faster': 'Faster (+)',
+    'playalong.setA': 'Set A at the playhead ([)',
+    'playalong.setB': 'Set B at the playhead (])',
+    'playalong.markA': 'A: {time} ([)',
+    'playalong.markB': 'B: {time} (])',
+    'playalong.loop': 'Loop A to B (L)',
+    'playalong.clearLoop': 'Clear the loop',
+    'playalong.countIn': 'Count-in before each pass (C)',
+    'playalong.tap': 'Tap',
+    'playalong.tapTempo': 'Tap the tempo (T)',
+    'playalong.addSection': 'Add a section at the playhead (M)',
+    'playalong.saveBpm': 'Save the BPM it plays at to this note',
+    'playalong.goTo': 'Go to {label}',
+    'playalong.loopSection': 'Loop {label}',
+    'playalong.tempo': '{bpm} BPM ({source})',
+    'playalong.noTempo': 'No tempo',
+    'playalong.tempoSource.block': 'tempo line',
+    'playalong.tempoSource.tapped': 'tapped',
+    'playalong.tempoSource.target': 'target',
+    'playalong.status.countIn': 'Count-in…',
+    'playalong.status.loop': 'Loop {from} – {to}',
+    'playalong.section.default': 'Section {n}',
+    'playalong.problem.tempoTwice': 'Line {line}: the block already has a tempo (line {other})',
+    'playalong.problem.tempoRange':
+        'Line {line}: the tempo must be a number of BPM from 20 to 300 (tempo: 120)',
+    'playalong.problem.fileTwice': 'Line {line}: the block already has a file (line {other})',
+    'playalong.problem.notSection': 'Line {line} is not a section: write 0:12 Verse',
+    'playalong.mark.tooClose': 'A and B must be at least half a second apart.',
+    'playalong.notice.tapFirst': 'Tap the tempo first: Save BPM needs it.',
+    'playalong.notice.countInNoTempo': 'Count-in: tap the tempo first (T, or the Tap button).',
+    'playalong.notice.setAB': 'Set A and B first ([ and ]).',
+    'playalong.notice.sectionTooShort':
+        'This section is too short to loop, or the recording is still loading.',
+    'playalong.error.unsupported': "This device can't play this file.",
+    'playalong.error.loadFailed': "Couldn't load the recording.",
+    'playalong.error.loadFailedWith': "Couldn't load the recording: {message}",
+    'playalong.error.playFailed': "Couldn't play the recording: {message}",
+    'playalong.error.addSection': "Couldn't add the section",
+    'playalong.error.writeTempo': "Couldn't write the tempo",
+    'playalong.error.failedWith': '{failure}: {message}',
+    'playalong.error.blockNotFound':
+        "Couldn't find this block in the note: it may have changed. Try again.",
+    'playalong.error.noFileLine':
+        'playalong: name the recording on a line of its own, for example {example}',
+    'playalong.error.noFile': 'playalong: no file "{file}" in the vault',
+    'playalong.error.notMedia': 'playalong: "{path}" is not an audio or video file'
+} as const

@@ -4,6 +4,7 @@
  * and the bar says the rhythm is guessed. Made with Obsidian's element helpers, in the block's
  * own document (popout windows).
  */
+import { t } from '../i18n/i18n'
 
 export interface TextTabViewOptions {
     /** The block's text, as written. */
@@ -57,21 +58,21 @@ export function textTabView(el: HTMLElement, options: TextTabViewOptions): TextT
         el.toggle(!text)
         options.onShow?.(text)
     }
-    if (options.drawn) button(actions, 'mp-tab-show-tab', 'Show as tab', () => show(false))
+    if (options.drawn) button(actions, 'mp-tab-show-tab', t('texttab.showAsTab'), () => show(false))
     const edit = options.edit
-    if (edit) button(actions, 'mp-tab-convert', 'Edit as alphaTex', edit)
+    if (edit) button(actions, 'mp-tab-convert', t('texttab.editAlphaTex'), edit)
 
     const bar = options.drawn ? el.querySelector<HTMLElement>('.mn-tab-bar') : null
     if (bar) {
-        const text = button(bar, 'mp-tab-show-text', 'Text', () => show(true))
-        text.title = 'Show as text: the block as you wrote it'
+        const text = button(bar, 'mp-tab-show-text', t('texttab.text'), () => show(true))
+        text.title = t('texttab.textTitle')
         // With the views (Tab, Score, Both, Text), before Keep this view: they wrap together.
         const views = bar.querySelector('.mn-tab-views')
         views?.insertBefore(text, views.querySelector('.mn-tab-keep'))
-        bar.createSpan({ cls: 'mp-tab-guessed', text: 'Rhythm guessed from the tab' })
+        bar.createSpan({ cls: 'mp-tab-guessed', text: t('texttab.guessed') })
         if (edit)
-            button(bar, 'mp-tab-edit', 'Edit as alphaTex', edit).title =
-                'Replace the text tab with alphaTex in the note, to correct the rhythm'
+            button(bar, 'mp-tab-edit', t('texttab.editAlphaTex'), edit).title =
+                t('texttab.editTitle')
     }
     showingText = !options.drawn
     panel.toggle(showingText)

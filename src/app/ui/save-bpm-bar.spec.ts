@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import type { TimedBar } from '@dsebastien/music-notation'
-import { SAVE_BPM_LABEL, saveBpmOnBars } from './save-bpm-bar'
+import { saveBpmLabel, saveBpmOnBars } from './save-bpm-bar'
 
 /** A test double typed as what it stands in for (it only has what the code under test reads). */
 const fake = <T>(value: unknown): T => value as T
@@ -52,7 +52,7 @@ describe('saveBpmOnBars (#88)', () => {
                 (_el, name) => icons.push(name)
             )(bar)
             expect(added).toEqual([made.button])
-            expect(made.attributes.get('aria-label')).toBe(SAVE_BPM_LABEL)
+            expect(made.attributes.get('aria-label')).toBe(saveBpmLabel())
             expect(made.attributes.get('title')).toBe('Save BPM')
             expect(made.button.type).toBe('button')
             expect(icons).toEqual(['gauge'])

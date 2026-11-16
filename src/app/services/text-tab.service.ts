@@ -1,3 +1,4 @@
+import { t } from '../i18n/i18n'
 import { MarkdownView, Notice, TFile } from 'obsidian'
 import type { App, Editor, MarkdownSectionInformation } from 'obsidian'
 import { openingFence } from '../domain/block-placement'
@@ -320,11 +321,12 @@ export class TextTabConverter {
                 const block = findBlock(lines, request.language, request.source, section)
                 return block ? replaceBody(block, withStaves(block.body.join('\n'), staves)) : null
             })
-            if (!changed)
-                new Notice("Couldn't find this block in the note: it may have changed. Try again.")
+            if (!changed) new Notice(t('texttab.error.blockNotFound'))
         } catch (error: unknown) {
             new Notice(
-                `Couldn't keep the view: ${error instanceof Error ? error.message : String(error)}`
+                t('texttab.error.keepView', {
+                    message: error instanceof Error ? error.message : String(error)
+                })
             )
         }
     }
@@ -353,21 +355,20 @@ export class TextTabConverter {
                 return replaceBody(block, converted)
             })
             if (!changed || !found.done) {
-                new Notice(
-                    "Couldn't find this text tab in the note: it may have changed. Try again."
-                )
+                new Notice(t('texttab.error.tabNotFound'))
                 return
             }
         } catch (error: unknown) {
             new Notice(
-                `Couldn't convert the tab: ${error instanceof Error ? error.message : String(error)}`
+                t('texttab.error.convert', {
+                    message: error instanceof Error ? error.message : String(error)
+                })
             )
             return
         }
         const { language, source, converted } = found.done
-        this.noticeWithUndo(
-            'Converted the tab. The text tab stays in a comment at the end of the block.',
-            () => this.undo(sourcePath, language, converted, source)
+        this.noticeWithUndo(t('texttab.notice.converted'), () =>
+            this.undo(sourcePath, language, converted, source)
         )
     }
 
@@ -382,11 +383,7 @@ export class TextTabConverter {
         const undone = text
             ? await undoConversion(text, language, converted, source).catch(() => false)
             : false
-        new Notice(
-            undone
-                ? 'The text tab is back.'
-                : "Couldn't undo: the converted tab changed or isn't in the note anymore."
-        )
+        new Notice(undone ? t('texttab.notice.undone') : t('texttab.error.undo'))
     }
 }
 
@@ -394,7 +391,7 @@ export class TextTabConverter {
 function undoNotice(message: string, undo: () => Promise<void>): void {
     const fragment = createFragment((f) => {
         f.createSpan({ text: `${message} ` })
-        const button = f.createEl('button', { text: 'Undo', cls: 'mp-notice-undo' })
+        const button = f.createEl('button', { text: t('texttab.undo'), cls: 'mp-notice-undo' })
         button.addEventListener('click', () => {
             notice.hide()
             void undo()

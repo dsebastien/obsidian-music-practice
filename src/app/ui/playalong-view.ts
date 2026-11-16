@@ -3,12 +3,17 @@
  * that shows), the timeline with the A-B span and the sections, and the controls. Made in the
  * block's own document, so a popout window gets its own element and frames.
  */
+import { t } from '../i18n/i18n'
 import { Platform, setIcon } from 'obsidian'
 import { formatTime, playAlongKey, type PlayAlongAction } from '../domain/playalong'
 import type { PlayAlongController } from '../services/playalong-player'
 import type { MountRequest, PlayAlongView } from '../services/playalong.service'
 
-const SOURCE_LABEL = { block: 'tempo line', tapped: 'tapped', target: 'target' } as const
+const SOURCE_KEYS = {
+    block: 'playalong.tempoSource.block',
+    tapped: 'playalong.tempoSource.tapped',
+    target: 'playalong.tempoSource.target'
+} as const
 
 /** A button with an icon or a text, its name for screen readers and its tooltip. */
 function button(
@@ -49,7 +54,7 @@ export function mountPlayAlong(request: MountRequest): PlayAlongView {
         attr: {
             'tabindex': '0',
             'role': 'group',
-            'aria-label': `Play-along player: ${request.name}`
+            'aria-label': t('playalong.player', { name: request.name })
         }
     })
     // Live preview: a press in the player must not move the editor's cursor into the block.
@@ -75,7 +80,7 @@ export function mountPlayAlong(request: MountRequest): PlayAlongView {
     const main = root.createDiv({ cls: 'mp-playalong-main' })
     const play = button(
         main,
-        { icon: 'play', label: 'Play (Space)', cls: 'mp-playalong-play' },
+        { icon: 'play', label: t('playalong.play'), cls: 'mp-playalong-play' },
         run((c) => c.toggle())
     )
     const time = main.createSpan({ cls: 'mp-playalong-time', text: '0:00.0 / 0:00' })
@@ -85,18 +90,18 @@ export function mountPlayAlong(request: MountRequest): PlayAlongView {
     const range = timeline.createEl('input', {
         type: 'range',
         cls: 'mp-playalong-range',
-        attr: { 'min': '0', 'max': '0', 'step': '0.1', 'aria-label': 'Position' }
+        attr: { 'min': '0', 'max': '0', 'step': '0.1', 'aria-label': t('playalong.position') }
     })
     range.addEventListener('input', () => controller?.seek(Number(range.value)))
 
     const controls = root.createDiv({ cls: 'mp-playalong-controls' })
     const speedGroup = controls.createDiv({
         cls: 'mp-playalong-group',
-        attr: { 'role': 'group', 'aria-label': 'Speed' }
+        attr: { 'role': 'group', 'aria-label': t('playalong.speed') }
     })
     button(
         speedGroup,
-        { icon: 'minus', label: 'Slower (−)' },
+        { icon: 'minus', label: t('playalong.slower') },
         run((c) => c.slower())
     )
     const speed = speedGroup.createSpan({
@@ -105,49 +110,49 @@ export function mountPlayAlong(request: MountRequest): PlayAlongView {
     })
     button(
         speedGroup,
-        { icon: 'plus', label: 'Faster (+)' },
+        { icon: 'plus', label: t('playalong.faster') },
         run((c) => c.faster())
     )
 
     const loopGroup = controls.createDiv({ cls: 'mp-playalong-group' })
     const setA = button(
         loopGroup,
-        { text: 'A', label: 'Set A at the playhead ([)' },
+        { text: 'A', label: t('playalong.setA') },
         run((c) => c.setA())
     )
     const setB = button(
         loopGroup,
-        { text: 'B', label: 'Set B at the playhead (])' },
+        { text: 'B', label: t('playalong.setB') },
         run((c) => c.setB())
     )
     const loop = button(
         loopGroup,
-        { icon: 'repeat', label: 'Loop A to B (L)' },
+        { icon: 'repeat', label: t('playalong.loop') },
         run((c) => c.toggleLoop())
     )
     const clear = button(
         loopGroup,
-        { icon: 'x', label: 'Clear the loop' },
+        { icon: 'x', label: t('playalong.clearLoop') },
         run((c) => c.clearLoop())
     )
 
     const tempoGroup = controls.createDiv({ cls: 'mp-playalong-group' })
     const countIn = button(
         tempoGroup,
-        { icon: 'timer', label: 'Count-in before each pass (C)' },
+        { icon: 'timer', label: t('playalong.countIn') },
         run((c) => c.toggleCountIn())
     )
     const tempo = tempoGroup.createSpan({ cls: 'mp-playalong-tempo' })
     button(
         tempoGroup,
-        { text: 'Tap', label: 'Tap the tempo (T)' },
+        { text: t('playalong.tap'), label: t('playalong.tapTempo') },
         run((c) => c.tap())
     )
 
     const noteGroup = controls.createDiv({ cls: 'mp-playalong-group' })
     button(
         noteGroup,
-        { icon: 'bookmark-plus', label: 'Add a section at the playhead (M)' },
+        { icon: 'bookmark-plus', label: t('playalong.addSection') },
         () => void request.actions.addSection()
     )
     // Shown only in a learning note, checked at each refresh (a note can become one).
@@ -155,7 +160,7 @@ export function mountPlayAlong(request: MountRequest): PlayAlongView {
         noteGroup,
         {
             icon: 'gauge',
-            label: 'Save the BPM it plays at to this note',
+            label: t('playalong.saveBpm'),
             cls: 'mp-score-save-bpm'
         },
         () => request.actions.saveBpm()
@@ -171,14 +176,14 @@ export function mountPlayAlong(request: MountRequest): PlayAlongView {
             chip,
             {
                 text: label,
-                label: `Go to ${label}`,
+                label: t('playalong.goTo', { label }),
                 cls: 'mp-playalong-section-go'
             },
             run((c) => c.jump(index))
         )
         button(
             chip,
-            { icon: 'repeat', label: `Loop ${label}` },
+            { icon: 'repeat', label: t('playalong.loopSection', { label }) },
             run((c) => c.loopSection(index))
         )
     })
@@ -247,8 +252,10 @@ export function mountPlayAlong(request: MountRequest): PlayAlongView {
         const code = media.error?.code
         error.setText(
             code === 4
-                ? "This device can't play this file."
-                : `Couldn't load the recording${media.error?.message ? `: ${media.error.message}` : '.'}`
+                ? t('playalong.error.unsupported')
+                : media.error?.message
+                  ? t('playalong.error.loadFailedWith', { message: media.error.message })
+                  : t('playalong.error.loadFailed')
         )
     })
 
@@ -281,7 +288,7 @@ export function mountPlayAlong(request: MountRequest): PlayAlongView {
             playing = isPlaying
             play.empty()
             setIcon(play, isPlaying ? 'pause' : 'play')
-            const label = isPlaying ? 'Pause (Space)' : 'Play (Space)'
+            const label = isPlaying ? t('playalong.pause') : t('playalong.play')
             play.setAttribute('aria-label', label)
             play.setAttribute('title', label)
         }
@@ -293,11 +300,11 @@ export function mountPlayAlong(request: MountRequest): PlayAlongView {
         setB.toggleClass('is-active', b !== null)
         setA.setAttribute(
             'title',
-            a !== null ? `A: ${formatTime(a, true)} ([)` : 'Set A at the playhead ([)'
+            a !== null ? t('playalong.markA', { time: formatTime(a, true) }) : t('playalong.setA')
         )
         setB.setAttribute(
             'title',
-            b !== null ? `B: ${formatTime(b, true)} (])` : 'Set B at the playhead (])'
+            b !== null ? t('playalong.markB', { time: formatTime(b, true) }) : t('playalong.setB')
         )
         clear.disabled = a === null && b === null
         if (known && a !== null && b !== null) {
@@ -320,17 +327,28 @@ export function mountPlayAlong(request: MountRequest): PlayAlongView {
         if (now - readAt > 1000 || c.state.tapped !== readTapped) {
             readAt = now
             readTapped = c.state.tapped
-            const t = c.tempo()
-            setText(tempo, t ? `${Math.round(t.bpm)} BPM (${SOURCE_LABEL[t.source]})` : 'No tempo')
+            const known = c.tempo()
+            setText(
+                tempo,
+                known
+                    ? t('playalong.tempo', {
+                          bpm: Math.round(known.bpm),
+                          source: t(SOURCE_KEYS[known.source])
+                      })
+                    : t('playalong.noTempo')
+            )
             saveBpm.toggleClass('mp-is-hidden', !request.learning())
-            saveBpm.disabled = t === null
+            saveBpm.disabled = known === null
         }
         setText(
             status,
             c.status === 'counting'
-                ? 'Count-in…'
+                ? t('playalong.status.countIn')
                 : c.state.loop && a !== null && b !== null
-                  ? `Loop ${formatTime(a, true)} – ${formatTime(b, true)}`
+                  ? t('playalong.status.loop', {
+                        from: formatTime(a, true),
+                        to: formatTime(b, true)
+                    })
                   : ''
         )
     }

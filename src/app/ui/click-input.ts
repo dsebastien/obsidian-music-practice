@@ -4,6 +4,7 @@
  * editor). The chosen notes are drawn by the plugin as dots in its own group, so the drawing is
  * never redrawn and the focus stays where it is.
  */
+import { t } from '../i18n/i18n'
 import {
     attachPick,
     emptyNoteSet,
@@ -86,13 +87,13 @@ export class ClickInput {
                           frets: CLICK_FRETS,
                           hand: layout.hand,
                           orientation: layout.fretboard,
-                          title: 'Click the frets'
+                          title: t('metronome.click.frets')
                       })
                     : renderKeyboard(doc, emptyNoteSet(), {
                           pick: true,
                           range: CLICK_KEYS,
                           orientation: layout.keyboard,
-                          title: 'Click the keys'
+                          title: t('metronome.click.keys')
                       })
             )
         )
@@ -206,7 +207,7 @@ export function renderNearMatches(
     if (!near.length) return
     parent.createDiv({
         cls: 'mp-muted',
-        text: 'No chord with exactly these notes. Chords that hold them:'
+        text: t('metronome.click.nearIntro')
     })
     const list = parent.createDiv({ cls: 'mp-click-near-list' })
     // The match clicked keeps its marks when the pointer or the focus leaves another one.
@@ -215,7 +216,10 @@ export function renderNearMatches(
     for (const match of near) {
         const button = list.createEl('button', {
             cls: 'mp-click-near-match',
-            text: `${match.symbol} (missing ${match.missing.join(' ')})`,
+            text: t('metronome.click.nearMatch', {
+                symbol: match.symbol,
+                missing: match.missing.join(' ')
+            }),
             attr: { 'aria-pressed': 'false' }
         })
         const on = () => handlers.mark(match.missingClasses)
