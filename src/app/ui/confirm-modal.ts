@@ -1,5 +1,6 @@
 import { Modal } from 'obsidian'
 import type { App } from 'obsidian'
+import { t } from '../i18n/i18n'
 
 export interface ConfirmOptions {
     title: string
@@ -30,7 +31,9 @@ export class ConfirmModal extends Modal {
         contentEl.addClass('mp-confirm')
         contentEl.createEl('p', { text: this.options.message })
         const actions = contentEl.createDiv({ cls: 'mp-actions' })
-        actions.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close())
+        actions
+            .createEl('button', { text: t('common.cancel') })
+            .addEventListener('click', () => this.close())
         const ok = actions.createEl('button', { cls: 'mod-warning', text: this.options.confirm })
         ok.addEventListener('click', () => {
             this.confirmed = true

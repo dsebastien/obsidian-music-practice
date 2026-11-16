@@ -1,5 +1,6 @@
 import { ItemView, MarkdownRenderer, Setting } from 'obsidian'
 import type { ViewCreator, WorkspaceLeaf } from 'obsidian'
+import { t } from '../i18n/i18n'
 
 import {
     BUY_ME_A_COFFEE_URL,
@@ -88,40 +89,38 @@ export function createWhatsNewViewCreator(
             const markdown =
                 '' !== entry.notesMarkdown
                     ? entry.notesMarkdown
-                    : `Updated to version ${entry.version}.`
+                    : t('whatsnew.updated', { version: entry.version })
             await MarkdownRenderer.render(this.app, markdown, notesEl, '', this)
 
             const linksEl = bodyEl.createDiv({ cls: `${prefix}-whats-new-links` })
 
             new Setting(linksEl)
-                .setName('Join the Knowii community')
-                .setDesc(
-                    'Learn to organize your notes and put your knowledge to work, together with fellow knowledge workers.'
-                )
+                .setName(t('whatsnew.knowii.name'))
+                .setDesc(t('whatsnew.knowii.desc'))
                 .addButton((button) => {
                     button
                         .setCta()
-                        .setButtonText('Join Knowii')
+                        .setButtonText(t('whatsnew.knowii.button'))
                         .onClick(() => {
                             window.open(KNOWII_COMMUNITY_URL)
                         })
                 })
 
             new Setting(linksEl)
-                .setName('Support this plugin')
-                .setDesc('Your support keeps development and maintenance going ❤️')
+                .setName(t('whatsnew.support.name'))
+                .setDesc(t('whatsnew.support.desc'))
                 .addButton((button) => {
-                    button.setButtonText('GitHub Sponsors').onClick(() => {
+                    button.setButtonText(t('whatsnew.support.githubSponsors')).onClick(() => {
                         window.open(GITHUB_SPONSORS_URL)
                     })
                 })
                 .addButton((button) => {
-                    button.setButtonText('Buy me a coffee').onClick(() => {
+                    button.setButtonText(t('whatsnew.support.buyMeACoffee')).onClick(() => {
                         window.open(BUY_ME_A_COFFEE_URL)
                     })
                 })
                 .addButton((button) => {
-                    button.setButtonText('YouTube').onClick(() => {
+                    button.setButtonText(t('whatsnew.support.youtube')).onClick(() => {
                         window.open(YOUTUBE_CHANNEL_URL)
                     })
                 })

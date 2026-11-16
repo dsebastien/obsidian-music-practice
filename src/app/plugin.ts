@@ -1,5 +1,6 @@
 import { MarkdownView, Menu, Notice, Platform, Plugin, debounce, setIcon } from 'obsidian'
 import { initLanguage } from './i18n/init'
+import { t, tn } from './i18n/i18n'
 import type { Editor, TFile } from 'obsidian'
 import { createDefaultSettings, settingsFrom } from './types/plugin-settings.intf'
 import type { PluginSettings } from './types/plugin-settings.intf'
@@ -164,6 +165,10 @@ import type { ClickLayout } from './ui/click-input'
 import { IdentifyChordModal } from './ui/identify-chord-modal'
 import type { NotationStatus } from './services/notation.service'
 
+/** The message of a caught error, or the error as text. */
+const errorText = (error: unknown): string =>
+    error instanceof Error ? error.message : String(error)
+
 /** A timer running longer than this is probably forgotten: the log asks to check the minutes. */
 
 export class MusicPracticePlugin extends Plugin {
@@ -235,15 +240,11 @@ export class MusicPracticePlugin extends Plugin {
         }
         const named = text(fields.chordSymbol)
         if (named) {
-            new Notice(
-                `Already named ${named}: clear "${fields.chordSymbol}" to identify it again.`
-            )
+            new Notice(t('plugin.identify.alreadyNamed', { named, field: fields.chordSymbol }))
             return
         }
         if (!type.fields.has(fields.chordSymbol)) {
-            new Notice(
-                `This note type has no "${fields.chordSymbol}" property to name the chord in.`
-            )
+            new Notice(t('plugin.identify.noProperty', { field: fields.chordSymbol }))
             return
         }
         const fretsText = text(fields.frets, 6)
@@ -255,7 +256,7 @@ export class MusicPracticePlugin extends Plugin {
          */
         const write = async (symbol: string, notes?: ClickValue): Promise<void> => {
             const chord = parseChord(symbol)
-            if (!chord) throw new Error(`"${symbol}" is not a chord the library reads.`)
+            if (!chord) throw new Error(t('plugin.identify.notAChord', { symbol }))
             await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
                 const changes = namedNoteChanges({
                     fields,
@@ -270,15 +271,13 @@ export class MusicPracticePlugin extends Plugin {
                 for (const name of changes.remove) delete fm[name]
                 fm['aliases'] = withAlias(fm['aliases'], chord.symbol)
             })
-            new Notice(`This chord is ${chord.name} (${chord.symbol}).`)
+            new Notice(t('plugin.identify.named', { name: chord.name, symbol: chord.symbol }))
         }
         const apply = async (symbol: string): Promise<void> => {
             try {
                 await write(symbol)
             } catch (error: unknown) {
-                new Notice(
-                    `Couldn't name the chord: ${error instanceof Error ? error.message : String(error)}`
-                )
+                new Notice(t('plugin.identify.failed', { error: errorText(error) }))
             }
         }
         // No notes, or notes that make no chord: click them on a fretboard or keyboard (#76),
@@ -287,7 +286,7 @@ export class MusicPracticePlugin extends Plugin {
             const instrument =
                 type.subject === 'piano' ? 'piano' : type.subject === 'guitar' ? 'guitar' : null
             if (!instrument) {
-                new Notice(`No chord found: add six frets to "${fields.frets}" (x02220).`)
+                new Notice(t('plugin.identify.noneFound', { field: fields.frets }))
                 return
             }
             new IdentifyChordModal(this.app, {
@@ -563,7 +562,7 @@ export class MusicPracticePlugin extends Plugin {
         // layout is ready, and again whenever the Starter Kit's note types change.
         this.app.workspace.onLayoutReady(() => {
             this.noteModel.refresh()
-            if (this.loadProblem) new Notice(`Music Practice: ${this.loadProblem}`)
+            if (this.loadProblem) new Notice(t('plugin.loadProblem', { problem: this.loadProblem }))
         })
         this.registerEvent(
             onStarterKitNoteTypesChanged(this.app.workspace, () => this.noteModel.refresh())
@@ -665,7 +664,7 @@ export class MusicPracticePlugin extends Plugin {
         )
         this.metronomeEl = this.addStatusBarItem()
         this.metronomeEl.addClass('mp-timer', 'mod-clickable')
-        this.metronomeEl.setAttr('aria-label', 'Open the metronome')
+        this.metronomeEl.setAttr('aria-label', t('plugin.statusBar.openMetronome'))
         this.metronomeEl.addEventListener('click', () => this.openMetronome())
         this.register(
             this.metronome.subscribe(() => {
@@ -681,11 +680,11 @@ export class MusicPracticePlugin extends Plugin {
             PRACTICE_PANEL_VIEW,
             (leaf) => new PracticePanelView(leaf, this.panelDeps())
         )
-        this.addRibbonIcon('music', 'Open practice panel', () => void this.openPanel())
+        this.addRibbonIcon('music', t('plugin.ribbon.openPanel'), () => void this.openPanel())
 
         this.timerEl = this.addStatusBarItem()
         this.timerEl.addClass('mp-timer', 'mod-clickable')
-        this.timerEl.setAttr('aria-label', 'Stop the practice timer and log the session')
+        this.timerEl.setAttr('aria-label', t('plugin.statusBar.stopTimer'))
         this.timerEl.addEventListener('click', () => this.stopTimer())
         this.timerEl.addEventListener('contextmenu', (event) => {
             event.preventDefault()
@@ -693,13 +692,13 @@ export class MusicPracticePlugin extends Plugin {
             new Menu()
                 .addItem((item) =>
                     item
-                        .setTitle('Stop and log the session')
+                        .setTitle(t('plugin.timerMenu.stopAndLog'))
                         .setIcon('square')
                         .onClick(() => this.stopTimer())
                 )
                 .addItem((item) =>
                     item
-                        .setTitle('Discard the timer')
+                        .setTitle(t('plugin.timerMenu.discard'))
                         .setIcon('trash')
                         .onClick(() => void this.discardTimer())
                 )
@@ -748,7 +747,11 @@ export class MusicPracticePlugin extends Plugin {
         if (!bar?.instanceOf(HTMLElement) || !result.api) return
         const button = bar.createEl('button', {
             cls: 'mp-score-export',
-            attr: { 'type': 'button', 'aria-label': 'Export', 'title': 'Export' }
+            attr: {
+                'type': 'button',
+                'aria-label': t('plugin.score.export'),
+                'title': t('plugin.score.export')
+            }
         })
         setIcon(button, 'download')
         this.addSaveBpm(bar, result, sourcePath)
@@ -756,27 +759,25 @@ export class MusicPracticePlugin extends Plugin {
             const menu = new Menu()
             menu.addItem((item) =>
                 item
-                    .setTitle('Guitar Pro 7 file')
+                    .setTitle(t('plugin.score.guitarPro'))
                     .setIcon('file-music')
                     .onClick(() => void this.exportScore(result, sourcePath, 'gp'))
             )
             menu.addItem((item) =>
                 item
-                    .setTitle('MIDI file')
+                    .setTitle(t('plugin.score.midi'))
                     .setIcon('file-audio')
                     .onClick(() => void this.exportScore(result, sourcePath, 'mid'))
             )
             menu.addItem((item) =>
                 item
-                    .setTitle('Print')
+                    .setTitle(t('plugin.score.print'))
                     .setIcon('printer')
                     .onClick(() => {
                         try {
                             printTab(result)
                         } catch (error: unknown) {
-                            new Notice(
-                                `Couldn't print the score: ${error instanceof Error ? error.message : String(error)}`
-                            )
+                            new Notice(t('plugin.score.printFailed', { error: errorText(error) }))
                         }
                     })
             )
@@ -796,8 +797,8 @@ export class MusicPracticePlugin extends Plugin {
             cls: 'mp-score-save-bpm',
             attr: {
                 'type': 'button',
-                'aria-label': 'Save the BPM it plays at to this note',
-                'title': 'Save BPM'
+                'aria-label': t('plugin.score.saveBpmLong'),
+                'title': t('plugin.score.saveBpm')
             }
         })
         setIcon(button, 'gauge')
@@ -871,11 +872,9 @@ export class MusicPracticePlugin extends Plugin {
             )
             const copy = new Uint8Array(bytes)
             await this.app.vault.createBinary(path, copy.buffer)
-            new Notice(`Saved ${path}.`)
+            new Notice(t('plugin.score.saved', { path }))
         } catch (error: unknown) {
-            new Notice(
-                `Couldn't export the score: ${error instanceof Error ? error.message : String(error)}`
-            )
+            new Notice(t('plugin.score.exportFailed', { error: errorText(error) }))
         }
     }
 
@@ -906,7 +905,7 @@ export class MusicPracticePlugin extends Plugin {
         const { subject } = exercise
         const positions = exercisePositions(subject)
         if (!positions.length) {
-            new Notice(`No position to play ${subject.name} from.`)
+            new Notice(t('plugin.exercise.noPosition', { name: subject.name }))
             return
         }
         new ExerciseModal(
@@ -990,14 +989,12 @@ export class MusicPracticePlugin extends Plugin {
                               )
                               new Notice(
                                   added.existed
-                                      ? `${added.file.basename} already plays this triad.`
-                                      : `Added ${added.file.basename}.`
+                                      ? t('plugin.triads.exists', { note: added.file.basename })
+                                      : t('plugin.note.added', { note: added.file.basename })
                               )
                               await this.app.workspace.getLeaf(false).openFile(added.file)
                           } catch (error: unknown) {
-                              new Notice(
-                                  `Couldn't add the note: ${error instanceof Error ? error.message : String(error)}`
-                              )
+                              new Notice(t('plugin.note.addFailed', { error: errorText(error) }))
                               throw error
                           }
                       }
@@ -1044,22 +1041,22 @@ export class MusicPracticePlugin extends Plugin {
     private registerCommands(): void {
         this.addCommand({
             id: 'practice-next',
-            name: 'Practice next',
+            name: t('plugin.command.practiceNext'),
             callback: () => this.openPracticeNext()
         })
         this.addCommand({
             id: 'practice-plan',
-            name: 'Plan a practice session',
+            name: t('plugin.command.practicePlan'),
             callback: () => this.openPlan()
         })
         this.addCommand({
             id: 'open-practice-panel',
-            name: 'Open practice panel',
+            name: t('plugin.command.openPracticePanel'),
             callback: () => void this.openPanel()
         })
         this.addCommand({
             id: 'pause-timer',
-            name: 'Pause or resume practice timer',
+            name: t('plugin.command.pauseTimer'),
             checkCallback: (checking) => {
                 if (!this.settings.timerStartedAt) return false
                 if (!checking) void this.togglePause()
@@ -1068,12 +1065,12 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'log-practice',
-            name: 'Log practice',
+            name: t('plugin.command.logPractice'),
             callback: () => this.openLogPractice()
         })
         this.addCommand({
             id: 'add-learning-note',
-            name: 'Add a learning note',
+            name: t('plugin.command.addLearningNote'),
             callback: () => {
                 const model = this.ensureModel()
                 if (model.learningTypes.length === 0) return
@@ -1100,7 +1097,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'voicings-of-this-chord',
-            name: 'Voicings of this chord',
+            name: t('plugin.command.voicingsOfThisChord'),
             checkCallback: (checking) => {
                 const active = this.activeLearningNote()
                 if (active?.type.kind !== 'chord' || active.type.subject !== 'guitar') return false
@@ -1111,12 +1108,12 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'voicings-of-a-chord',
-            name: 'Voicings of a chord',
+            name: t('plugin.command.voicingsOfAChord'),
             callback: () => this.openVoicings({})
         })
         this.addCommand({
             id: 'insert-tab-block',
-            name: 'Insert a tab block',
+            name: t('plugin.command.insertTabBlock'),
             editorCallback: (editor, ctx) => {
                 const sections = ctx.file
                     ? this.app.metadataCache.getFileCache(ctx.file)?.sections
@@ -1126,7 +1123,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'insert-tab-exercise',
-            name: 'Insert a tab exercise of this scale or arpeggio',
+            name: t('plugin.command.insertTabExercise'),
             editorCheckCallback: (checking, editor, ctx) => {
                 const file = ctx.file
                 const exercise = file ? this.exerciseOf(file) : null
@@ -1138,7 +1135,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'convert-text-tab',
-            name: 'Edit this text tab as alphaTex',
+            name: t('plugin.command.convertTextTab'),
             editorCheckCallback: (checking, editor, ctx) => {
                 const block = blockAt(editor.getValue().split('\n'), editor.getCursor().line)
                 const path = ctx.file?.path
@@ -1151,12 +1148,12 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'import-score-file',
-            name: 'Import a score or chord file',
+            name: t('plugin.command.importScoreFile'),
             callback: () => void this.importFile()
         })
         this.addCommand({
             id: 'import-text-tab',
-            name: 'Import a text tab',
+            name: t('plugin.command.importTextTab'),
             callback: () =>
                 new PasteImportModal(
                     this.app,
@@ -1170,7 +1167,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'import-chord-sheet',
-            name: 'Import a chord sheet',
+            name: t('plugin.command.importChordSheet'),
             callback: () =>
                 new PasteImportModal(
                     this.app,
@@ -1184,7 +1181,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'play-this-note',
-            name: 'Play this chord or scale',
+            name: t('plugin.command.playThisNote'),
             checkCallback: (checking) => {
                 const active = this.activeLearningNote()
                 if (!active || (active.type.kind !== 'chord' && active.type.kind !== 'scale'))
@@ -1195,7 +1192,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'easiest-way',
-            name: 'Easiest way between these chords',
+            name: t('plugin.command.easiestWay'),
             checkCallback: (checking) => {
                 const file = this.app.workspace.getActiveFile()
                 const pair = file ? this.drills.pairOfNote(file.path) : null
@@ -1206,7 +1203,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'piece-key',
-            name: 'Find the key and scales of this piece',
+            name: t('plugin.command.pieceKey'),
             checkCallback: (checking) => {
                 const file = this.app.workspace.getActiveFile()
                 if (!file || file.extension !== 'md') return false
@@ -1216,7 +1213,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'progression-in-time',
-            name: 'Practice this progression in time',
+            name: t('plugin.command.progressionInTime'),
             checkCallback: (checking) => {
                 const file = this.app.workspace.getActiveFile()
                 if (!file || file.extension !== 'md') return false
@@ -1226,7 +1223,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'chart-changes',
-            name: 'Suggest chord change drills from this piece',
+            name: t('plugin.command.chartChanges'),
             checkCallback: (checking) => {
                 const file = this.app.workspace.getActiveFile()
                 if (!file || file.extension !== 'md') return false
@@ -1236,7 +1233,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'smooth-progression',
-            name: 'Smooth this progression',
+            name: t('plugin.command.smoothProgression'),
             checkCallback: (checking) => {
                 const file = this.app.workspace.getActiveFile()
                 if (!file || file.extension !== 'md') return false
@@ -1246,12 +1243,12 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'triads',
-            name: 'Triads of a chord or key',
+            name: t('plugin.command.triads'),
             callback: () => this.openTriads({})
         })
         this.addCommand({
             id: 'triads-of-this-chord',
-            name: 'Triads of this chord',
+            name: t('plugin.command.triadsOfThisChord'),
             checkCallback: (checking) => {
                 const active = this.activeLearningNote()
                 if (active?.type.kind !== 'chord' || active.type.subject !== 'guitar') return false
@@ -1263,7 +1260,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'change-mastery',
-            name: 'Change mastery of the current note',
+            name: t('plugin.command.changeMastery'),
             checkCallback: (checking) => {
                 const file = this.activeLearningNote()
                 if (!file) return false
@@ -1286,7 +1283,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'undo-last-log',
-            name: 'Undo last practice log',
+            name: t('plugin.command.undoLastLog'),
             checkCallback: (checking) => {
                 if (!this.settings.lastLog) return false
                 if (!checking) void this.undoLastLog()
@@ -1295,12 +1292,12 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'chord-change-drill',
-            name: 'Chord change drill',
+            name: t('plugin.command.chordChangeDrill'),
             callback: () => this.openDrill()
         })
         this.addCommand({
             id: 'chord-change-drill-current',
-            name: 'Chord change drill for the current note',
+            name: t('plugin.command.chordChangeDrillCurrent'),
             checkCallback: (checking) => {
                 const active = this.activeLearningNote()
                 if (!active) return false
@@ -1313,17 +1310,17 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'note-drill',
-            name: 'Drill notes, chords or scales',
+            name: t('plugin.command.noteDrill'),
             callback: () => this.openNoteDrill()
         })
         this.addCommand({
             id: 'ear-training',
-            name: 'Ear training: intervals, chords, scales and degrees',
+            name: t('plugin.command.earTraining'),
             callback: () => this.openNoteDrill(null, 'intervals-ear')
         })
         this.addCommand({
             id: 'note-drill-current',
-            name: 'Drill notes, chords or scales for the current note',
+            name: t('plugin.command.noteDrillCurrent'),
             checkCallback: (checking) => {
                 const active = this.activeLearningNote()
                 const setting = active ? this.noteDrills.drillOf(active.file.path) : null
@@ -1334,7 +1331,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'identify-chord',
-            name: 'Identify this chord',
+            name: t('plugin.command.identifyChord'),
             checkCallback: (checking) => {
                 const file = this.app.workspace.getActiveFile()
                 const frontmatter = file
@@ -1350,7 +1347,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'start-metronome',
-            name: 'Start metronome',
+            name: t('plugin.command.startMetronome'),
             callback: () => {
                 this.openMetronome()
                 try {
@@ -1362,7 +1359,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'stop-metronome',
-            name: 'Stop metronome',
+            name: t('plugin.command.stopMetronome'),
             checkCallback: (checking) => {
                 if (!this.metronome.state.running) return false
                 if (!checking) this.metronome.stop()
@@ -1371,7 +1368,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'speed-trainer',
-            name: 'Speed trainer for the current note',
+            name: t('plugin.command.speedTrainer'),
             checkCallback: (checking) => {
                 const active = this.activeLearningNote()
                 if (!active) return false
@@ -1386,7 +1383,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'save-metronome-bpm',
-            name: 'Save metronome BPM to its note',
+            name: t('plugin.command.saveMetronomeBpm'),
             checkCallback: (checking) => {
                 if (!this.metronome.state.item) return false
                 if (!checking) this.saveMetronomeBpm()
@@ -1395,7 +1392,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'set-bpm',
-            name: 'Set BPM of the current note',
+            name: t('plugin.command.setBpm'),
             checkCallback: (checking) => {
                 const file = this.activeLearningNote()
                 if (!file) return false
@@ -1420,7 +1417,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'start-timer',
-            name: 'Start practice timer',
+            name: t('plugin.command.startTimer'),
             checkCallback: (checking) => {
                 if (this.settings.timerStartedAt) return false
                 if (!checking) void this.startTimer()
@@ -1429,7 +1426,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'stop-timer',
-            name: 'Stop practice timer and log the session',
+            name: t('plugin.command.stopTimer'),
             checkCallback: (checking) => {
                 if (!this.settings.timerStartedAt) return false
                 if (!checking) this.stopTimer()
@@ -1438,7 +1435,7 @@ export class MusicPracticePlugin extends Plugin {
         })
         this.addCommand({
             id: 'discard-timer',
-            name: 'Discard practice timer',
+            name: t('plugin.command.discardTimer'),
             checkCallback: (checking) => {
                 if (!this.settings.timerStartedAt) return false
                 if (!checking) void this.discardTimer()
@@ -1472,13 +1469,11 @@ export class MusicPracticePlugin extends Plugin {
                     else await this.startTimer()
                     return
                 case 'discard-timer':
-                    if (!this.settings.timerStartedAt)
-                        new Notice('The practice timer is not running.')
+                    if (!this.settings.timerStartedAt) new Notice(t('plugin.timer.notRunning'))
                     else await this.discardTimer()
                     return
                 case 'stop-timer':
-                    if (!this.settings.timerStartedAt)
-                        new Notice('The practice timer is not running.')
+                    if (!this.settings.timerStartedAt) new Notice(t('plugin.timer.notRunning'))
                     else this.stopTimer()
                     return
                 case 'log':
@@ -1491,7 +1486,7 @@ export class MusicPracticePlugin extends Plugin {
                     return this.openPlan(request.minutes ?? undefined)
             }
         } catch (error: unknown) {
-            new Notice(`Music Practice: ${error instanceof Error ? error.message : String(error)}`)
+            new Notice(t('plugin.error', { error: errorText(error) }))
         }
     }
 
@@ -1592,9 +1587,7 @@ export class MusicPracticePlugin extends Plugin {
     /** A chord change drill: from the pair picker, or on a given pair (#40). */
     openDrill(pair: DrillPair | null = null, withChord?: string): void {
         if (!this.drills.exerciseType()) {
-            new Notice(
-                'Chord change drills need a guitar exercise note type to keep their results.'
-            )
+            new Notice(t('plugin.drill.needsExerciseType'))
             return
         }
         const fields = this.effective().fields
@@ -1705,8 +1698,7 @@ export class MusicPracticePlugin extends Plugin {
             types.find((t) => t.kind === 'arrangement' && t.subject === 'guitar') ??
             types.find((t) => t.kind === 'arrangement') ??
             null
-        if (!type)
-            throw new Error('Open a note in editing view: there is no arrangement note type.')
+        if (!type) throw new Error(t('plugin.import.noArrangementType'))
         const base = safeTitle(title) || 'Imported'
         let name = base
         for (let n = 2; this.noteCreator.exists(type, name); n++) name = `${base} ${n}`
@@ -1729,10 +1721,16 @@ export class MusicPracticePlugin extends Plugin {
                     .getLeaf(false)
                     .openFile(file)
                     .catch((error: unknown) => log(`Couldn't open ${file.path}`, 'warn', error))
-            new Notice(`Imported ${what === 'it' ? '' : `${what} `}into ${file.basename}.`)
+            new Notice(
+                what === 'it'
+                    ? t('plugin.import.done', { note: file.basename })
+                    : t('plugin.import.doneWhat', { what, note: file.basename })
+            )
         } catch (error: unknown) {
             new Notice(
-                `Couldn't import${what === 'it' ? '' : ` ${what}`}: ${error instanceof Error ? error.message : String(error)}`
+                what === 'it'
+                    ? t('plugin.import.failed', { error: errorText(error) })
+                    : t('plugin.import.failedWhat', { what, error: errorText(error) })
             )
             throw error
         }
@@ -1752,7 +1750,7 @@ export class MusicPracticePlugin extends Plugin {
                 block = await this.imports.chordProBlock(file)
             } catch (error: unknown) {
                 new Notice(
-                    `Couldn't import ${file.name}: ${error instanceof Error ? error.message : String(error)}`
+                    t('plugin.import.failedWhat', { what: file.name, error: errorText(error) })
                 )
                 return
             }
@@ -1766,9 +1764,7 @@ export class MusicPracticePlugin extends Plugin {
         try {
             score = await this.imports.prepareScore(file)
         } catch (error: unknown) {
-            new Notice(
-                `Couldn't import ${file.name}: ${error instanceof Error ? error.message : String(error)}`
-            )
+            new Notice(t('plugin.import.failedWhat', { what: file.name, error: errorText(error) }))
             return
         }
         new ScoreImportModeModal(this.app, (mode) => {
@@ -1780,7 +1776,7 @@ export class MusicPracticePlugin extends Plugin {
                         : (note: TFile) => this.imports.linkBlock(score, note)
             } catch (error: unknown) {
                 new Notice(
-                    `Couldn't import ${file.name}: ${error instanceof Error ? error.message : String(error)}`
+                    t('plugin.import.failedWhat', { what: file.name, error: errorText(error) })
                 )
                 return
             }
@@ -1803,7 +1799,7 @@ export class MusicPracticePlugin extends Plugin {
             instrument: piano ? 'piano' : 'guitar'
         })
         if (!source) {
-            new Notice('This note has nothing to play yet: add its chord and frets, or its scale.')
+            new Notice(t('plugin.play.nothingYet'))
             return
         }
         const holder = createDiv()
@@ -1822,7 +1818,7 @@ export class MusicPracticePlugin extends Plugin {
         const root = Number.isFinite(rootMidi) ? ((rootMidi % 12) + 12) % 12 : null
         result.destroy()
         if (!pitches.length) {
-            new Notice('Nothing to play in this note.')
+            new Notice(t('plugin.play.nothing'))
             return
         }
         const settings = this.settings.playback
@@ -1863,7 +1859,7 @@ export class MusicPracticePlugin extends Plugin {
     ): Promise<void> {
         const file = typeOf ? this.app.vault.getFileByPath(typeOf) : null
         const type = (file ? this.items.typeOf(file) : null) ?? this.guitarChordType()
-        if (!type) throw new Error('No guitar chord note type.')
+        if (!type) throw new Error(t('plugin.voicing.noType'))
         try {
             const added = await this.voicingNotes.add(
                 type,
@@ -1873,13 +1869,11 @@ export class MusicPracticePlugin extends Plugin {
             )
             new Notice(
                 added.existed
-                    ? `${added.file.basename} already plays this voicing.`
-                    : `Added ${added.file.basename}.`
+                    ? t('plugin.voicing.exists', { note: added.file.basename })
+                    : t('plugin.note.added', { note: added.file.basename })
             )
         } catch (error: unknown) {
-            new Notice(
-                `Couldn't add the note: ${error instanceof Error ? error.message : String(error)}`
-            )
+            new Notice(t('plugin.note.addFailed', { error: errorText(error) }))
             throw error
         }
     }
@@ -1889,7 +1883,7 @@ export class MusicPracticePlugin extends Plugin {
         const from = this.heldChord(a)
         const to = this.heldChord(b)
         if (!from || !to) {
-            new Notice('Both chord notes need a chord symbol.')
+            new Notice(t('plugin.transition.needsSymbols'))
             return
         }
         new TransitionModal(this.app, from, to, {
@@ -1936,14 +1930,12 @@ export class MusicPracticePlugin extends Plugin {
             this.linkedChordSymbols(file)
         )
         if (!chords.length) {
-            new Notice(
-                'This note has no chord chart (```chords) and links no chord notes with a chord symbol.'
-            )
+            new Notice(t('plugin.pieceKey.noChords', { block: '```chords' }))
             return
         }
         const result = pieceKey(chords)
         if (!result) {
-            new Notice(`A chord of this piece doesn't read: ${chords.join(' ')}`)
+            new Notice(t('plugin.pieceKey.unreadable', { chords: chords.join(' ') }))
             return
         }
         const fields = this.effective().fields
@@ -2004,7 +1996,7 @@ export class MusicPracticePlugin extends Plugin {
         )
         const changes = chordChanges(sequence)
         if (!changes.length) {
-            new Notice('This note has no chord chart (```chords) with a chord change.')
+            new Notice(t('plugin.chartChanges.noChange', { block: '```chords' }))
             return
         }
         const notes = this.chordNotesBySymbol()
@@ -2044,7 +2036,9 @@ export class MusicPracticePlugin extends Plugin {
             const el = result.el.matches('.mn-progression')
                 ? result.el
                 : result.el.querySelector('.mn-progression')
-            const source = el ? progressionBacking(el, `Progression ${i + 1}`) : null
+            const source = el
+                ? progressionBacking(el, t('plugin.backing.progressionName', { n: i + 1 }))
+                : null
             result.destroy()
             if (source) sources.push(source)
         })
@@ -2103,7 +2097,7 @@ export class MusicPracticePlugin extends Plugin {
         const sources = await this.backingSources(file, piano)
         if (!sources.length) {
             new Notice(
-                'This note has no progression (```progression), no chord chart (```chords) and links no chord notes to play.'
+                t('plugin.backing.nothing', { progression: '```progression', chords: '```chords' })
             )
             return
         }
@@ -2166,7 +2160,7 @@ export class MusicPracticePlugin extends Plugin {
     private async smoothProgression(file: TFile): Promise<void> {
         const chords = progressionOf(await this.app.vault.cachedRead(file))
         if (chords.length < 2) {
-            new Notice('This note has no chord chart (```chords) with two chords or more.')
+            new Notice(t('plugin.smooth.tooFew', { block: '```chords' }))
             return
         }
         const type = this.guitarChordType()
@@ -2231,7 +2225,7 @@ export class MusicPracticePlugin extends Plugin {
         const target = this.metronome.state.item
         const item = target ? this.items.items().find((i) => i.path === target.path) : null
         if (!item) {
-            new Notice('The metronome has no note to save the BPM to.')
+            new Notice(t('plugin.metronome.noNote'))
             return
         }
         new BpmModal(
@@ -2285,8 +2279,8 @@ export class MusicPracticePlugin extends Plugin {
                 (t) => t.kind === 'chord' && t.subject === 'guitar'
             ) ??
             null
-        const fail = (what: string, error: unknown): never => {
-            new Notice(`${what}: ${error instanceof Error ? error.message : String(error)}`)
+        const fail = (message: string, error: unknown): never => {
+            new Notice(message)
             throw error
         }
         // Only types whose notes hold frets can take a voicing.
@@ -2310,12 +2304,12 @@ export class MusicPracticePlugin extends Plugin {
                               )
                               new Notice(
                                   added.existed
-                                      ? `${added.file.basename} already plays this voicing.`
-                                      : `Added ${added.file.basename}.`
+                                      ? t('plugin.voicing.exists', { note: added.file.basename })
+                                      : t('plugin.note.added', { note: added.file.basename })
                               )
                               await this.app.workspace.getLeaf(false).openFile(added.file)
                           } catch (error: unknown) {
-                              fail("Couldn't add the note", error)
+                              fail(t('plugin.note.addFailed', { error: errorText(error) }), error)
                           }
                       }
                   }
@@ -2326,10 +2320,16 @@ export class MusicPracticePlugin extends Plugin {
                           try {
                               await this.voicingNotes.use(note.file, note.type, voicing)
                           } catch (error: unknown) {
-                              fail("Couldn't change the voicing", error)
+                              fail(
+                                  t('plugin.voicing.changeFailed', { error: errorText(error) }),
+                                  error
+                              )
                           }
                           new Notice(
-                              `${note.file.basename} now plays ${formatFrets(voicing.frets)}.`
+                              t('plugin.voicing.nowPlays', {
+                                  note: note.file.basename,
+                                  frets: formatFrets(voicing.frets)
+                              })
                           )
                       },
                       cantUse: (voicing, chord) =>
@@ -2358,7 +2358,7 @@ export class MusicPracticePlugin extends Plugin {
             draft.timerPausedMs = 0
         })
         this.renderTimer()
-        new Notice('Practice timer started.')
+        new Notice(t('plugin.timer.started'))
     }
 
     /** The timer as stored. */
@@ -2389,9 +2389,7 @@ export class MusicPracticePlugin extends Plugin {
         if (!timer.startedAt) return
         const elapsed = timerElapsed(timer, Date.now())
         if (elapsed > LONG_TIMER_MS)
-            new Notice(
-                `The practice timer ran ${formatElapsed(elapsed)}: check the minutes before logging.`
-            )
+            new Notice(t('plugin.timer.tooLong', { elapsed: formatElapsed(elapsed) }))
         this.openLogPractice({
             ...preset,
             minutes: Math.min(timerMinutes(timer, Date.now()), 1440),
@@ -2412,18 +2410,18 @@ export class MusicPracticePlugin extends Plugin {
     async discardTimer(): Promise<boolean> {
         const timer = this.timerState()
         if (!timer.startedAt) {
-            new Notice('The practice timer is not running.')
+            new Notice(t('plugin.timer.notRunning'))
             return false
         }
         const ok = await confirm(this.app, {
-            title: 'Discard the practice timer',
+            title: t('plugin.timer.discardTitle'),
             message: discardTimerMessage(timer, Date.now()),
-            confirm: 'Discard'
+            confirm: t('plugin.timer.discardConfirm')
         })
         // The timer may have been stopped or replaced while the question was open.
         if (!ok || this.settings.timerStartedAt !== timer.startedAt) return false
         await this.clearTimer()
-        new Notice('Practice timer discarded: nothing was logged.')
+        new Notice(t('plugin.timer.discarded'))
         return true
     }
 
@@ -2450,10 +2448,14 @@ export class MusicPracticePlugin extends Plugin {
                 // The difference as recomputed now: the notes may have changed meanwhile.
                 new Notice(
                     done.difference === 0
-                        ? `${name}: nothing left to settle, its time was left as it is.`
+                        ? t('plugin.surplus.nothingLeft', { name })
                         : choice === 'keep'
-                          ? `${name}: ${done.difference} min kept as a "Manual adjustment" time entry.`
-                          : `${name}: ${done.difference} min dropped, its time is now ${done.minutes ?? '?'} min.`
+                          ? t('plugin.surplus.kept', { name, difference: done.difference })
+                          : t('plugin.surplus.dropped', {
+                                name,
+                                difference: done.difference,
+                                minutes: done.minutes ?? '?'
+                            })
                 )
             } catch (error: unknown) {
                 new Notice(error instanceof Error ? error.message : String(error))
@@ -2461,16 +2463,21 @@ export class MusicPracticePlugin extends Plugin {
         }
         const fragment = createFragment((f) => {
             f.createSpan({
-                text: `${name} stores ${decision.stored} min, but its time entries and sessions give ${decision.computed}. Keep the ${decision.difference} min as a "Manual adjustment" time entry, or drop them? `
+                text: `${t('plugin.surplus.question', {
+                    name,
+                    stored: decision.stored,
+                    computed: decision.computed,
+                    difference: decision.difference
+                })} `
             })
-            f.createEl('button', { text: 'Keep', cls: 'mp-notice-undo' }).addEventListener(
-                'click',
-                () => void settle('keep')
-            )
-            f.createEl('button', { text: 'Drop', cls: 'mp-notice-undo' }).addEventListener(
-                'click',
-                () => void settle('drop')
-            )
+            f.createEl('button', {
+                text: t('plugin.surplus.keep'),
+                cls: 'mp-notice-undo'
+            }).addEventListener('click', () => void settle('keep'))
+            f.createEl('button', {
+                text: t('plugin.surplus.drop'),
+                cls: 'mp-notice-undo'
+            }).addEventListener('click', () => void settle('drop'))
         })
         // Stays until answered (or the log is undone): nothing changes without the user's choice.
         this.surplusNotice?.hide()
@@ -2485,7 +2492,10 @@ export class MusicPracticePlugin extends Plugin {
     private noticeWithUndo(message: string, record: UndoRecord): void {
         const fragment = createFragment((f) => {
             f.createSpan({ text: `${message} ` })
-            const button = f.createEl('button', { text: 'Undo', cls: 'mp-notice-undo' })
+            const button = f.createEl('button', {
+                text: t('plugin.log.undo'),
+                cls: 'mp-notice-undo'
+            })
             button.addEventListener('click', () => {
                 notice.hide()
                 void this.undoLastLog(record)
@@ -2499,9 +2509,7 @@ export class MusicPracticePlugin extends Plugin {
         const record = this.settings.lastLog
         // A notice's Undo undoes its own log only, never a later one.
         if (!record || (expected && expected.at !== record.at)) {
-            const reason = record
-                ? 'Another log was written since: use Undo last practice log for that one.'
-                : 'There is no practice log to undo.'
+            const reason = record ? t('plugin.undo.anotherLog') : t('plugin.undo.nothing')
             new Notice(reason)
             return { ok: false, reason }
         }
@@ -2517,14 +2525,18 @@ export class MusicPracticePlugin extends Plugin {
         this.surplusNotice = null
         const choice = record.activityChoice
         const kept = choice
-            ? ` ${choice.path.substring(choice.path.lastIndexOf('/') + 1).replace(/\.md$/, '')} ${choice.kind === 'created' ? 'stays (you created it)' : 'keeps the session type in its session types'}.`
+            ? ` ${t(
+                  choice.kind === 'created'
+                      ? 'plugin.undo.activityStays'
+                      : 'plugin.undo.activityKeeps',
+                  {
+                      name: choice.path
+                          .substring(choice.path.lastIndexOf('/') + 1)
+                          .replace(/\.md$/, '')
+                  }
+              )}`
             : ''
-        new Notice(
-            (result.keptKapEntry
-                ? "Practice log undone. The Kanban Action Planner timer's time entry is on the activity again."
-                : 'Practice log undone: the notes are back as they were and the session note is in the trash.') +
-                kept
-        )
+        new Notice((result.keptKapEntry ? t('plugin.undo.doneKap') : t('plugin.undo.done')) + kept)
         return result
     }
 
@@ -2548,21 +2560,19 @@ export class MusicPracticePlugin extends Plugin {
         el.toggleClass('mp-timer-stale', stale !== null)
         el.setText(
             stale
-                ? `${timer.pausedAt ? '⏸' : '♪'} ${formatDuration(timerAge(timer, now))}: forgotten?`
+                ? `${timer.pausedAt ? '⏸' : '♪'} ${t('plugin.timer.forgotten', { duration: formatDuration(timerAge(timer, now)) })}`
                 : `${timer.pausedAt ? '⏸' : '♪'} ${formatElapsed(timerElapsed(timer, now))}`
         )
         el.setAttr(
             'aria-label',
-            stale
-                ? `${stale} Click to log it; right-click to discard it.`
-                : 'Stop the practice timer and log the session (right-click to discard it)'
+            stale ? t('plugin.timer.staleLabel', { stale }) : t('plugin.statusBar.stopTimerDiscard')
         )
     }
 
     /** Open Log practice (once: a second call while it is open does nothing). */
     openLogPractice(preset: LogPracticePreset = {}): void {
         if (this.logModal) {
-            new Notice('Log practice is already open.')
+            new Notice(t('plugin.log.alreadyOpen'))
             return
         }
         const model = this.ensureModel()
@@ -2589,14 +2599,13 @@ export class MusicPracticePlugin extends Plugin {
                     const result = await this.practiceLog.log(request, options)
                     for (const warning of result.warnings) new Notice(warning)
                     if (result.createdActivity)
-                        new Notice(`Activity created: ${result.createdActivity}`)
-                    if (result.reused)
                         new Notice(
-                            'Already logged: the session note of that log was used again, nothing counted twice. Undo last practice log still undoes the first log.'
+                            t('plugin.log.activityCreated', { name: result.createdActivity })
                         )
+                    if (result.reused) new Notice(t('plugin.log.alreadyLogged'))
                     else
                         this.noticeWithUndo(
-                            `Practice logged: ${result.items.length} item(s).`,
+                            tn('plugin.log.logged', result.items.length),
                             result.undo
                         )
                     const decision = result.activity?.decision
@@ -2609,9 +2618,7 @@ export class MusicPracticePlugin extends Plugin {
                     if (result.activity && decision)
                         this.askActivitySurplus(result.activity.path, decision, record)
                     if (result.activity?.result === 'missing')
-                        new Notice(
-                            'The Kanban Action Planner timer was stopped but its time entry did not appear in time. If it appears on the activity, delete it: the session note holds that time.'
-                        )
+                        new Notice(t('plugin.log.kapMissing'))
                     return result.sessionPath
                         .substring(result.sessionPath.lastIndexOf('/') + 1)
                         .replace(/\.md$/, '')
@@ -2632,8 +2639,8 @@ export class MusicPracticePlugin extends Plugin {
         if (model.learningTypes.length === 0)
             new Notice(
                 this.noteModel.source === 'starter-kit'
-                    ? 'No learning note types in the Obsidian Starter Kit: a learning type has a status on the mastery scale and a "last practiced" property.'
-                    : 'No learning notes yet. Tag a note type/<domain>/<subject>/<kind> (for example type/music/guitar/chord) and give it a mastery level.'
+                    ? t('plugin.model.noneStarterKit')
+                    : t('plugin.model.noneLocal')
             )
         return model
     }
@@ -2656,7 +2663,7 @@ export class MusicPracticePlugin extends Plugin {
             const defaults = createDefaultSettings()
             settings.rules = defaults.rules
             settings.fields = defaults.fields
-            this.loadProblem = `${problem} The rules and property names were reset to their defaults.`
+            this.loadProblem = t('plugin.loadProblem.reset', { problem })
         }
         this.settings = produce(settings, () => {})
         log(`Settings loaded`, 'debug', loaded)
