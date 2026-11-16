@@ -12,6 +12,7 @@ import { formatFingers, formatFrets } from '../domain/notation-note'
 import { STRING_SETS, stringsOf, type StringSet } from '../domain/triads'
 import { titleShown } from '../domain/note-names'
 import { alignGrid, selectCell, voicingCell } from './voicing-cell'
+import { t, tn } from '../i18n/i18n'
 
 /** A triad picked in the modal. */
 export interface TriadPick {
@@ -58,7 +59,7 @@ export class TriadsModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle('Triads')
+        this.setTitle(t('tools.triads.title'))
         this.modalEl.addClass('mp-voicings-modal')
         const el = this.contentEl
         el.addClass('mp-modal')
@@ -81,10 +82,10 @@ export class TriadsModal extends Modal {
             return s
         }
         select(
-            'Of a',
+            t('tools.triads.ofA'),
             [
-                ['chord', 'Chord'],
-                ['key', 'Key']
+                ['chord', t('tools.triads.chord')],
+                ['key', t('tools.triads.key')]
             ],
             this.mode,
             (v) => {
@@ -93,7 +94,7 @@ export class TriadsModal extends Modal {
                 if (this.inversionEl) this.inversionEl.value = String(this.inversion)
             }
         )
-        const field = row.createEl('label', { cls: 'mp-field', text: 'Chord or key' })
+        const field = row.createEl('label', { cls: 'mp-field', text: t('tools.triads.chordOrKey') })
         const input = field.createEl('input', { type: 'text', attr: { placeholder: 'G' } })
         input.value = this.text
         input.addEventListener('input', () => {
@@ -102,18 +103,18 @@ export class TriadsModal extends Modal {
             this.refresh()
         })
         select(
-            'Strings',
+            t('tools.triads.strings'),
             STRING_SETS.map((s) => [s, s]),
             this.set,
             (v) => (this.set = STRING_SETS.find((s) => s === v) ?? '1-3')
         )
         this.inversionEl = select(
-            'Inversion',
+            t('tools.triads.inversion'),
             [
-                ['any', 'All'],
-                ['0', 'Root position'],
-                ['1', '1st inversion'],
-                ['2', '2nd inversion']
+                ['any', t('tools.triads.all')],
+                ['0', t('tools.triads.rootPosition')],
+                ['1', t('tools.triads.firstInversion')],
+                ['2', t('tools.triads.secondInversion')]
             ],
             String(this.inversion),
             (v) => {
@@ -131,29 +132,32 @@ export class TriadsModal extends Modal {
     /** The triads to show, with the chord each one plays and its title. */
     private triads(): { symbol: string; title: string; triad: Triad }[] | string {
         const text = this.text.trim()
-        if (!text) return 'Type a chord (G, A Minor) or a key (G major).'
+        if (!text) return t('tools.triads.typeChordOrKey')
         const strings = stringsOf(this.set)
         if (this.mode === 'key') {
-            if (!parseKey(text)) return 'Type a key: G major, E minor.'
+            if (!parseKey(text)) return t('tools.triads.typeKey')
             const inversion = this.inversion === 'any' ? 0 : this.inversion
             const list = keyTriads(text, { strings, inversion })
-            if (!list?.length) return 'No triads for this key on these strings.'
-            return list.map((t) => ({
-                symbol: t.symbol,
-                title: `${t.numeral} · ${t.symbol}`,
-                triad: t.triad
+            if (!list?.length) return t('tools.triads.noneForKey')
+            return list.map((k) => ({
+                symbol: k.symbol,
+                title: `${k.numeral} · ${k.symbol}`,
+                triad: k.triad
             }))
         }
         const chord = readChord(text)
-        if (!chord) return `"${text}" isn't a chord the library knows.`
+        if (!chord) return t('tools.triads.notChord', { text })
         const list = triadVoicings(chord.symbol, { strings, inversion: this.inversion })
-        if (!list.length)
-            return `${chord.symbol} has no triads here: it needs three notes (G, Am, Bdim, Caug, Dsus4).`
-        const names = ['root position', '1st inversion', '2nd inversion']
-        return list.map((t) => ({
+        if (!list.length) return t('tools.triads.noTriads', { symbol: chord.symbol })
+        const names = [
+            t('tools.triads.nameRoot'),
+            t('tools.triads.nameFirst'),
+            t('tools.triads.nameSecond')
+        ]
+        return list.map((triad) => ({
             symbol: chord.symbol,
-            title: `${chord.symbol}, ${names[t.inversion]}`,
-            triad: t
+            title: `${chord.symbol}, ${names[triad.inversion]}`,
+            triad
         }))
     }
 
@@ -170,15 +174,13 @@ export class TriadsModal extends Modal {
             this.renderActions()
             return
         }
-        info.setText(
-            `${triads.length} triads on strings ${this.set}, up the neck. Dots show R, 3, 5.`
-        )
-        for (const t of triads) {
-            const pick: TriadPick = { symbol: t.symbol, triad: t.triad, set: this.set }
+        info.setText(tn('tools.triads.count', triads.length, { set: this.set }))
+        for (const item of triads) {
+            const pick: TriadPick = { symbol: item.symbol, triad: item.triad, set: this.set }
             const button = voicingCell(
                 grid,
                 '',
-                `${t.title}: ${formatFrets(t.triad.frets)}`,
+                `${item.title}: ${formatFrets(item.triad.frets)}`,
                 false,
                 (cell) => {
                     this.selected = pick
@@ -187,11 +189,11 @@ export class TriadsModal extends Modal {
                 }
             )
             const source = [
-                `symbol: ${t.symbol}`,
-                `frets: ${formatFrets(t.triad.frets)}`,
-                `fingers: ${formatFingers(t.triad)}`,
+                `symbol: ${item.symbol}`,
+                `frets: ${formatFrets(item.triad.frets)}`,
+                `fingers: ${formatFingers(item.triad)}`,
                 'labels: intervals',
-                `title: ${titleShown(t.title, this.options.renderOptions().naming)}`
+                `title: ${titleShown(item.title, this.options.renderOptions().naming)}`
             ].join('\n')
             this.diagrams.push(renderBlock('chord', source, button, this.options.renderOptions()))
         }
@@ -203,10 +205,13 @@ export class TriadsModal extends Modal {
         const el = this.actionsEl
         if (!el) return
         el.empty()
-        el.createEl('button', { text: 'Close' }).addEventListener('click', () => this.close())
+        el.createEl('button', { text: t('common.close') }).addEventListener('click', () =>
+            this.close()
+        )
         if (this.options.metronome)
-            el.createEl('button', { text: 'Metronome' }).addEventListener('click', () =>
-                this.options.metronome?.()
+            el.createEl('button', { text: t('tools.triads.metronome') }).addEventListener(
+                'click',
+                () => this.options.metronome?.()
             )
         const pick = this.selected
         const action = (text: string, run: (p: TriadPick) => Promise<void> | void) => {
@@ -226,8 +231,8 @@ export class TriadsModal extends Modal {
                     })
             })
         }
-        if (this.options.pick) action('Use this triad', (p) => this.options.pick!(p))
-        else if (this.options.add) action('Add as note', (p) => this.options.add!(p))
+        if (this.options.pick) action(t('tools.triads.useThis'), (p) => this.options.pick!(p))
+        else if (this.options.add) action(t('tools.triads.addAsNote'), (p) => this.options.add!(p))
     }
 
     override onClose(): void {

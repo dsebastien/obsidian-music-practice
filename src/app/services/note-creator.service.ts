@@ -47,6 +47,7 @@ const EMPTY_ITEM: LearningItem = {
     score: 0
 }
 import type { ItemRepository } from './item-repository'
+import { t } from '../i18n/i18n'
 
 export interface NewLearningNote {
     title: string
@@ -114,7 +115,7 @@ export class NoteCreatorService {
         const path = this.pathFor(type, spec.title)
         const folder = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
         if (this.app.vault.getAbstractFileByPath(path))
-            throw new Error(`"${spec.title}" already exists.`)
+            throw new Error(t('notes.create.exists', { title: spec.title }))
         if (folder && !this.app.vault.getAbstractFileByPath(folder))
             await this.app.vault.createFolder(folder)
 

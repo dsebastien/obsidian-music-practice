@@ -18,7 +18,7 @@ export const stringsOf = (set: StringSet): number[] => {
 export const triadDetail = (set: StringSet, inversion: number): string =>
     `(strings ${set}, ${inversionName(inversion)})`
 
-/** The note title: "G Major - Triad (strings 1-3, 1st inversion)". */
+/** The note's name, in English in every language: "G Major - Triad (strings 1-3, 1st inversion)". */
 export const triadTitle = (
     chordName: string,
     shape: string,

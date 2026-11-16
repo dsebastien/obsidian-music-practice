@@ -15,6 +15,7 @@ import {
     voicingNoteTitle
 } from '../domain/voicings'
 import type { NoteCreatorService } from './note-creator.service'
+import { t } from '../i18n/i18n'
 
 /** What the service needs from Obsidian. */
 export interface VoicingNotesHost {
@@ -104,19 +105,23 @@ export class VoicingNotesService {
         as?: { title: string; shape: string | null; prerequisite: string | null }
     ): Promise<AddedVoicing> {
         const chord = readChord(symbol)
-        if (!chord) throw new Error(`Unknown chord "${symbol}".`)
+        if (!chord) throw new Error(t('notes.voicing.unknownChord', { symbol }))
         if (!this.holdsVoicings(type))
-            throw new Error(`${type.name} notes have no "${this.fields().frets}" property.`)
+            throw new Error(
+                t('notes.voicing.noFrets', { type: type.name, property: this.fields().frets })
+            )
         const existing = this.noteWith(type, voicing, chord.symbol)
         if (existing) return { file: existing, existed: true }
         const shape = as ? as.shape : this.shapeFor(type, voicing)
         const title = voicingNoteTitle(
             safeTitle(as?.title ?? chordTitle(chord, shape ?? undefined)),
             voicing,
-            (t) => this.creator.exists(type, t)
+            (candidate) => this.creator.exists(type, candidate)
         )
         if (!title)
-            throw new Error(`${chordTitle(chord, shape ?? undefined)} already has a note there.`)
+            throw new Error(
+                t('notes.voicing.alreadyNote', { title: chordTitle(chord, shape ?? undefined) })
+            )
         const file = await this.creator.create(type, {
             title,
             chordSymbol: chord.symbol,
@@ -159,7 +164,7 @@ export class VoicingNotesService {
     async use(file: TFile, type: LearningType, voicing: GeneratedVoicing): Promise<void> {
         const fields = this.fields()
         if (!this.holdsVoicings(type))
-            throw new Error(`${type.name} notes have no "${fields.frets}" property.`)
+            throw new Error(t('notes.voicing.noFrets', { type: type.name, property: fields.frets }))
         const shape = this.shapeFor(type, voicing)
         await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
             const put = (name: string, value: unknown) => {

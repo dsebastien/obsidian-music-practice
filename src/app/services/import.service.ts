@@ -14,6 +14,7 @@ import {
 import type { NoteSection } from '../domain/block-placement'
 import { safeTitle } from '../domain/chord'
 import type { AlphaTabRuntime } from './alphatab.service'
+import { t } from '../i18n/i18n'
 
 /** Score files alphaTab reads; ChordPro files become chord charts. */
 export const SCORE_EXTENSIONS = [
@@ -143,7 +144,7 @@ export function decodeText(bytes: Uint8Array): string {
     if (utf8 !== null && bytes.some((b) => b >= 0x80)) return utf8
     const windows = new TextDecoder('windows-1252').decode(bytes)
     if (readable(windows)) return windows
-    throw new Error("its text can't be read (it isn't UTF-8, UTF-16 or Windows-1252 text).")
+    throw new Error(t('notes.import.unreadable'))
 }
 
 /**
@@ -288,7 +289,7 @@ export class ImportService {
      */
     async prepareScore(file: File): Promise<PreparedScore> {
         if (!SCORE_EXTENSIONS.includes(extensionOf(file.name)))
-            throw new Error(`"${file.name}" isn't a score file this can read.`)
+            throw new Error(t('notes.import.notScore', { name: file.name }))
         const bytes = new Uint8Array(await file.arrayBuffer())
         const alphaTab = await this.runtime.module(window)
         const score = alphaTab.importer.ScoreLoader.loadScoreFromBytes(bytes)

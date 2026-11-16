@@ -12,6 +12,7 @@ import { formatFingers, formatFrets } from '../domain/notation-note'
 import { sameFrets } from '../domain/voicings'
 import { titleShown } from '../domain/note-names'
 import { alignGrid, selectCell, voicingCell } from './voicing-cell'
+import { t, tn } from '../i18n/i18n'
 
 /** A chord note as a transition sees it. */
 export interface HeldChord {
@@ -77,7 +78,7 @@ export class TransitionModal extends Modal {
         this.selected = null
         const el = this.contentEl
         el.empty()
-        this.setTitle(`Easiest way: ${this.from.name} → ${this.to.name}`)
+        this.setTitle(t('tools.transition.title', { from: this.from.name, to: this.to.name }))
         // A note without frets starts from the chord's easiest voicing.
         const heldFrets = this.from.frets ?? generateVoicings(this.from.symbol)[0]?.frets ?? null
         const steps = heldFrets ? transition(heldFrets, this.to.symbol) : []
@@ -89,8 +90,8 @@ export class TransitionModal extends Modal {
         el.createDiv({
             cls: 'mp-muted',
             text: heldFrets
-                ? 'Fingers that stay have a ring, fingers that slide a dashed ring. The easiest first.'
-                : `${this.from.name} has no frets to start from.`
+                ? t('tools.transition.help')
+                : t('tools.transition.noFrets', { name: this.from.name })
         })
         const grid = el.createDiv({ cls: 'mp-voicing-row mp-voicing-grid mp-transition-grid' })
         if (heldFrets) {
@@ -101,7 +102,7 @@ export class TransitionModal extends Modal {
                     source(
                         this.from.symbol,
                         titleShown(
-                            `${this.from.symbol}, held`,
+                            t('tools.transition.held', { symbol: this.from.symbol }),
                             this.options.renderOptions().naming
                         ),
                         {
@@ -116,7 +117,9 @@ export class TransitionModal extends Modal {
         }
         top.forEach((step, i) => {
             const isOwn = own !== null && sameFrets(step.voicing.frets, own)
-            const title = isOwn ? `${this.to.symbol}, this note` : `${this.to.symbol}, ${i + 1}`
+            const title = isOwn
+                ? t('tools.transition.thisNote', { symbol: this.to.symbol })
+                : `${this.to.symbol}, ${i + 1}`
             const cell = voicingCell(
                 grid,
                 isOwn ? 'is-current' : '',
@@ -152,15 +155,20 @@ export class TransitionModal extends Modal {
 
     private renderActions(el: HTMLElement): void {
         el.empty()
-        el.createEl('button', { text: 'Close' }).addEventListener('click', () => this.close())
-        el.createEl('button', { text: 'Other way round' }).addEventListener('click', () => {
-            ;[this.from, this.to] = [this.to, this.from]
-            this.render()
-        })
+        el.createEl('button', { text: t('common.close') }).addEventListener('click', () =>
+            this.close()
+        )
+        el.createEl('button', { text: t('tools.transition.reverse') }).addEventListener(
+            'click',
+            () => {
+                ;[this.from, this.to] = [this.to, this.from]
+                this.render()
+            }
+        )
         if (!this.options.add) return
         const own = this.to.frets
         const voicing = this.selected
-        const add = el.createEl('button', { text: 'Add as note', cls: 'mod-cta' })
+        const add = el.createEl('button', { text: t('tools.transition.addAsNote'), cls: 'mod-cta' })
         add.disabled = !voicing || this.busy || (own !== null && sameFrets(voicing.frets, own))
         add.addEventListener('click', () => {
             if (!voicing) return
@@ -204,18 +212,18 @@ export class ProgressionModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle('Smooth this progression')
+        this.setTitle(t('tools.progression.title'))
         this.modalEl.addClass('mp-voicings-modal')
         const el = this.contentEl
         el.addClass('mp-modal')
         const steps = smoothProgression(this.chords)
         if (!steps.length) {
-            el.createDiv({ cls: 'mp-muted', text: 'No playable voicings for these chords.' })
+            el.createDiv({ cls: 'mp-muted', text: t('tools.progression.none') })
             return
         }
         el.createDiv({
             cls: 'mp-muted',
-            text: `${this.chords.join(' → ')}: the voicings that make the whole progression easiest. Fingers that stay have a ring, fingers that slide a dashed ring.`
+            text: t('tools.progression.help', { chords: this.chords.join(' → ') })
         })
         const grid = el.createDiv({ cls: 'mp-voicing-row mp-voicing-grid mp-transition-grid' })
         const missing: { voicing: GeneratedVoicing; symbol: string }[] = []
@@ -245,18 +253,22 @@ export class ProgressionModal extends Modal {
             )
             cell.createDiv({
                 cls: 'mp-muted mp-tip-note',
-                text: note ? `In your notes: ${note}` : 'Not in your notes yet'
+                text: note
+                    ? t('tools.progression.inNotes', { note })
+                    : t('tools.progression.notYet')
             })
             const tips = cell.createEl('ul', { cls: 'mp-tips' })
             for (const tip of step.tips ?? []) tips.createEl('li', { text: tip })
         }
         alignGrid(grid)
         const actions = el.createDiv({ cls: 'mp-actions' })
-        actions.createEl('button', { text: 'Close' }).addEventListener('click', () => this.close())
+        actions
+            .createEl('button', { text: t('common.close') })
+            .addEventListener('click', () => this.close())
         if (this.options.add && missing.length) {
             const add = actions.createEl('button', {
                 cls: 'mod-cta',
-                text: `Add ${missing.length} missing voicing${missing.length === 1 ? '' : 's'} as notes`
+                text: tn('tools.progression.addMissing', missing.length)
             })
             add.addEventListener('click', () => {
                 add.disabled = true

@@ -1,5 +1,6 @@
 import { Modal, SuggestModal } from 'obsidian'
 import type { App } from 'obsidian'
+import { t } from '../i18n/i18n'
 
 /**
  * Paste a text tab or a chord sheet (#19): converted to a ```tab or ```chords block, previewed as
@@ -17,27 +18,26 @@ export class PasteImportModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle(this.kind === 'tab' ? 'Import a text tab' : 'Import a chord sheet')
+        this.setTitle(
+            this.kind === 'tab' ? t('tools.import.tabTitle') : t('tools.import.sheetTitle')
+        )
         const el = this.contentEl
         el.addClass('mp-modal')
         el.createEl('p', {
             cls: 'mp-muted',
-            text:
-                this.kind === 'tab'
-                    ? 'Paste a tab (lines of dashes and frets, one per string). It becomes a tab block you can play. Text tabs have no exact rhythm, so the rhythm comes from the spacing.'
-                    : 'Paste a chord sheet (chords on their own line above the lyrics). It becomes a chord chart you can transpose.'
+            text: this.kind === 'tab' ? t('tools.import.tabHelp') : t('tools.import.sheetHelp')
         })
         const input = el.createEl('textarea', { cls: 'mp-import-text', attr: { rows: '12' } })
         const preview = el.createEl('pre', { cls: 'mp-import-preview' })
         const actions = el.createDiv({ cls: 'mp-actions' })
-        actions.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close())
-        const go = actions.createEl('button', { cls: 'mod-cta', text: 'Insert' })
+        actions
+            .createEl('button', { text: t('common.cancel') })
+            .addEventListener('click', () => this.close())
+        const go = actions.createEl('button', { cls: 'mod-cta', text: t('tools.import.insert') })
         let block: string | null = null
         const update = () => {
             block = input.value.trim() ? this.convert(input.value) : null
-            preview.setText(
-                block ?? (input.value.trim() ? 'Nothing in this text could be converted.' : '')
-            )
+            preview.setText(block ?? (input.value.trim() ? t('tools.import.nothing') : ''))
             go.disabled = block === null
         }
         input.addEventListener('input', update)
@@ -69,7 +69,7 @@ export class ScoreImportModeModal extends SuggestModal<ScoreImportMode> {
         private readonly onChoose: (mode: ScoreImportMode) => void
     ) {
         super(app)
-        this.setPlaceholder('How should the score go into the note?')
+        this.setPlaceholder(t('tools.import.modePlaceholder'))
     }
 
     override getSuggestions(): ScoreImportMode[] {
@@ -77,13 +77,13 @@ export class ScoreImportModeModal extends SuggestModal<ScoreImportMode> {
     }
 
     override renderSuggestion(mode: ScoreImportMode, el: HTMLElement): void {
-        el.createDiv({ text: mode === 'link' ? 'Link to the file' : 'Inline alphaTex' })
+        el.createDiv({
+            text: mode === 'link' ? t('tools.import.modeLink') : t('tools.import.modeInline')
+        })
         el.createEl('small', {
             cls: 'mp-muted',
             text:
-                mode === 'link'
-                    ? 'The file goes to your attachments folder; nothing is lost.'
-                    : 'The music as text in the note, which you can edit; some details of the file may be lost.'
+                mode === 'link' ? t('tools.import.modeLinkHelp') : t('tools.import.modeInlineHelp')
         })
     }
 
