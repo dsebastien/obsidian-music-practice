@@ -597,7 +597,14 @@ export class MusicPracticePlugin extends Plugin {
                 decorate: (result, sourcePath) => this.decorateScore(result, sourcePath),
                 convert: (request) => void this.textTabs.convertBlock(request),
                 keepView: (request, staves) => void this.textTabs.keepView(request, staves),
-                volume: () => volumeOf(this.settings.playback)
+                volume: () => volumeOf(this.settings.playback),
+                tempoUnit: () => this.settings.playback.tempoUnit,
+                saveTempoUnit: (unit) => {
+                    if (this.settings.playback.tempoUnit === unit) return
+                    void this.updateSettings((draft) => {
+                        draft.playback.tempoUnit = unit
+                    })
+                }
             },
             (path, language) => this.practiceBlock(path, language),
             (path) => this.saveBpmBars(path),

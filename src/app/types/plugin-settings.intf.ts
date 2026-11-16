@@ -11,7 +11,12 @@ import { parseImageFolder } from '../domain/diagram-images'
 import { ORIENTATIONS } from '../domain/notation-layout'
 import type { NotationLayout } from '../domain/notation-layout'
 import type { NotationToggles } from '../services/notation.service'
-import { createDefaultPlayback, DEFAULT_STRUM, OLD_DEFAULT_STRUM } from '../domain/playback'
+import {
+    createDefaultPlayback,
+    DEFAULT_STRUM,
+    OLD_DEFAULT_STRUM,
+    TEMPO_UNITS
+} from '../domain/playback'
 import type { PlaybackSettings } from '../domain/playback'
 import { isUndoRecord } from '../domain/undo'
 import { createDefaultMetronomeSettings, MAX_COUNT_IN_BARS } from '../domain/metronome'
@@ -242,6 +247,8 @@ export function settingsFrom(loaded: unknown): PluginSettings {
     // The strum stored by versions before 0.10 (40 ms) was their default: the new default lets
     // guitar chords strum at 12 ms and piano chords sound together.
     if (settings.playback.strum === OLD_DEFAULT_STRUM) settings.playback.strum = DEFAULT_STRUM
+    // The tab tempo's unit (music-notation #114): anything but the known units is BPM.
+    if (!TEMPO_UNITS.includes(settings.playback.tempoUnit)) settings.playback.tempoUnit = 'bpm'
     // An undo record edited by hand or from an older version: nothing to undo.
     if (!isUndoRecord(settings.lastLog)) settings.lastLog = null
     // Orientations are text: anything but the known values falls back to the default.

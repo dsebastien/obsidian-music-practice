@@ -13,6 +13,7 @@ import type { Staves, TabResult } from '@dsebastien/music-notation/tab'
 import type { PlayOptions } from '@dsebastien/music-notation'
 import type { AlphaTabRuntime, AlphaTabWindow } from './alphatab.service'
 import type { RenderDefaults } from '../domain/notation-layout'
+import type { TempoUnit } from '../domain/playback'
 import { textTabView } from '../ui/text-tab-view'
 import type { TextTabView } from '../ui/text-tab-view'
 
@@ -42,6 +43,10 @@ export interface TabHost {
      * volume of its own since music-notation 0.18 (#82); a change is heard at once (#85).
      */
     volume?: () => number
+    /** Settings → Playback → Tab tempo (music-notation #114): the unit a bar shows first. */
+    tempoUnit?: () => TempoUnit
+    /** The reader switched the unit on a bar: saved for the next scores. */
+    saveTempoUnit?: (unit: TempoUnit) => void
 }
 
 /** What a block's actions (Edit as alphaTex, Keep this view) know about it. */
@@ -248,6 +253,8 @@ class TabChild extends MarkdownRenderChild {
                     assets: this.host.runtime.assets(win),
                     resolveFile: (link) => this.host.resolveFile(link, this.sourcePath),
                     ...(this.host.volume ? { volume: this.host.volume } : {}),
+                    ...(this.host.tempoUnit ? { tempoUnit: this.host.tempoUnit() } : {}),
+                    ...(this.host.saveTempoUnit ? { onTempoUnit: this.host.saveTempoUnit } : {}),
                     // Text tabs show tablature unless a staves: line says otherwise (#84).
                     ...(this.textTab ? { defaultStaves: 'tab' as const } : {}),
                     ...(keep ? { onKeepView: (staves: Staves) => keep(staves) } : {})

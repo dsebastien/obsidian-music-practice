@@ -97,7 +97,16 @@ export const propertyNamesOf = (fields: FieldNames): Partial<PropertyNames> => (
     scaleRoot: fields.scaleRoot,
     scaleType: fields.scaleType,
     shape: fields.shape,
-    fingeringRight: fields.fingeringRight
+    fingeringRight: fields.fingeringRight,
+    // A chord from its root and quality when a note has no symbol (music-notation #132), and the
+    // patterns' own properties: renamed in the settings, they reach the library too.
+    chordRoot: fields.chordRoot,
+    chordQuality: fields.chordQuality,
+    strumPattern: fields.strumPattern,
+    timeSignature: fields.timeSignature,
+    strumFeel: fields.strumFeel,
+    bpmCurrent: fields.bpmCurrent,
+    pickingPattern: fields.pickingPattern
 })
 
 /**
