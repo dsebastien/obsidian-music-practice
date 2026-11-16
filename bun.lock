@@ -6,7 +6,7 @@
       "name": "obsidian-life-tracker-base-view-plugin",
       "dependencies": {
         "@coderline/alphatab": "1.9.0",
-        "@dsebastien/music-notation": "0.20.0",
+        "@dsebastien/music-notation": "0.21.0",
         "immer": "11.2.9",
         "zod": "4.6.7",
       },
@@ -99,7 +99,7 @@
 
     "@conventional-changelog/git-client": ["@conventional-changelog/git-client@2.7.0", "", { "dependencies": { "@simple-libs/child-process-utils": "^1.0.0", "@simple-libs/stream-utils": "^1.2.0", "semver": "^7.5.2" }, "peerDependencies": { "conventional-commits-filter": "^5.0.0", "conventional-commits-parser": "^6.4.0" }, "optionalPeers": ["conventional-commits-filter", "conventional-commits-parser"] }, "sha512-j7A8/LBEQ+3rugMzPXoKYzyUPpw/0CBQCyvtTR7Lmu4olG4yRC/Tfkq79Mr3yuPs0SUitlO2HwGP3gitMJnRFw=="],
 
-    "@dsebastien/music-notation": ["@dsebastien/music-notation@0.20.0", "", { "dependencies": { "tonal": "6.5.1" }, "peerDependencies": { "@coderline/alphatab": "^1.9.0", "@dsebastien/music-notation-sounds": "^0.1.1" }, "optionalPeers": ["@coderline/alphatab", "@dsebastien/music-notation-sounds"], "bin": { "music-notation": "dist/cli.js" } }, "sha512-Wcz/xlRhPhObjYFyY/PCr8e4NXVLhe+Wz3FcP5oG99Av7zAJQgPM5twBKsLX5DmKklVdmAYYyDb1oK7b3yqogA=="],
+    "@dsebastien/music-notation": ["@dsebastien/music-notation@0.21.0", "", { "dependencies": { "tonal": "6.5.1" }, "peerDependencies": { "@coderline/alphatab": "^1.9.0", "@dsebastien/music-notation-sounds": "^0.1.1" }, "optionalPeers": ["@coderline/alphatab", "@dsebastien/music-notation-sounds"], "bin": { "music-notation": "dist/cli.js" } }, "sha512-ZHC7ptB7hSQtgRIUMXrw4UwM6RGLoehLMdQqgBTznjM9bEwQCntFWCVHh0enl487UzF797pi9zuE+j7wP9yxmQ=="],
 
     "@eslint-community/eslint-plugin-eslint-comments": ["@eslint-community/eslint-plugin-eslint-comments@4.8.1", "", { "dependencies": { "escape-string-regexp": "^4.0.0", "ignore": "^7.0.5" }, "peerDependencies": { "eslint": "^6.0.0 || ^7.0.0 || ^8.0.0 || ^9.0.0 || ^10.0.0" } }, "sha512-vafrdi15JHBFh1qWOAucyJwlEEuhdoMof28jOdKdgnwZ7bXwd6v4wzHYSmAVLwnx0yc7bqAtfJ0EZQV1WAzV/Q=="],
 
