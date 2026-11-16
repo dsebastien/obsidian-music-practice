@@ -25,9 +25,13 @@ type Placeholders<S extends string> = S extends `${string}{${infer P}}${infer Re
 
 export type MessageParams = Record<string, string | number>
 
-type ParamsArgs<K extends MessageKey> = [Placeholders<English[K]>] extends [never]
+// A key typed as the whole `MessageKey` (a lookup in a typed map) takes optional params; a
+// literal key must be given exactly the placeholders its English text names.
+type ParamsArgs<K extends MessageKey> = MessageKey extends K
     ? [params?: MessageParams]
-    : [params: Record<Placeholders<English[K]>, string | number>]
+    : [Placeholders<English[K]>] extends [never]
+      ? [params?: MessageParams]
+      : [params: Record<Placeholders<English[K]>, string | number>]
 
 /** Keys `x.one` that also have `x.other`: what `tn` takes. */
 export type PluralKey = {
