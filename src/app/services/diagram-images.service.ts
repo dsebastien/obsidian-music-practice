@@ -4,6 +4,7 @@
  * after the block.
  */
 import { Menu, Notice } from 'obsidian'
+import { t } from '../i18n/i18n'
 import type { App, TFile } from 'obsidian'
 import { toPng, toSvgString } from '@dsebastien/music-notation'
 import {
@@ -71,7 +72,7 @@ export class DiagramImages {
             for (const format of FORMATS) {
                 menu.addItem((item) =>
                     item
-                        .setTitle(`Save diagram as ${format.toUpperCase()}`)
+                        .setTitle(t('notation.image.saveDiagram', { format: format.toUpperCase() }))
                         .setIcon('image')
                         .onClick(() => void this.save(diagramImage(drawing), what, format, request))
                 )
@@ -82,7 +83,7 @@ export class DiagramImages {
             for (const format of FORMATS) {
                 menu.addItem((item) =>
                     item
-                        .setTitle(`Save block as ${format.toUpperCase()}`)
+                        .setTitle(t('notation.image.saveBlock', { format: format.toUpperCase() }))
                         .setIcon('image')
                         .onClick(() => void this.save(block, what, format, request))
                 )
@@ -122,19 +123,21 @@ export class DiagramImages {
                     : await vault.createBinary(path, data)
         } catch (error) {
             new Notice(
-                `Couldn't save the image: ${error instanceof Error ? error.message : String(error)}`
+                t('notation.image.failed', {
+                    error: error instanceof Error ? error.message : String(error)
+                })
             )
             return
         }
         if (!settings.embed) {
-            new Notice(`Saved ${file.path}`)
+            new Notice(t('notation.image.saved', { path: file.path }))
             return
         }
         const added = await this.embed(file, request)
         new Notice(
             added
-                ? `Saved ${file.path} and linked it after the block.`
-                : `Saved ${file.path}. The link wasn't added: the block isn't where it was drawn (edit the note, then save again), or this isn't a note.`
+                ? t('notation.image.savedLinked', { path: file.path })
+                : t('notation.image.savedNotLinked', { path: file.path })
         )
     }
 
@@ -146,7 +149,8 @@ export class DiagramImages {
             const path = parts.slice(0, i).join('/')
             const found = vault.getAbstractFileByPath(path)
             if (!found) await vault.createFolder(path)
-            else if (!('children' in found)) throw new Error(`"${path}" is a file, not a folder.`)
+            else if (!('children' in found))
+                throw new Error(t('notation.image.folderIsFile', { path }))
         }
         const base = name.slice(0, -(format.length + 1))
         return numberedPath(folder, base, format, (p) => vault.getAbstractFileByPath(p) !== null)

@@ -1,3 +1,4 @@
+import { t } from '../i18n/i18n'
 import { DEFAULT_SETTINGS } from '../types/plugin-settings.intf'
 import type { PluginSettings } from '../types/plugin-settings.intf'
 import { NAMINGS, ROOT_MARKS } from '@dsebastien/music-notation'
@@ -99,8 +100,11 @@ const OPTIONAL_TEXT =
 /** Values in words: "a or b", "a, b or c". */
 const inWords = (values: readonly string[]): string =>
     values.length < 3
-        ? values.join(' or ')
-        : `${values.slice(0, -1).join(', ')} or ${values.at(-1)}`
+        ? t('settings.words.or2', { a: values[0] ?? '', b: values[1] ?? '' })
+        : t('settings.words.orMore', {
+              list: values.slice(0, -1).join(', '),
+              last: values.at(-1) ?? ''
+          })
 
 /** Text settings limited to a few values (dropdowns). */
 const CHOICES: Record<string, readonly string[]> = {
@@ -115,31 +119,32 @@ const CHOICES: Record<string, readonly string[]> = {
 /** Parse a control value by the type of the default at its path. */
 export function parseSetting(key: string, raw: unknown): Parsed {
     const def = getPath(DEFAULT_SETTINGS, key)
-    if (def === undefined) return { ok: false, error: `Unknown setting "${key}".` }
+    if (def === undefined) return { ok: false, error: t('settings.error.unknown', { key }) }
     if (typeof def === 'boolean') {
         return typeof raw === 'boolean'
             ? { ok: true, value: raw }
-            : { ok: false, error: 'Expected on or off.' }
+            : { ok: false, error: t('settings.error.onOff') }
     }
     if (typeof def === 'number') {
         const n = typeof raw === 'number' ? raw : Number(raw)
         const bound = MINIMUMS[key] ?? { min: 0, integer: key.startsWith('rules.levels.') }
         if (!Number.isFinite(n) || n < bound.min)
-            return { ok: false, error: `Enter a number of at least ${bound.min}.` }
+            return { ok: false, error: t('settings.error.minNumber', { min: bound.min }) }
         if (bound.integer && !Number.isInteger(n))
-            return { ok: false, error: 'Enter a whole number.' }
+            return { ok: false, error: t('settings.error.whole') }
         const max = MAXIMUMS[key]
-        if (max !== undefined && n > max) return { ok: false, error: `Enter at most ${max}.` }
+        if (max !== undefined && n > max)
+            return { ok: false, error: t('settings.error.atMost', { max }) }
         return { ok: true, value: n }
     }
     if (typeof def === 'string') {
-        if (typeof raw !== 'string') return { ok: false, error: 'Enter text.' }
+        if (typeof raw !== 'string') return { ok: false, error: t('settings.error.text') }
         const text = raw.trim()
         const choices = CHOICES[key]
         if (choices && !choices.includes(text))
-            return { ok: false, error: `Choose ${inWords(choices)}.` }
+            return { ok: false, error: t('settings.error.choose', { values: inWords(choices) }) }
         if (!text && !OPTIONAL_TEXT.test(key))
-            return { ok: false, error: 'This setting needs a value.' }
+            return { ok: false, error: t('settings.error.needsValue') }
         if (key === 'diagramImages.folder') return parseImageFolder(text)
         return { ok: true, value: text }
     }
@@ -151,14 +156,14 @@ export function parseSetting(key: string, raw: unknown): Parsed {
         if (typeof def[0] === 'number') {
             const numbers = parts.map(Number)
             if (numbers.length !== def.length || numbers.some((n) => !Number.isFinite(n) || n < 0))
-                return { ok: false, error: `Enter ${def.length} numbers separated by commas.` }
+                return { ok: false, error: t('settings.error.numberList', { count: def.length }) }
             return { ok: true, value: numbers }
         }
         return parts.length
             ? { ok: true, value: parts }
-            : { ok: false, error: 'Enter at least one value.' }
+            : { ok: false, error: t('settings.error.atLeastOne') }
     }
-    return { ok: false, error: `"${key}" can't be edited here.` }
+    return { ok: false, error: t('settings.error.notEditable', { key }) }
 }
 
 const LEVEL_KEYS = ['want', 'learning', 'slow', 'tempo', 'rusty', 'mastered'] as const
@@ -166,19 +171,19 @@ const LEVEL_KEYS = ['want', 'learning', 'slow', 'tempo', 'rusty', 'mastered'] as
 /** Checks across fields, on the settings as they would be after the change. Undefined when valid. */
 export function crossCheck(next: PluginSettings): string | undefined {
     const split = next.rules.plan.split
-    if (split.reduce((a, b) => a + b, 0) !== 100) return 'The four blocks must add up to 100 %.'
+    if (split.reduce((a, b) => a + b, 0) !== 100) return t('settings.error.splitTotal')
     const levels = LEVEL_KEYS.map((k) => next.rules.levels[k])
     if (levels.some((n, i) => i > 0 && n <= levels[i - 1]!))
-        return 'Levels must increase: want < learning < slow < tempo < rusty < mastered.'
+        return t('settings.error.levelsIncrease')
     if (
         next.rules.review.firstInterval < 1 ||
         next.rules.review.maxInterval < next.rules.review.firstInterval
     )
-        return 'The maximum review interval must be at least the first interval (1 day or more).'
+        return t('settings.error.reviewInterval')
     const names = Object.values(next.fields).map((n) => String(n).trim())
-    if (names.some((n) => !n)) return 'Property names cannot be empty.'
+    if (names.some((n) => !n)) return t('settings.error.fieldEmpty')
     const dupe = names.find((n, i) => names.indexOf(n) !== i)
-    if (dupe) return `"${dupe}" is used for two properties.`
+    if (dupe) return t('settings.error.fieldDuplicate', { name: dupe })
     return undefined
 }
 

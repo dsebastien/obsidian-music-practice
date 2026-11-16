@@ -2,6 +2,7 @@
  * Save a diagram, or a whole block, as a PNG or SVG file (#51): file names, the folder setting,
  * and the link put after the block. Pure: the service does the vault work.
  */
+import { t } from '../i18n/i18n'
 
 export type ImageFormat = 'png' | 'svg'
 
@@ -60,17 +61,16 @@ export function parseImageFolder(raw: string): FolderParse {
         .map((p) => p.trim())
         .filter((p) => p.length > 0)
     if (!parts.length) return { ok: true, value: '' }
-    if (/^[A-Za-z]:$/.test(parts[0]!))
-        return { ok: false, error: 'Enter a folder of the vault, such as Music/Images (no drive).' }
+    if (/^[A-Za-z]:$/.test(parts[0]!)) return { ok: false, error: t('notation.folder.drive') }
     if (parts.some((p) => p === '.' || p === '..'))
         return {
             ok: false,
-            error: 'Enter a folder of the vault, such as Music/Images (no . or ..).'
+            error: t('notation.folder.dots')
         }
     if (parts.some((p) => UNSAFE_SEGMENT.test(p)))
         return {
             ok: false,
-            error: 'Folder names can\'t hold * ? " < > | or :. Enter a folder such as Music/Images.'
+            error: t('notation.folder.unsafe')
         }
     return { ok: true, value: parts.join('/') }
 }

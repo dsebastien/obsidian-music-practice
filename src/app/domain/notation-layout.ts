@@ -9,6 +9,7 @@ import type {
     RenderOptions,
     RootMark
 } from '@dsebastien/music-notation'
+import { t } from '../i18n/i18n'
 
 /** How diagrams are drawn unless a block says otherwise (#32). */
 export interface NotationLayout {
@@ -25,8 +26,12 @@ export interface NotationLayout {
 
 /** The dropdown's labels for the root marks. */
 export const ROOT_MARK_LABELS: Record<RootMark, string> = {
-    color: 'Color',
-    shape: 'Color and shape'
+    get color() {
+        return t('notation.rootMark.color')
+    },
+    get shape() {
+        return t('notation.rootMark.shape')
+    }
 }
 
 /** The render options the layout settings give the library. */
@@ -34,7 +39,11 @@ export type RenderDefaults = LayoutDefaults & Pick<RenderOptions, 'naming' | 'ro
 
 export const ORIENTATIONS: readonly Orientation[] = ['vertical', 'horizontal']
 
-/** The library's render defaults for the plugin's layout settings. */
+/**
+ * The library's render defaults for the plugin's layout settings.
+ * Language of the blocks' own buttons (#112): once the library accepts one, add
+ * `language: libraryLanguage()` here (`i18n/library-language.ts`).
+ */
 export function layoutDefaults(layout: NotationLayout): RenderDefaults {
     return {
         orientation: {
