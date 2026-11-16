@@ -5,6 +5,7 @@ import { isDueForReview, overdueBy, practiceNext, readyToLearn } from '../domain
 import type { LearningItem } from '../domain/practice'
 import type { PracticeRules } from '../domain/rules'
 import { renderItemRow } from './item-row'
+import { t } from '../i18n/i18n'
 
 const MAX_PER_SECTION = 10
 
@@ -20,13 +21,13 @@ export class PracticeNextModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle('Practice next')
+        this.setTitle(t('log.next.title'))
         const { contentEl } = this
         contentEl.addClass('mp-modal')
         if (this.items.length === 0) {
             contentEl.createDiv({
                 cls: 'mp-empty',
-                text: 'No learning notes yet. Add a chord, a scale or a piece with a mastery level, and it shows up here.'
+                text: t('log.next.empty')
             })
             return
         }
@@ -36,13 +37,15 @@ export class PracticeNextModal extends Modal {
         if (due.length + next.length + ready.length === 0) {
             contentEl.createDiv({
                 cls: 'mp-empty',
-                text: 'Nothing active or due. Pick something you want to learn and start learning it.'
+                text: t('log.next.nothingDue')
             })
             return
         }
-        this.section('Due for review', due)
-        this.section('Next', next)
-        this.section('Ready to learn', ready, (i) => (i.unlocks ? [`Unlocks ${i.unlocks}`] : []))
+        this.section(t('log.next.due'), due)
+        this.section(t('log.next.next'), next)
+        this.section(t('log.next.ready'), ready, (i) =>
+            i.unlocks ? [t('log.next.unlocks', { items: i.unlocks })] : []
+        )
     }
 
     private section(

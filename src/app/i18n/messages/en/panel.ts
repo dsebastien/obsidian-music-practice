@@ -1,2 +1,40 @@
-/** English texts of the panel area (the source; keys are `panel.*`). */
-export const panelEn = {} as const
+/** English texts of the panel area (the source; keys are `panel.*`): the practice panel, item rows. */
+export const panelEn = {
+    'panel.title': 'Practice',
+    'panel.session': 'Session',
+    'panel.plan': 'Plan',
+    'panel.drill': 'Drill',
+    'panel.drillLabel': 'Drills',
+    'panel.drill.chordChanges': 'Chord changes',
+    'panel.drill.notes': 'Notes, chords and scales',
+    'panel.drill.ear': 'Ear training',
+    'panel.clear': 'Clear',
+    'panel.logSession': 'Log this session',
+    'panel.metronome': 'Metronome',
+    'panel.timer.off': 'Timer off',
+    'panel.timer.paused': 'Paused · {time}',
+    'panel.timer.resume': 'Resume',
+    'panel.timer.discard': 'Discard',
+    'panel.timer.discardLabel': 'Discard the practice timer without logging it',
+    'panel.empty': 'Nothing yet: add items, or start from a practice plan.',
+    'panel.practiced': 'Practiced {name}',
+    'panel.bpm': '{reached} BPM',
+    'panel.bpmTarget': '{reached} → {target} BPM',
+    'panel.bpmRaise': 'Raise the BPM reached',
+    'panel.bpmLower': 'Lower the BPM reached',
+    'panel.metronomeFor': 'Metronome for {name}',
+    'panel.remove': 'Remove from the session',
+    'panel.pickPlaceholder': 'Add an item to the session',
+
+    // Item rows
+    'panel.item.noMastery': 'No mastery',
+    'panel.item.reviewOverdue': 'Review overdue',
+    'panel.item.reviewDueSoon': 'Review due soon',
+    'panel.item.focus': 'Current focus',
+    'panel.item.neverPracticed': 'Never practiced',
+    'panel.item.practicedToday': 'Practiced today',
+    'panel.item.practicedAgo': 'Practiced {days} d ago',
+    'panel.item.bpmProgress': '{percent}% of the target BPM',
+    'panel.item.bpmCurrent': '{current}/{target} BPM',
+    'panel.item.minutes': '{minutes} min'
+} as const

@@ -7,6 +7,7 @@ import { formatElapsed, staleTimerLabel, timerElapsed, type TimerState } from '.
 import type { ItemMeter, Metronome } from '../services/metronome.service'
 import { renderBadge } from './item-row'
 import { renderMetronome, type MetronomeViewDeps } from './metronome-view'
+import { t } from '../i18n/i18n'
 
 export const PRACTICE_PANEL_VIEW = 'music-practice-panel'
 
@@ -59,7 +60,7 @@ export class PracticePanelView extends ItemView {
     }
 
     override getDisplayText(): string {
-        return 'Practice'
+        return t('panel.title')
     }
 
     override getIcon(): string {
@@ -78,32 +79,37 @@ export class PracticePanelView extends ItemView {
 
         const session = root.createDiv({ cls: 'mp-panel-section' })
         const head = session.createDiv({ cls: 'mp-panel-head' })
-        head.createEl('h4', { text: 'Session' })
+        head.createEl('h4', { text: t('panel.session') })
         const tools = head.createDiv({ cls: 'mp-actions' })
-        tools.createEl('button', { text: 'Add' }).addEventListener('click', () => this.pickItem())
         tools
-            .createEl('button', { text: 'Plan' })
+            .createEl('button', { text: t('common.add') })
+            .addEventListener('click', () => this.pickItem())
+        tools
+            .createEl('button', { text: t('panel.plan') })
             .addEventListener('click', () => this.deps.planIntoPanel())
         tools
-            .createEl('button', { text: 'Drill', attr: { 'aria-label': 'Drills' } })
+            .createEl('button', {
+                text: t('panel.drill'),
+                attr: { 'aria-label': t('panel.drillLabel') }
+            })
             .addEventListener('click', (event) => {
                 // Two kinds of drills (#73): chord changes, and notes, chords and scales.
                 const menu = new Menu()
                 menu.addItem((item) =>
                     item
-                        .setTitle('Chord changes')
+                        .setTitle(t('panel.drill.chordChanges'))
                         .setIcon('repeat')
                         .onClick(() => this.deps.drill())
                 )
                 menu.addItem((item) =>
                     item
-                        .setTitle('Notes, chords and scales')
+                        .setTitle(t('panel.drill.notes'))
                         .setIcon('target')
                         .onClick(() => this.deps.noteDrill())
                 )
                 menu.addItem((item) =>
                     item
-                        .setTitle('Ear training')
+                        .setTitle(t('panel.drill.ear'))
                         .setIcon('ear')
                         .onClick(() => this.deps.earTraining())
                 )
@@ -114,15 +120,15 @@ export class PracticePanelView extends ItemView {
                 } else menu.showAtMouseEvent(event)
             })
         tools
-            .createEl('button', { text: 'Clear' })
+            .createEl('button', { text: t('panel.clear') })
             .addEventListener('click', () => void this.deps.setList(() => []))
         this.listEl = session.createDiv({ cls: 'mp-list' })
         session
-            .createEl('button', { cls: 'mod-cta mp-panel-log', text: 'Log this session' })
+            .createEl('button', { cls: 'mod-cta mp-panel-log', text: t('panel.logSession') })
             .addEventListener('click', () => this.deps.logSession())
 
         const metronome = root.createDiv({ cls: 'mp-panel-section' })
-        metronome.createEl('h4', { text: 'Metronome' })
+        metronome.createEl('h4', { text: t('panel.metronome') })
         this.metronomeCleanup = renderMetronome(
             metronome,
             this.deps.metronome,
@@ -151,8 +157,12 @@ export class PracticePanelView extends ItemView {
         const timer = this.deps.timer()
         this.timerText?.setText(
             timer.startedAt
-                ? `${timer.pausedAt ? 'Paused · ' : ''}${formatElapsed(timerElapsed(timer, Date.now()))}`
-                : 'Timer off'
+                ? timer.pausedAt
+                    ? t('panel.timer.paused', {
+                          time: formatElapsed(timerElapsed(timer, Date.now()))
+                      })
+                    : formatElapsed(timerElapsed(timer, Date.now()))
+                : t('panel.timer.off')
         )
         const stale = staleTimerLabel(timer, Date.now())
         this.timerStale?.setText(stale ?? '')
@@ -166,20 +176,19 @@ export class PracticePanelView extends ItemView {
         const el = this.timerButtons
         el.empty()
         if (!timer.startedAt) {
-            el.createEl('button', { text: 'Start' }).addEventListener(
+            el.createEl('button', { text: t('common.start') }).addEventListener(
                 'click',
                 () => void this.deps.startTimer().then(() => this.refresh())
             )
             return
         }
-        el.createEl('button', { text: timer.pausedAt ? 'Resume' : 'Pause' }).addEventListener(
-            'click',
-            () => void this.deps.togglePause().then(() => this.refresh())
-        )
+        el.createEl('button', {
+            text: timer.pausedAt ? t('panel.timer.resume') : t('common.pause')
+        }).addEventListener('click', () => void this.deps.togglePause().then(() => this.refresh()))
         el.createEl('button', {
             cls: isStale ? 'mod-warning' : '',
-            text: 'Discard',
-            attr: { 'aria-label': 'Discard the practice timer without logging it' }
+            text: t('panel.timer.discard'),
+            attr: { 'aria-label': t('panel.timer.discardLabel') }
         }).addEventListener('click', () => void this.deps.discardTimer().then(() => this.refresh()))
     }
 
@@ -191,7 +200,7 @@ export class PracticePanelView extends ItemView {
         if (!list.length) {
             el.createDiv({
                 cls: 'mp-muted',
-                text: 'Nothing yet: add items, or start from a practice plan.'
+                text: t('panel.empty')
             })
             return
         }
@@ -206,7 +215,7 @@ export class PracticePanelView extends ItemView {
             const row = el.createDiv({ cls: `mp-row mp-panel-row${entry.done ? ' is-done' : ''}` })
             const check = row.createEl('input', {
                 type: 'checkbox',
-                attr: { 'aria-label': `Practiced ${item?.name ?? entry.path}` }
+                attr: { 'aria-label': t('panel.practiced', { name: item?.name ?? entry.path }) }
             })
             check.checked = entry.done
             check.addEventListener('change', () => update(entry.path, { done: check.checked }))
@@ -229,7 +238,10 @@ export class PracticePanelView extends ItemView {
                 const bpm = body.createDiv({ cls: 'mp-panel-bpm' })
                 const reached = entry.bpm ?? item.bpmCurrent ?? item.bpmTarget ?? 60
                 bpm.createSpan({
-                    text: `${reached}${item.bpmTarget !== null ? ` → ${item.bpmTarget}` : ''} BPM`
+                    text:
+                        item.bpmTarget !== null
+                            ? t('panel.bpmTarget', { reached, target: item.bpmTarget })
+                            : t('panel.bpm', { reached })
                 })
                 for (const [by, label] of [
                     [-1, '−'],
@@ -237,7 +249,7 @@ export class PracticePanelView extends ItemView {
                 ] as const) {
                     bpm.createEl('button', {
                         text: label,
-                        attr: { 'aria-label': `${by > 0 ? 'Raise' : 'Lower'} the BPM reached` }
+                        attr: { 'aria-label': by > 0 ? t('panel.bpmRaise') : t('panel.bpmLower') }
                     }).addEventListener('click', () =>
                         update(entry.path, { bpm: Math.max(1, reached + by) })
                     )
@@ -248,7 +260,7 @@ export class PracticePanelView extends ItemView {
                 actions
                     .createEl('button', {
                         text: '♩',
-                        attr: { 'aria-label': `Metronome for ${item.name}` }
+                        attr: { 'aria-label': t('panel.metronomeFor', { name: item.name }) }
                     })
                     .addEventListener('click', () =>
                         this.deps.metronome.setItem({
@@ -262,7 +274,7 @@ export class PracticePanelView extends ItemView {
             actions
                 .createEl('button', {
                     text: '×',
-                    attr: { 'aria-label': 'Remove from the session' }
+                    attr: { 'aria-label': t('panel.remove') }
                 })
                 .addEventListener(
                     'click',
@@ -292,7 +304,7 @@ export class ItemSuggestModal extends FuzzySuggestModal<LearningItem> {
         private readonly onChoose: (item: LearningItem) => void
     ) {
         super(app)
-        this.setPlaceholder('Add an item to the session')
+        this.setPlaceholder(t('panel.pickPlaceholder'))
     }
 
     override getItems(): LearningItem[] {

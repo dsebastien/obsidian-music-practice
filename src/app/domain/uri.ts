@@ -5,6 +5,7 @@
  * handler's name is read too, for callers that pass the parameters themselves; Obsidian never does.
  * Pure: no Obsidian imports.
  */
+import { t } from '../i18n/i18n'
 
 /** The handler's name: `obsidian://music-practice`. */
 export const URI_HANDLER = 'music-practice'
@@ -40,25 +41,25 @@ export function parseUriRequest(params: Record<string, string | undefined>): Uri
     const queryAction = params['action'] !== URI_HANDLER ? params['action'] : undefined
     const raw = (params['do'] ?? queryAction ?? '').trim()
     const list = URI_ACTIONS.join(', ')
-    if (!raw) return { ok: false, error: `Music Practice URI: add do=<action> (${list}).` }
+    if (!raw) return { ok: false, error: t('log.uri.missing', { list }) }
     const action = URI_ACTIONS.find((a) => a === raw)
-    if (!action)
-        return { ok: false, error: `Music Practice URI: unknown action "${raw}". Use ${list}.` }
+    if (!action) return { ok: false, error: t('log.uri.unknownAction', { action: raw, list }) }
     const unknown = Object.keys(params).filter((k) => !OBSIDIAN_PARAMS.has(k))
     if (unknown.length)
         return {
             ok: false,
-            error: `Music Practice URI: unknown parameter ${unknown.map((k) => `"${k}"`).join(', ')}.`
+            error: t('log.uri.unknownParams', {
+                params: unknown.map((k) => `"${k}"`).join(', ')
+            })
         }
     const text = params['minutes']
     if (text === undefined) return { ok: true, action, minutes: null }
-    if (!WITH_MINUTES.includes(action))
-        return { ok: false, error: `Music Practice URI: minutes only work with log and plan.` }
+    if (!WITH_MINUTES.includes(action)) return { ok: false, error: t('log.uri.minutesOnly') }
     const minutes = /^\d{1,4}$/.test(text.trim()) ? Number(text.trim()) : NaN
     if (!Number.isInteger(minutes) || minutes < 1 || minutes > URI_MAX_MINUTES)
         return {
             ok: false,
-            error: `Music Practice URI: minutes must be a whole number from 1 to ${URI_MAX_MINUTES}, not "${text}".`
+            error: t('log.uri.minutesRange', { max: URI_MAX_MINUTES, text })
         }
     return { ok: true, action, minutes }
 }

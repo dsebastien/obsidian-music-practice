@@ -6,6 +6,7 @@ import type { LearningItem } from '../domain/practice'
 import { rubricFor } from '../domain/rubric'
 import type { RubricSettings } from '../domain/rubric'
 import type { PracticeRules } from '../domain/rules'
+import { t } from '../i18n/i18n'
 
 /** Pick an item's mastery level; each level shows what it means for this kind of item. */
 export class MasteryModal extends Modal {
@@ -21,7 +22,7 @@ export class MasteryModal extends Modal {
     }
 
     override onOpen(): void {
-        this.setTitle(`Mastery: ${this.item.name}`)
+        this.setTitle(t('log.mastery.title', { name: this.item.name }))
         const { contentEl } = this
         contentEl.addClass('mp-modal')
         const rubric = rubricFor(this.type.kind, this.rubricSettings, this.rules)
@@ -39,7 +40,8 @@ export class MasteryModal extends Modal {
                 text: value.replace(/^\s*\d+\s*-\s*/, '')
             })
             badge.dataset['level'] = String(level)
-            if (isCurrent) head.createSpan({ cls: 'mp-item-minutes', text: 'Current' })
+            if (isCurrent)
+                head.createSpan({ cls: 'mp-item-minutes', text: t('log.mastery.current') })
             if (rubric[level]) card.createDiv({ cls: 'mp-item-meta', text: rubric[level] })
             card.addEventListener('click', () => void this.pick(level))
         }

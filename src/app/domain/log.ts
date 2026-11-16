@@ -5,6 +5,7 @@ import type { LearningItem } from './practice'
 import { intervalOnLevelChange, reviewOutcome } from './review'
 import type { ReviewResult } from './review'
 import type { PracticeRules } from './rules'
+import { t } from '../i18n/i18n'
 
 /** One practiced item in a log. */
 export interface LogItem {
@@ -209,7 +210,7 @@ export function holdsLog(
     return nameSet(listed) === nameSet(key.items)
 }
 
-/** Session title: `<date> <focus>`, or the date alone; the type's affixes come on top. */
+/** Session title, the date then the focus (or the date alone); the type's affixes come on top. */
 export function sessionTitle(date: string, focus?: string): string {
     const clean = (focus ?? '')
         .replace(/[\\/:*?"<>|#^[\]]/g, ' ')
@@ -269,41 +270,41 @@ const isInt = (n: unknown, min: number, max: number): boolean =>
 
 /** Check a log request before anything is written; the problem, or null when it can be logged. */
 export function validateLogRequest(request: LogRequest): string | null {
-    if (typeof request !== 'object' || request === null) return 'The log request is missing.'
+    if (typeof request !== 'object' || request === null) return t('log.request.missing')
     const { date, minutes, startTime, items } = request
     if (
         typeof date !== 'string' ||
         !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
         Number.isNaN(Date.parse(`${date}T00:00:00`))
     )
-        return `Invalid date "${String(date)}": expected YYYY-MM-DD.`
-    if (!isInt(minutes, 1, 1440)) return 'Minutes must be a whole number between 1 and 1440.'
+        return t('log.request.invalidDate', { date: String(date) })
+    if (!isInt(minutes, 1, 1440)) return t('log.request.minutes')
     if (
         startTime !== undefined &&
         (typeof startTime !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime))
     )
-        return `Invalid start time "${String(startTime)}": expected HH:MM.`
-    if (!Array.isArray(items) || items.length === 0) return 'Pick at least one item to log.'
+        return t('log.request.invalidStart', { time: String(startTime) })
+    if (!Array.isArray(items) || items.length === 0) return t('log.request.noItems')
     const seen = new Set<string>()
     for (const item of items) {
-        if (typeof item?.path !== 'string' || !item.path) return 'Every item needs a path.'
-        if (seen.has(item.path)) return `"${item.path}" is listed twice.`
+        if (typeof item?.path !== 'string' || !item.path) return t('log.request.needsPath')
+        if (seen.has(item.path)) return t('log.request.listedTwice', { path: item.path })
         seen.add(item.path)
         if (item.bpm !== undefined && !isInt(item.bpm, 1, 1000))
-            return `Invalid BPM for "${item.path}".`
+            return t('log.request.invalidBpm', { path: item.path })
         if (item.level !== undefined && !isInt(item.level, 0, 10_000))
-            return `Invalid level for "${item.path}".`
+            return t('log.request.invalidLevel', { path: item.path })
         if (item.review !== undefined && !REVIEW_RESULTS.has(item.review))
-            return `Invalid review result for "${item.path}": good, shaky or failed.`
+            return t('log.request.invalidReview', { path: item.path })
     }
     for (const key of ['focus', 'quality', 'note', 'sessionTypeId'] as const)
         if (request[key] !== undefined && typeof request[key] !== 'string')
-            return `"${key}" must be text.`
+            return t('log.request.mustBeText', { key })
     if (
         request.activity !== undefined &&
         request.activity !== null &&
         (typeof request.activity !== 'string' || !request.activity.trim())
     )
-        return '"activity" must be the name of an activity note, or null for none.'
+        return t('log.request.activity')
     return null
 }

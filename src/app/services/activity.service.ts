@@ -26,6 +26,7 @@ import {
     resolveNoteTypeFolder
 } from './starter-kit.service'
 import type { SkNoteType } from './starter-kit.service'
+import { t } from '../i18n/i18n'
 
 /** Activity notes carry this tag (or a child), as the Kanban Action Planner recognizes them. */
 export const ACTIVITY_TAG = 'type/activity'
@@ -263,10 +264,10 @@ export class ActivityService {
         list?: readonly ActivityEntry[]
     ): { path: string } | { error: string } {
         const clean = name.trim()
-        if (!clean) return { error: 'Name the new activity.' }
+        if (!clean) return { error: t('log.activity.nameIt') }
         if (BAD_NAME.test(clean))
             return {
-                error: `An activity name can't hold any of these: \\ / : * ? " < > | # ^ [ ].`
+                error: t('log.activity.badChars', { chars: '\\ / : * ? " < > | # ^ [ ]' })
             }
         const type = this.starterKitType()
         const affixes = type ? resolveNoteTypeAffixes(this.app, type.id) : null
@@ -295,7 +296,7 @@ export class ActivityService {
             this.app.vault.getAbstractFileByPath(path) ||
             this.app.metadataCache.getFirstLinkpathDest(basename, '')
         )
-            return { error: `"${basename}" already exists: count the sessions for it instead.` }
+            return { error: t('log.activity.exists', { name: basename }) }
         return { path }
     }
 
