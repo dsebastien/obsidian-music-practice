@@ -21,7 +21,7 @@ Music Practice now follows Obsidian's language, and French is the first translat
 
 - **Follow the music**: a new button on the bar under a tab or a score (a target icon). It's off by default. Turn it on, and the note scrolls by itself while the music plays, by the smallest step that keeps the line that plays, and the next one, in view. A scroll by hand pauses it: the button stays on, dim, until the next Play or a click on it. In full screen the score follows by default, and the same button turns that off and on there.
 - **Tabs on one line**: `layout: line` at the top of a `tab` or `score` block draws the music on one line that scrolls sideways under the cursor, in its own area. It follows the music by default. Good for a riff or an exercise you loop.
-- **Note names on tabs and scores**: `names: on` at the top of a `tab` or `score` block writes the name of every note above the tablature. A chord's names are stacked in the order of the strings. The new **Note names** button (a letter A) turns them on and off while you read. The names follow **Settings → Notation → Note names** (letters, solfège or German), as the diagrams do. Rests, tied notes, dead notes and drums have no name.
+- **Note names on tabs and scores**: `names: on` at the top of a `tab` or `score` block writes the name of every note above the tablature. A chord's names are stacked in the order of the strings. The new **Note names** button (a letter A) turns them on and off while you read. The names follow **Settings → Notation blocks → Note names** (letters, solfège or German), as the diagrams do. Rests, tied notes, dead notes and drums have no name.
 
 #### Fixes
 
