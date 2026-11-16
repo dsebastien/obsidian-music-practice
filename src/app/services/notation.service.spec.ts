@@ -650,7 +650,8 @@ describe('splitSettings', () => {
     it('takes every setting line the library reads at the top of a tab block', () => {
         // layout:, names: and engine: are settings since music-notation 0.23.0: a text tab under
         // them is still a text tab, and Edit as alphaTex keeps them.
-        const source = 'staves: both\nlayout: line\n// a note\nnames: on\nengine: light\n\n:4 0.6 2.5'
+        const source =
+            'staves: both\nlayout: line\n// a note\nnames: on\nengine: light\n\n:4 0.6 2.5'
         expect(splitSettings(source)).toEqual({
             settings: ['staves: both', 'layout: line', '// a note', 'names: on', 'engine: light'],
             rest: ':4 0.6 2.5'
