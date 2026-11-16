@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { libraryLanguage } from './library-language'
 import { currentLanguage, interpolate, messageIn, setLanguage, t, tn } from './i18n'
 
 afterEach(() => setLanguage('en'))
@@ -56,5 +57,13 @@ describe('tn', () => {
         expect(tn('common.minutes', 0)).toBe('0 minute')
         expect(tn('common.minutes', 1)).toBe('1 minute')
         expect(tn('common.minutes', 2)).toBe('2 minutes')
+    })
+})
+
+describe('libraryLanguage', () => {
+    it('is the language the plugin resolved', () => {
+        expect(libraryLanguage()).toBe('en')
+        setLanguage('fr')
+        expect(libraryLanguage()).toBe('fr')
     })
 })
