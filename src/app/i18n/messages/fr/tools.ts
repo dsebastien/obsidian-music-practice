@@ -84,7 +84,7 @@ export const toolsFr: Translation<typeof toolsEn> = {
         'La tablature se joue avec le décompte, le métronome et le réglage de vitesse de sa barre de lecture.',
     'tools.exercise.insert': 'Insérer',
     'tools.exercise.cagedShape': 'Forme de {letter}',
-    'tools.exercise.box': 'Boîte {n}',
+    'tools.exercise.box': 'Position {n}',
     'tools.exercise.nps': '3NPS {n}',
 
     // Voicings of a chord
