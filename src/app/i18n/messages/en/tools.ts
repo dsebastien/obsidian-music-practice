@@ -64,6 +64,22 @@ export const toolsEn = {
         "The note's name says {name} ({symbol}), with the shape {shape}.",
     'tools.identify.nameFromName': "Name it {symbol}, from the note's name",
     'tools.identify.failed': "Couldn't name the chord: {message}",
+    'tools.simplify.title': 'Simplify this chart: {name}',
+    'tools.simplify.chart': 'Chart',
+    'tools.simplify.chartN': 'Chart {n}',
+    'tools.simplify.easier': 'Easier chords: {chords}',
+    'tools.simplify.noEasier': 'No chord of this chart has an easier one.',
+    'tools.simplify.capo': 'Best capo: fret {capo}. Play {shapes} ({open} of {total} open shapes).',
+    'tools.simplify.noCapo': 'No capo does better than none.',
+    'tools.simplify.ownCapo':
+        'This chart has its own capo (fret {capo}): its chords are the shapes already.',
+    'tools.simplify.piano': 'Easier chords and the best capo are for guitar charts.',
+    'tools.simplify.switchOn': 'Switch on in the chart',
+    'tools.simplify.alreadyOn': 'Already on in the chart',
+    'tools.simplify.insertCopy': 'Insert a simpler copy',
+    'tools.simplify.switched': 'The chart now draws its easier version.',
+    'tools.simplify.inserted': 'A simpler copy is below the chart.',
+    'tools.simplify.changed': 'The chart changed since: run the command again.',
 
     // Tab exercise
     'tools.exercise.title': 'Tab exercise: {name}',

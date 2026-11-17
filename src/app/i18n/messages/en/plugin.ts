@@ -31,6 +31,7 @@ export const pluginEn = {
     'plugin.command.earTraining': 'Ear training: intervals, chords, scales and degrees',
     'plugin.command.noteDrillCurrent': 'Drill notes, chords or scales for the current note',
     'plugin.command.identifyChord': 'Identify this chord',
+    'plugin.command.simplifyChart': 'Simplify this chart',
     'plugin.command.startMetronome': 'Start metronome',
     'plugin.command.stopMetronome': 'Stop metronome',
     'plugin.command.speedTrainer': 'Speed trainer for the current note',
@@ -95,6 +96,7 @@ export const pluginEn = {
         'This note has no chord chart ({block}) and links no chord notes with a chord symbol.',
     'plugin.pieceKey.unreadable': "A chord of this piece doesn't read: {chords}",
     'plugin.chartChanges.noChange': 'This note has no chord chart ({block}) with a chord change.',
+    'plugin.simplify.noChart': 'This note has no chord chart ({block}) with chords.',
     'plugin.smooth.tooFew': 'This note has no chord chart ({block}) with two chords or more.',
     'plugin.backing.progressionName': 'Progression {n}',
     'plugin.backing.nothing':

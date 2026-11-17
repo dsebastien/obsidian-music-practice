@@ -115,6 +115,25 @@ Write bar lines `|` in a chart line to say how long its chords last when the cha
 
 Dots and slashes count only when they add up to the beats of the bar. Else the chords share it. In 6/8, 9/8 and 12/8, a beat is a dotted quarter. The bar lines stay in the lyrics as you wrote them, so the chart looks the same. A chart you already wrote with bar lines, such as a 12-bar blues grid, plays with those lengths too. **Practice this progression in time** reads the bars the same way (see [Usage](usage.md#progressions-in-time)). Every rule is in the [guide](https://dsebastien.github.io/music-notation/blocks.html#how-long-each-chord-lasts).
 
+### Easier charts
+
+Two directives make a guitar chart easier to play, without changing the chords you wrote:
+
+- `{simplify}` swaps a chord for an easier one of its family: Cmaj9 becomes Cmaj7, E9 becomes E7, G5 becomes G, D/F# becomes D. A chord changes only when the plainer chord is easier to play, so Am7, F# and Dsus4 stay as they are. The easier chords are in the lyrics, in the row of diagrams and in what the bar plays, and the line under the title says "Easier chords".
+- `{capo: auto}` says the chords are written as they sound, and finds the capo that turns the most of them into open shapes. Bb Eb F Gm draws as G C D Em, with "Capo 3" on the chart's line, and still sounds as written. With `{simplify}` too, the capo is found for the easier chords. A number keeps its meaning: with `{capo: 2}`, the chords written are the shapes you play.
+
+````markdown
+```chords
+{simplify}
+{capo: auto}
+[Bbmaj9]One [Eb]two [F]three [Gm]four
+```
+````
+
+This chart draws Gmaj7, C, D and Em, with a capo on fret 3. A piano chart ignores both lines: the chart measures how hard a chord is on a guitar. **Simplify this chart** writes these lines for you, or inserts a simpler copy of the chart (see [Usage](usage.md#simpler-charts)). Every rule is in the [guide](https://dsebastien.github.io/music-notation/blocks.html#easier-charts).
+
+The play bar of a guitar chart has a **Simplify** switch when at least one of its chords has an easier one. A click shows the easier chords in the lyrics and in the row of diagrams, and the switch reads **Simplified**. A second click brings the chords as written back. It stops what's playing, and the next Play plays the chords on screen. Nothing is written in the note: the chart starts as its block says each time it's drawn again, and a chart with `{simplify}` starts with the switch on. See [the Simplify switch](https://dsebastien.github.io/music-notation/blocks.html#the-simplify-switch).
+
 ## Strumming patterns
 
 A ` ```strum ` block draws a strumming pattern on a beat grid: the counts under each slot, an arrow for each strum, accents, muted strums and the chord changes above. Paste it the way you find it on the web: `D - D U - U D U`, `D DU UDU` and `DDUUDU` all work.
@@ -303,7 +322,7 @@ A fingerpicking pattern note's empty ` ```picking ` block draws its pattern, wit
 
 Click a chord, keyboard or fretboard diagram (tap it on a phone or tablet) to hear it, and click it again to stop it. A click on a dot or a key plays only that note. With the keyboard, Tab to a diagram and press Space or Enter. Guitar chords strum from the low string up and ring, and piano chords sound together. Scales play every note drawn: from their lowest tonic up to the highest note, down to the lowest, and back to the tonic.
 
-Under each block, one bar plays its diagrams: play / stop, **Play all in turn** when the block has several diagrams (a row of voicings, the positions of a scale; a beat of silence between two), loop, speed (when several notes play, with its value: "90 BPM", "12 ms") and sound (guitar or piano; the other instrument redraws every diagram of the block for it). In a row, the diagram you clicked last is the one the bar plays and names. The volume is not on the bar: set it in **Settings → Playback**, and it applies at once to every bar.
+Under each block, one bar plays its diagrams: play / stop, **Play all in turn** when the block has several diagrams (a row of voicings, the positions of a scale; a beat of silence between two), loop, speed (when several notes play, with its value: "90 BPM", "12 ms") and the **Sound** menu (four guitars and the piano, see below). In a row, the diagram you clicked last is the one the bar plays and names. The volume is not on the bar: set it in **Settings → Playback**, and it applies at once to every bar.
 
 The bar of every block ends with **Full screen**, after **Copy as image**. The block grows to the largest size that fits the screen, in width and in height, centered, with the bar at the bottom; a block too long to fit, such as a long chord chart, is shown up to 1.5 times larger and scrolls. In full screen, the space bar plays and pauses (a text field keeps its space). Escape, or the button again, goes back to the note, where it was.
 
@@ -317,7 +336,9 @@ The sound comes from a soundfont of recorded instruments, bundled with the plugi
 
 A block can choose its own sound with an `engine:` line: `engine: generaluser` (the sound pack), `engine: sonivox` (the built-in soundfont) or `engine: light` (the light synthesizer). In a tab or score block, write it among the settings lines at the top; in a chord chart, as a directive (`{engine: light}`). The block's line comes before **Settings → Playback → Sound**. When a block asks for a sound that isn't there, the next best one plays and nothing breaks: without the sound pack, `engine: generaluser` plays the built-in soundfont, and a notice says so once.
 
-A block can choose its guitar the same way, with a `guitar:` line: `guitar: steel`, `nylon`, `clean` or `overdrive` (`{guitar: nylon}` in a chord chart). It works in `chord`, `keyboard`, `fretboard`, `strum`, `picking`, `progression` and `circle` blocks, and a wrong value shows a message in the block. A note chooses for all its blocks with its `guitar_sound` property: `guitar_sound: nylon` in a classical piece's note. The block's line comes first, then the note's property, then **Settings → Playback → Guitar sound** (see [Playback](configuration.md#playback)). Keyboards and piano chords still play the piano, and tabs and scores keep the instruments of their tracks. See [which guitar plays](https://dsebastien.github.io/music-notation/blocks.html#which-guitar-plays).
+A block can choose its guitar the same way, with a `guitar:` line: `guitar: steel`, `nylon`, `clean` or `overdrive` (`{guitar: nylon}` in a chord chart). It works in `chord`, `keyboard`, `fretboard`, `strum`, `picking`, `progression` and `circle` blocks, and a wrong value shows a message in the block. A note chooses for all its blocks with its `guitar_sound` property: `guitar_sound: nylon` in a classical piece's note. The block's line comes before the note's property, and the property before **Settings → Playback → Guitar sound** (see [Playback](configuration.md#playback)). Keyboards and piano chords still play the piano, and tabs and scores keep the instruments of their tracks. See [which guitar plays](https://dsebastien.github.io/music-notation/blocks.html#which-guitar-plays).
+
+The **Sound** menu of a bar lists the four guitars and the piano: "Guitar (steel)", "Guitar (nylon)", "Guitar (clean)", "Guitar (overdrive)" and "Piano". It shows what plays now: Piano on a keyboard or a piano chord, else the guitar in effect, so the bars of a note with `guitar_sound: nylon` show "Guitar (nylon)". A guitar you pick there comes before the block's line, the note's property and the setting. It plays for the whole block, every bar and diagram in it, until the note is drawn again, and it changes neither the setting nor the note. Going from a guitar to the piano, or back, redraws every diagram of the block for that instrument. The bars of diagrams, strumming and picking patterns, progressions and chord charts have the menu; tabs and scores don't.
 
 **Play this chord or scale** plays the current chord or scale note.
 
