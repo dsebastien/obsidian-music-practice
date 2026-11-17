@@ -116,6 +116,8 @@ export const pluginFr: Translation<typeof pluginEn> = {
     'plugin.play.nothingYet':
         "Cette note n'a encore rien à jouer : ajoutez son accord et ses frettes, ou sa gamme.",
     'plugin.play.nothing': 'Rien à jouer dans cette note.',
+    'plugin.soundPack.missing':
+        "Le pack de sons n'est pas sur cet appareil : la soundfont intégrée joue. Téléchargez-le dans Réglages → Lecture.",
     'plugin.drill.needsExerciseType':
         "Les exercices de changement d'accord ont besoin d'un type de note d'exercice de guitare pour conserver leurs résultats.",
     'plugin.metronome.noNote': "Le métronome n'a aucune note où enregistrer le BPM.",

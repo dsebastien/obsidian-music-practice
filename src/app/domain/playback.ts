@@ -3,11 +3,22 @@
  * volume control, this setting is the volume), and the defaults the play bars start from (each
  * bar changes them for its own block only).
  */
-import type { PlayOptions } from '@dsebastien/music-notation'
+import type { Engine, PlayOptions } from '@dsebastien/music-notation'
 
-/** The soundfont (realistic, alphaTab's synthesizer) or the light synthesizer (computed). */
-export const PLAYBACK_ENGINES = ['soundfont', 'light'] as const
+/**
+ * The sound pack's instruments (`generaluser`, #100: an optional download), the built-in
+ * soundfont (`soundfont`: realistic, small, in the plugin) or the light synthesizer (computed).
+ * The first two play through alphaTab's synthesizer.
+ */
+export const PLAYBACK_ENGINES = ['generaluser', 'soundfont', 'light'] as const
 export type PlaybackEngine = (typeof PLAYBACK_ENGINES)[number]
+
+/**
+ * The notation library's name for an engine (music-notation #124). The stored `soundfont` is its
+ * `sonivox`: the value is older than the library's names and stays as it is in the settings.
+ */
+export const libraryEngine = (engine: PlaybackEngine): Engine =>
+    engine === 'soundfont' ? 'sonivox' : engine
 
 export interface PlaybackSettings {
     /** A playback bar on chord, keyboard and fretboard diagrams. */
@@ -74,18 +85,21 @@ export const volumeChange = (before: PlaybackSettings, after: PlaybackSettings):
     before.volume === after.volume ? null : volumeOf(after)
 
 /**
- * The library's `play` option for these settings; false when playback is off. With `current`
- * (the settings as they are now), the volume is read at each play, so a change in Settings →
- * Playback applies to diagrams already drawn.
+ * The library's `play` option for these settings; false when playback is off. `engines` are the
+ * players the plugin has (the sound pack's and the built-in soundfont's; the light synthesizer is
+ * the library's own): a block plays through its own `engine:` line, else the setting, else the
+ * best one there is (music-notation #124). With `current` (the settings as they are now), the
+ * volume is read at each play, so a change in Settings → Playback applies to diagrams already
+ * drawn.
  */
 export function playOptions(
     settings: PlaybackSettings,
-    soundfont: PlayOptions['player'],
+    engines: PlayOptions['engines'],
     current?: () => PlaybackSettings
 ): PlayOptions | false {
     if (!settings.enabled) return false
     return {
-        ...(settings.engine === 'soundfont' && soundfont ? { player: soundfont } : {}),
+        ...(engines ? { engines, engine: libraryEngine(settings.engine) } : {}),
         volume: current ? () => volumeOf(current()) : volumeOf(settings),
         bpm: settings.bpm,
         ...strumOption(settings)

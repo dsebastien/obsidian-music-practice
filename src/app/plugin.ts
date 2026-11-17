@@ -1,4 +1,14 @@
-import { MarkdownView, Menu, Notice, Platform, Plugin, debounce, setIcon } from 'obsidian'
+import {
+    MarkdownView,
+    Menu,
+    Notice,
+    Platform,
+    Plugin,
+    debounce,
+    normalizePath,
+    requestUrl,
+    setIcon
+} from 'obsidian'
 import { initLanguage } from './i18n/init'
 import { t, tn } from './i18n/i18n'
 import type { Editor, TFile } from 'obsidian'
@@ -58,6 +68,8 @@ import { askSectionName } from './ui/section-name-modal'
 import { PLAYALONG_LANGUAGE } from './domain/playalong'
 import type { BlockLanguage } from './services/notation.service'
 import { AlphaTabRuntime } from './services/alphatab.service'
+import { SoundPackService } from './services/sound-pack.service'
+import { hexOf } from './domain/sound-pack'
 import { ImportService, TAB_STARTER, fenced, insertBlock } from './services/import.service'
 import type { PreparedScore } from './services/import.service'
 import {
@@ -72,12 +84,13 @@ import { chordSheetToChordPro, textTabToAlphaTex } from '@dsebastien/music-notat
 import {
     DEFAULT_STRUM,
     drawnPlaybackChanged,
+    libraryEngine,
     playOptions,
     strumOption,
     volumeChange,
     volumeOf
 } from './domain/playback'
-import type { PlayOptions, RenderOptions } from '@dsebastien/music-notation'
+import type { NotePlayer, PlayOptions, RenderOptions } from '@dsebastien/music-notation'
 import { printTab } from '@dsebastien/music-notation/tab'
 import type { TabResult } from '@dsebastien/music-notation/tab'
 import type { NoteContext } from './services/notation.service'
@@ -138,6 +151,7 @@ import { fretsOfProperty } from './domain/voicings'
 import type { DrillPair } from './domain/drill'
 import {
     blockFromProperties,
+    chooseEngine,
     lightPlayer,
     renderBlock,
     sequenceOf
@@ -189,6 +203,10 @@ export class MusicPracticePlugin extends Plugin {
     /** Set by onunload: an onload still running stops at its next step (#90). */
     private unloaded = false
     private alphaTab!: AlphaTabRuntime
+    /** The sound pack on this device (#100): Settings → Playback downloads and removes it. */
+    soundPack!: SoundPackService
+    /** Said once per session: the pack is the chosen sound and isn't on this device. */
+    private packMissingSaid = false
     private imports!: ImportService
     private textTabs!: TextTabConverter
     private timerEl: HTMLElement | null = null
@@ -583,6 +601,18 @@ export class MusicPracticePlugin extends Plugin {
         // Registered once the layout is ready: plugins enabled at startup register theirs first, so
         // a block language another plugin uses stays theirs (Obsidian refuses a second processor).
         this.alphaTab = new AlphaTabRuntime()
+        // The sound pack (#100) lives in the plugin's own folder. Its state is read from that
+        // folder, then tabs and diagrams play its files; nothing is downloaded here.
+        this.soundPack = new SoundPackService({
+            store: this.app.vault.adapter,
+            folder: normalizePath(
+                `${this.manifest.dir ?? `${this.app.vault.configDir}/plugins/${this.manifest.id}`}/sounds/generaluser`
+            ),
+            fetch: async (url) => (await requestUrl({ url })).arrayBuffer,
+            hash: async (bytes) => hexOf(await activeWindow.crypto.subtle.digest('SHA-256', bytes))
+        })
+        this.register(this.soundPack.onChange(() => this.soundPackChanged()))
+        void this.soundPack.refresh()
         this.imports = new ImportService(this.app, this.alphaTab, () => this.effective().fields)
         this.textTabs = new TextTabConverter(this.app)
         this.notation = new NotationBlocks(
@@ -602,6 +632,7 @@ export class MusicPracticePlugin extends Plugin {
                 volume: () => volumeOf(this.settings.playback),
                 tempoUnit: () => this.settings.playback.tempoUnit,
                 naming: () => namingOf(this.settings.notationLayout.naming) ?? 'letters',
+                engine: () => libraryEngine(this.settings.playback.engine),
                 saveTempoUnit: (unit) => {
                     if (this.settings.playback.tempoUnit === unit) return
                     void this.updateSettings((draft) => {
@@ -734,11 +765,58 @@ export class MusicPracticePlugin extends Plugin {
     }
 
     playOptions(): PlayOptions | false {
-        return playOptions(
-            this.settings.playback,
-            (win) => this.alphaTab.player(win),
-            () => this.settings.playback
-        )
+        return playOptions(this.settings.playback, this.engines(), () => this.settings.playback)
+    }
+
+    /**
+     * The players the plugin has, by the library's engine names (music-notation #124): the sound
+     * pack's (#100; none while the pack isn't on this device, so the next engine plays) and the
+     * built-in soundfont's, both in the window the diagram is in. The light synthesizer is the
+     * library's own.
+     */
+    private engines(): NonNullable<PlayOptions['engines']> {
+        return {
+            generaluser: (win) => this.packPlayer(win),
+            sonivox: (win) => this.alphaTab.player(win, 'sonivox')
+        }
+    }
+
+    /** The sound pack's player; null, with one notice per session, when the pack isn't there. */
+    private packPlayer(win: Window): NotePlayer | null {
+        if (this.alphaTab.hasInstruments()) return this.alphaTab.player(win, 'generaluser')
+        if (!this.packMissingSaid && !this.soundPack.downloading) {
+            this.packMissingSaid = true
+            new Notice(t('plugin.soundPack.missing'))
+        }
+        return null
+    }
+
+    /**
+     * The player for what the plugin plays itself (Play this chord or scale, progressions in
+     * time): the engine of Settings → Playback → Sound, else the best one there is.
+     */
+    private enginePlayer(win: Window): NotePlayer {
+        const engines = this.engines()
+        const chosen = chooseEngine(libraryEngine(this.settings.playback.engine), (engine) => {
+            if (engine === 'light') return lightPlayer(win)
+            const given = engines[engine]
+            return typeof given === 'function' ? given(win) : given
+        })
+        return chosen?.value ?? lightPlayer(win)
+    }
+
+    /**
+     * The sound pack came or went (#100): the runtime takes or drops its files, and what is on
+     * screen is drawn again so it plays the sounds there are now. A download's progress changes
+     * nothing here.
+     */
+    private soundPackChanged(): void {
+        const source = this.soundPack.instruments()
+        if (this.alphaTab.hasInstruments() === (source !== null)) return
+        this.alphaTab.setInstruments(source)
+        if (source) this.packMissingSaid = false
+        this.notation?.redrawLayout()
+        this.notation?.redrawTabs()
     }
 
     /** A score's export menu in its player bar (#20): Guitar Pro 7, MIDI, print. */
@@ -1032,6 +1110,7 @@ export class MusicPracticePlugin extends Plugin {
             drawnPlaybackChanged(playback, this.settings.playback)
         )
             this.notation?.redrawLayout()
+        if (playback.engine !== this.settings.playback.engine) this.notation?.redrawTabs()
         // A volume changed on another device: heard at once too (#95).
         const volume = volumeChange(playback, this.settings.playback)
         if (volume !== null) this.applyVolume(volume)
@@ -1823,10 +1902,7 @@ export class MusicPracticePlugin extends Plugin {
             return
         }
         const settings = this.settings.playback
-        const player =
-            settings.engine === 'soundfont'
-                ? this.alphaTab.player(activeWindow)
-                : lightPlayer(activeWindow)
+        const player = this.enginePlayer(activeWindow)
         const sequence = sequenceOf(kind, pitches, {
             bpm: settings.bpm,
             strum: strumOption(settings).strum ?? (sound === 'piano' ? 0 : DEFAULT_STRUM),
@@ -2128,9 +2204,7 @@ export class MusicPracticePlugin extends Plugin {
                     window: win,
                     sound,
                     voicings: lookupGuitarVoicing,
-                    ...(this.settings.playback.engine === 'soundfont'
-                        ? { player: this.alphaTab.player(win) }
-                        : {})
+                    player: this.enginePlayer(win)
                 }
             },
             ...(item
@@ -2693,6 +2767,8 @@ export class MusicPracticePlugin extends Plugin {
             // Property names change what empty blocks draw from, like the layout changes how;
             // playback settings change the diagrams' bars.
             const volume = volumeChange(this.settings.playback, next.playback)
+            // Tabs and scores take their engine when they are drawn (#100).
+            const engineChanged = next.playback.engine !== this.settings.playback.engine
             const layoutChanged =
                 next.notationLayout !== this.settings.notationLayout ||
                 next.fields !== this.settings.fields ||
@@ -2709,6 +2785,7 @@ export class MusicPracticePlugin extends Plugin {
                 this.notation?.refreshOpenNotes()
             }
             if (layoutChanged) this.notation?.redrawLayout()
+            if (engineChanged) this.notation?.redrawTabs()
             if (volume !== null) this.applyVolume(volume)
         }
         const p = this.settingsWriteChain.then(run, run)

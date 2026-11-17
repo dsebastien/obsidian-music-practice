@@ -17,7 +17,7 @@ import type {
 import { lookupGuitarVoicing } from '@dsebastien/music-notation/voicings'
 import { renderTab } from '@dsebastien/music-notation/tab'
 import type { Staves, TabResult } from '@dsebastien/music-notation/tab'
-import type { PlayOptions } from '@dsebastien/music-notation'
+import type { Engine, PlayOptions } from '@dsebastien/music-notation'
 import type { AlphaTabRuntime, AlphaTabWindow } from './alphatab.service'
 import type { RenderDefaults } from '../domain/notation-layout'
 import type { TempoUnit } from '../domain/playback'
@@ -60,6 +60,12 @@ export interface TabHost {
      * music-notation #112).
      */
     naming?: () => Naming
+    /**
+     * Settings → Playback → Sound, in the library's names (music-notation #124): the engine a
+     * tab or score plays through unless its block has an `engine:` line. The library plays the
+     * sound pack's files when they are on this device, else the built-in soundfont (#100).
+     */
+    engine?: () => Engine
 }
 
 /** What a block's actions (Edit as alphaTex, Keep this view) know about it. */
@@ -245,6 +251,11 @@ class TabChild extends MarkdownRenderChild {
         this.register(el.onWindowMigrated(() => this.draw()))
     }
 
+    /** Drawn again with the sounds there are now (the sound pack came or went, #100). */
+    redraw(): void {
+        if (this.containerEl.isConnected) this.draw()
+    }
+
     private draw(): void {
         if (this.gone) return
         const generation = ++this.generation
@@ -271,6 +282,7 @@ class TabChild extends MarkdownRenderChild {
                     // Note names on the notes follow the Note names setting (music-notation #112).
                     ...(this.host.naming ? { naming: this.host.naming() } : {}),
                     assets: this.host.runtime.assets(win),
+                    ...(this.host.engine ? { engine: this.host.engine() } : {}),
                     resolveFile: (link) => this.host.resolveFile(link, this.sourcePath),
                     ...(this.host.volume ? { volume: this.host.volume } : {}),
                     ...(this.host.tempoUnit ? { tempoUnit: this.host.tempoUnit() } : {}),
@@ -637,6 +649,14 @@ export class NotationBlocks {
     /** Redraw every block on screen with the current layout settings, wherever it shows. */
     redrawLayout(): void {
         for (const child of this.current()) child.redraw()
+    }
+
+    /**
+     * Draw every tab and score on screen again: their sounds changed (the sound pack came or
+     * went, or Settings → Playback → Sound changed, #100). What plays stops.
+     */
+    redrawTabs(): void {
+        for (const child of [...this.liveTabs]) child.redraw()
     }
 
     /**

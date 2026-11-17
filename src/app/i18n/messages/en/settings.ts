@@ -53,7 +53,8 @@ export const settingsEn = {
     // Dropdown options
     'settings.option.vertical': 'Vertical',
     'settings.option.horizontal': 'Horizontal',
-    'settings.option.soundfont': 'Soundfont',
+    'settings.option.generaluser': 'Sound pack (GeneralUser GS)',
+    'settings.option.soundfont': 'Built-in soundfont',
     'settings.option.light': 'Light synthesizer',
     'settings.option.bpm': 'BPM',
     'settings.option.percent': 'Percent',
@@ -212,7 +213,31 @@ export const settingsEn = {
         'A click on a chord, keyboard or fretboard diagram plays it, and a click on a dot or a key plays that note. One bar under each block plays its diagrams one by one or all in turn, with loop, speed and the sound.',
     'settings.item.playEngine.name': 'Sound',
     'settings.item.playEngine.desc':
-        'Soundfont: recorded instruments, the same as tabs and scores (realistic). Light: a small computed synthesizer, as on Obsidian Publish.',
+        'Sound pack: the recorded instruments of GeneralUser GS, the best sound (download it below). Built-in soundfont: recorded instruments, small, always there. Light: a small computed synthesizer, as on Obsidian Publish. Tabs and scores play the sound pack or the built-in soundfont, never the light synthesizer.',
+    'settings.item.soundPack.name': 'Sound pack',
+    'settings.item.soundPack.desc':
+        '{name}: one small file per instrument, {size} in all ({license}). A click on Download gets the files from jsDelivr (cdn.jsdelivr.net), checks each one and saves them in {folder}. Nothing is downloaded without that click. Without the pack, the built-in soundfont plays.',
+    'settings.soundPack.mobile':
+        'On a phone or a tablet, the pack takes {size} of storage: download it on Wi-Fi.',
+    'settings.soundPack.status.absent': 'Not downloaded.',
+    'settings.soundPack.status.partial':
+        'The download stopped before the end. It goes on from where it stopped.',
+    'settings.soundPack.status.installed': 'Downloaded.',
+    'settings.soundPack.status.outdated': 'Downloaded. A newer version of the pack is available.',
+    'settings.soundPack.status.downloading': 'Downloading: {percent} %',
+    'settings.soundPack.download': 'Download',
+    'settings.soundPack.resume': 'Continue the download',
+    'settings.soundPack.update': 'Update',
+    'settings.soundPack.cancel': 'Cancel',
+    'settings.soundPack.remove': 'Remove',
+    'settings.soundPack.done': 'The sound pack is downloaded. It plays from now on.',
+    'settings.soundPack.removed': 'The sound pack is removed. The built-in soundfont plays.',
+    'settings.soundPack.cancelled': 'The download stopped. The files it got stay.',
+    'settings.soundPack.error.network':
+        'The download of {file} failed. Check the connection, then click Download again: it goes on from where it stopped.',
+    'settings.soundPack.error.checksum':
+        'The file {file} is not the one expected, so it was not saved. Click Download again.',
+    'settings.soundPack.error.storage': 'The sound pack could not be saved in {folder}.',
     'settings.item.playVolume.name': 'Volume',
     'settings.item.playVolume.desc':
         'From 0 to 100. The volume of every play bar: diagrams, strumming and picking patterns, progressions and chord charts. The bars have no volume control.',

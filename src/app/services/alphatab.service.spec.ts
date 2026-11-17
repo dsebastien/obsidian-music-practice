@@ -179,6 +179,62 @@ describe('AlphaTabRuntime', () => {
         expect(runtime.loadedWindows()).toEqual([])
     })
 
+    it("plays the sound pack's files through their own player, next to the built-in one (#100)", async () => {
+        const made: string[] = []
+        let destroyed = 0
+        const base = fakeDeps().deps
+        const deps: RuntimeDeps = {
+            ...base,
+            makePlayer: (_alphaTab, assets) => {
+                const name = assets.instruments ? 'pack' : 'built-in'
+                made.push(name)
+                return {
+                    play: () => ({ stop() {} }),
+                    destroy: () => {
+                        destroyed++
+                    }
+                }
+            }
+        }
+        const { win } = fakeWindow(moduleOf(ALPHATAB_VERSION))
+        const runtime = new AlphaTabRuntime(deps)
+        const source = () => Promise.resolve(null)
+
+        // Without the pack: the built-in soundfont, whatever the engine asked for.
+        expect(runtime.hasInstruments()).toBe(false)
+        expect('instruments' in runtime.assets(win)).toBe(false)
+        runtime.player(win, 'generaluser').play(events, { sound: 'guitar', volume: 1 })
+        await flush()
+        expect(made).toEqual(['built-in'])
+
+        // With the pack: tabs get its files, and each engine has its own hidden player.
+        runtime.setInstruments(source)
+        expect(runtime.hasInstruments()).toBe(true)
+        expect(runtime.assets(win).instruments).toBe(source)
+        runtime.player(win, 'generaluser').play(events, { sound: 'guitar', volume: 1 })
+        runtime.player(win, 'sonivox').play(events, { sound: 'guitar', volume: 1 })
+        runtime.player(win).play(events, { sound: 'guitar', volume: 1 })
+        await flush()
+        expect(made).toEqual(['built-in', 'pack'])
+        expect(runtime.player(win, 'generaluser')).toBe(runtime.player(win, 'generaluser'))
+        expect(runtime.player(win, 'generaluser')).not.toBe(runtime.player(win, 'sonivox'))
+
+        // The pack is removed: its player is freed, the built-in one stays and plays.
+        runtime.setInstruments(null)
+        expect(destroyed).toBe(1)
+        expect('instruments' in runtime.assets(win)).toBe(false)
+        runtime.player(win, 'generaluser').play(events, { sound: 'guitar', volume: 1 })
+        await flush()
+        expect(made).toEqual(['built-in', 'pack'])
+
+        // A closed window frees every player it still holds.
+        runtime.setInstruments(source)
+        runtime.player(win, 'generaluser').play(events, { sound: 'guitar', volume: 1 })
+        await flush()
+        runtime.release(win)
+        expect(destroyed).toBe(3)
+    })
+
     it('leaves an alphaTab another plugin set after ours in place', async () => {
         const { win } = fakeWindow(moduleOf(ALPHATAB_VERSION))
         const runtime = new AlphaTabRuntime(fakeDeps().deps)
