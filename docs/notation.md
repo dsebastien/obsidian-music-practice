@@ -297,7 +297,7 @@ A fingerpicking pattern note's empty ` ```picking ` block draws its pattern, wit
 
 ![A fingerpicking pattern note's properties (picking_pattern travis, time_signature 4/4, chord_symbol C, bpm_current 70) and the Travis pattern over C its empty block draws](images/notation-from-properties-picking.png)
 
-**Identify this chord** names a chord note from its frets or pitches when it has no chord symbol yet. See [Usage](usage.md#add-a-learning-note).
+**Identify this chord** names a chord note from its frets or pitches when it has no chord symbol yet, and from its name when it has neither ("A Minor 7 - Open"). See [Usage](usage.md#notes-made-from-a-template).
 
 ## Hear the diagrams
 
