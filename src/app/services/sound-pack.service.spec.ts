@@ -81,10 +81,8 @@ function fakeStore() {
         rmdir: (path, recursive) => {
             // As Obsidian's adapter on desktop: without `recursive`, a folder is refused.
             if (!recursive) return Promise.reject(new Error('rm returned EISDIR (is a directory)'))
-            if (recursive) {
-                for (const file of [...files.keys()]) if (under(file, path)) files.delete(file)
-                for (const folder of [...folders]) if (under(folder, path)) folders.delete(folder)
-            }
+            for (const file of [...files.keys()]) if (under(file, path)) files.delete(file)
+            for (const folder of [...folders]) if (under(folder, path)) folders.delete(folder)
             folders.delete(path)
             return Promise.resolve()
         }
@@ -313,9 +311,9 @@ describe('SoundPackService (#100)', () => {
         const vault = fakeStore()
         const { service } = serviceOf({ store: vault })
         await service.download()
-        const rmdir = vault.store.rmdir
+        const store = { ...vault.store }
         vault.store.rmdir = (path, recursive) =>
-            path === FOLDER ? rmdir(path, recursive) : Promise.reject(new Error('busy'))
+            path === FOLDER ? store.rmdir(path, recursive) : Promise.reject(new Error('busy'))
         await service.remove()
         expect(service.state).toBe('absent')
         expect(vault.folders.has(FOLDER)).toBe(false)
