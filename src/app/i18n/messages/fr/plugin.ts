@@ -39,6 +39,7 @@ export const pluginFr: Translation<typeof pluginEn> = {
     'plugin.command.noteDrillCurrent':
         'Exercice sur les notes, les accords ou les gammes pour la note courante',
     'plugin.command.identifyChord': 'Identifier cet accord',
+    'plugin.command.simplifyChart': 'Simplifier cette grille',
     'plugin.command.startMetronome': 'Démarrer le métronome',
     'plugin.command.stopMetronome': 'Arrêter le métronome',
     'plugin.command.speedTrainer': 'Montée en tempo pour la note courante',
@@ -108,6 +109,7 @@ export const pluginFr: Translation<typeof pluginEn> = {
     'plugin.pieceKey.unreadable': 'Un accord de ce morceau est illisible : {chords}',
     'plugin.chartChanges.noChange':
         "Cette note n'a pas de grille d'accords ({block}) avec un changement d'accord.",
+    'plugin.simplify.noChart': "Cette note n'a pas de grille d'accords ({block}) avec des accords.",
     'plugin.smooth.tooFew':
         "Cette note n'a pas de grille d'accords ({block}) avec au moins deux accords.",
     'plugin.backing.progressionName': 'Progression {n}',

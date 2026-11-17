@@ -71,6 +71,24 @@ export const toolsFr: Translation<typeof toolsEn> = {
         'Le nom de la note indique {name} ({symbol}), avec la forme {shape}.',
     'tools.identify.nameFromName': "Nommer {symbol}, d'après le nom de la note",
     'tools.identify.failed': "Impossible de nommer l'accord : {message}",
+    'tools.simplify.title': 'Simplifier cette grille : {name}',
+    'tools.simplify.chart': 'Grille',
+    'tools.simplify.chartN': 'Grille {n}',
+    'tools.simplify.easier': 'Accords plus faciles : {chords}',
+    'tools.simplify.noEasier': "Aucun accord de cette grille n'a de version plus facile.",
+    'tools.simplify.capo':
+        'Meilleur capodastre : case {capo}. Jouez {shapes} ({open} accords ouverts sur {total}).',
+    'tools.simplify.noCapo': 'Aucun capodastre ne fait mieux que sans.',
+    'tools.simplify.ownCapo':
+        'Cette grille a son propre capodastre (case {capo}) : ses accords sont déjà les positions à jouer.',
+    'tools.simplify.piano':
+        'Les accords plus faciles et le meilleur capodastre concernent les grilles pour guitare.',
+    'tools.simplify.switchOn': 'Activer dans la grille',
+    'tools.simplify.alreadyOn': 'Déjà activé dans la grille',
+    'tools.simplify.insertCopy': 'Insérer une copie simplifiée',
+    'tools.simplify.switched': 'La grille affiche maintenant sa version plus facile.',
+    'tools.simplify.inserted': 'Une copie simplifiée se trouve sous la grille.',
+    'tools.simplify.changed': 'La grille a changé depuis : relancez la commande.',
 
     // Tab exercise
     'tools.exercise.title': 'Exercice de tablature : {name}',

@@ -179,6 +179,15 @@ import type { GeneratedVoicing } from '@dsebastien/music-notation'
 import { namingOf, volumeChanged } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
 import { namedNoteChanges, valueOfText, type ClickValue } from './domain/click-input'
+import {
+    insertChartAfter,
+    noteCharts,
+    replaceChart,
+    simplerChart,
+    simplerCopy,
+    withOptionsOn
+} from './domain/simpler-chart'
+import { SimplifyChartModal, type SimplifyChartEntry } from './ui/simplify-chart-modal'
 import { readChordName, titleOfName } from './domain/chord-name'
 import type { ClickLayout } from './ui/click-input'
 import { IdentifyChordModal } from './ui/identify-chord-modal'
@@ -1390,6 +1399,16 @@ export class MusicPracticePlugin extends Plugin {
             }
         })
         this.addCommand({
+            id: 'simplify-chart',
+            name: t('plugin.command.simplifyChart'),
+            checkCallback: (checking) => {
+                const file = this.app.workspace.getActiveFile()
+                if (!file || file.extension !== 'md') return false
+                if (!checking) void this.openSimplifyChart(file)
+                return true
+            }
+        })
+        this.addCommand({
             id: 'smooth-progression',
             name: t('plugin.command.smoothProgression'),
             checkCallback: (checking) => {
@@ -2310,6 +2329,68 @@ export class MusicPracticePlugin extends Plugin {
     }
 
     /** Smooth this progression (#57): the chords of the note's chord charts. */
+    /**
+     * Simplify this chart (#68): the easier chords and the best capo of the note's chord charts,
+     * to switch on in a chart or to insert as a simpler copy.
+     */
+    private async openSimplifyChart(file: TFile): Promise<void> {
+        const text = await this.app.vault.cachedRead(file)
+        const charts = noteCharts(text).flatMap((found, index) => {
+            const chart = simplerChart(found.body)
+            return chart ? [{ index, body: found.body, chart }] : []
+        })
+        if (!charts.length) {
+            new Notice(t('plugin.simplify.noChart', { block: '```chords' }))
+            return
+        }
+        // Written only while the chart is as the window showed it.
+        const write = (change: (now: string) => string | null) =>
+            this.app.vault
+                .process(file, (now) => {
+                    const next = change(now)
+                    if (next === null) throw new Error(t('tools.simplify.changed'))
+                    return next
+                })
+                .then(() => undefined)
+        const indexOf = new Map<SimplifyChartEntry, number>()
+        const entries = charts.map(({ index, body, chart }, place) => {
+            // Several charts: each with its place, so two with one title can be told apart.
+            const name = chart.title ?? t('tools.simplify.chartN', { n: index + 1 })
+            const entry: SimplifyChartEntry = {
+                label: charts.length > 1 && chart.title ? `${place + 1}. ${name}` : name,
+                body,
+                chart
+            }
+            indexOf.set(entry, index)
+            return entry
+        })
+        new SimplifyChartModal(this.app, {
+            name: file.basename,
+            charts: entries,
+            drawn: this.notation.status('chords') === 'on',
+            // As the note draws its charts: the chords used row needs the voicing lookup.
+            renderOptions: () => ({ ...this.modalRenderOptions(), voicings: lookupGuitarVoicing }),
+            switchOn: (entry) =>
+                write((now) =>
+                    replaceChart(
+                        now,
+                        indexOf.get(entry) ?? -1,
+                        entry.body,
+                        withOptionsOn(entry.body, entry.chart)
+                    )
+                ),
+            insertCopy: (entry) =>
+                write((now) =>
+                    insertChartAfter(
+                        now,
+                        indexOf.get(entry) ?? -1,
+                        entry.body,
+                        simplerCopy(entry.body)
+                    )
+                )
+        }).open()
+    }
+
     private async smoothProgression(file: TFile): Promise<void> {
         const chords = progressionOf(await this.app.vault.cachedRead(file))
         if (chords.length < 2) {
