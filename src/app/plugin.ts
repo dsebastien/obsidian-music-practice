@@ -179,6 +179,7 @@ import type { GeneratedVoicing } from '@dsebastien/music-notation'
 import { namingOf, volumeChanged } from '@dsebastien/music-notation'
 import { layoutDefaults } from './domain/notation-layout'
 import { namedNoteChanges, valueOfText, type ClickValue } from './domain/click-input'
+import { readChordName, titleOfName } from './domain/chord-name'
 import type { ClickLayout } from './ui/click-input'
 import { IdentifyChordModal } from './ui/identify-chord-modal'
 import type { NotationStatus } from './services/notation.service'
@@ -242,7 +243,8 @@ export class MusicPracticePlugin extends Plugin {
 
     /**
      * Name a chord note from its frets (guitar) or pitches (piano): fills the chord symbol, root,
-     * quality and alias. Asks which reading when several fit; leaves a named chord alone.
+     * quality and alias. Asks which reading when several fit; leaves a named chord alone. A note
+     * without frets or pitches is named from its own name, with its shape (#119).
      */
     private identifyChord(
         file: TFile,
@@ -276,7 +278,11 @@ export class MusicPracticePlugin extends Plugin {
          * Writes the chord; with `notes`, also the frets (with their fingers and position) or keys
          * clicked, when they changed (#76). Throws when it can't: the click modal stays open.
          */
-        const write = async (symbol: string, notes?: ClickValue): Promise<void> => {
+        const write = async (
+            symbol: string,
+            notes?: ClickValue,
+            shape?: string | null
+        ): Promise<void> => {
             const chord = parseChord(symbol)
             if (!chord) throw new Error(t('plugin.identify.notAChord', { symbol }))
             await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
@@ -286,6 +292,7 @@ export class MusicPracticePlugin extends Plugin {
                     fm,
                     symbol: chord.symbol,
                     ...(notes ? { notes } : {}),
+                    ...(shape ? { shape } : {}),
                     frets: fretsText,
                     pitches: pitchesText
                 })
@@ -293,7 +300,12 @@ export class MusicPracticePlugin extends Plugin {
                 for (const name of changes.remove) delete fm[name]
                 fm['aliases'] = withAlias(fm['aliases'], chord.symbol)
             })
-            new Notice(t('plugin.identify.named', { name: chord.name, symbol: chord.symbol }))
+            new Notice(
+                t(shape === undefined ? 'plugin.identify.named' : 'plugin.identify.namedFromName', {
+                    name: chord.name,
+                    symbol: chord.symbol
+                })
+            )
         }
         const apply = async (symbol: string): Promise<void> => {
             try {
@@ -305,6 +317,20 @@ export class MusicPracticePlugin extends Plugin {
         // No notes, or notes that make no chord: click them on a fretboard or keyboard (#76),
         // for guitar and piano chords; other instruments keep the message.
         if (!detected) {
+            // Nothing to read the chord from: the note's name may say it, with its shape (#119).
+            if (!fretsText && !pitchesText) {
+                const reading = readChordName(
+                    titleOfName(file.basename, resolveNoteTypeAffixes(this.app, type.id)),
+                    type.fields.has(fields.shape) ? (type.allowedValues[fields.shape] ?? []) : null
+                )
+                if (reading) {
+                    void write(reading.chord.symbol, undefined, reading.shape).catch(
+                        (error: unknown) =>
+                            new Notice(t('plugin.identify.failed', { error: errorText(error) }))
+                    )
+                    return
+                }
+            }
             const instrument =
                 type.subject === 'piano' ? 'piano' : type.subject === 'guitar' ? 'guitar' : null
             if (!instrument) {

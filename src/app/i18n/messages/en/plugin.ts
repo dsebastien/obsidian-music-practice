@@ -66,6 +66,7 @@ export const pluginEn = {
     'plugin.identify.noProperty': 'This note type has no "{field}" property to name the chord in.',
     'plugin.identify.notAChord': '"{symbol}" is not a chord the library reads.',
     'plugin.identify.named': 'This chord is {name} ({symbol}).',
+    'plugin.identify.namedFromName': "From the note's name: this chord is {name} ({symbol}).",
     'plugin.identify.failed': "Couldn't name the chord: {error}",
     'plugin.identify.noneFound': 'No chord found: add six frets to "{field}" (x02220).',
 

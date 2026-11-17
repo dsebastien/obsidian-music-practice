@@ -310,9 +310,16 @@ export function spellKeys(keys: readonly number[]): string {
         .join(' ')
 }
 
+/** A property without a value: absent, empty text, or a list with nothing in it. */
+const isBlank = (value: unknown): boolean =>
+    value === undefined ||
+    value === null ||
+    (typeof value === 'string' && !value.trim()) ||
+    (Array.isArray(value) && value.every((v) => v === null || String(v).trim() === ''))
+
 /**
  * The frontmatter changes that name a chord note (Identify this chord): the chord's symbol, root
- * and quality; and when the notes clicked differ from the note's, the new frets with their fingers
+ * and quality; the shape its name gives, when the note has none (#119); and when the notes clicked differ from the note's, the new frets with their fingers
  * worked out (and the position, when the note has one), or the new keys (spelled by the chord, in
  * the shape the note stores them: a list stays a list) with the old piano fingering taken away.
  * Only properties the type defines (`has`).
@@ -323,6 +330,8 @@ export function namedNoteChanges(input: {
     fm: Record<string, unknown>
     symbol: string
     notes?: ClickValue
+    /** The shape the note's name gives (#119), written only when the note has none. */
+    shape?: string | null
     /** The note's frets and pitches as text, to tell whether the clicks changed them. */
     frets: string
     pitches: string
@@ -339,6 +348,8 @@ export function namedNoteChanges(input: {
         put(fields.chordRoot, chord.root)
         put(fields.chordQuality, chord.quality)
     }
+    if (input.shape && isBlank(fm[fields.shape]))
+        put(fields.shape, Array.isArray(fm[fields.shape]) ? [input.shape] : input.shape)
     if (notes?.kind === 'frets') {
         const text = textOfValue(notes)
         if (text && text !== input.frets) {
