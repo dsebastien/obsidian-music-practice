@@ -1,7 +1,8 @@
 import { Modal, Notice } from 'obsidian'
 import type { App } from 'obsidian'
 import { renderBlock } from '@dsebastien/music-notation'
-import type { RenderOptions, RenderResult } from '@dsebastien/music-notation'
+import type { Naming, RenderOptions, RenderResult } from '@dsebastien/music-notation'
+import { chordShown } from '../domain/note-names'
 import { offersSomething, withOptionsOn } from '../domain/simpler-chart'
 import type { SimplerChart } from '../domain/simpler-chart'
 import { t } from '../i18n/i18n'
@@ -21,6 +22,8 @@ export interface SimplifyChartDeps {
     /** Whether Music Practice draws chord charts. */
     drawn: boolean
     renderOptions: () => RenderOptions
+    /** The naming charts are drawn in when they have none of their own (the Note names setting). */
+    naming: () => Naming
     /** Writes `{simplify}` and `{capo: auto}` into the chart; rejects when it can't. */
     switchOn: (entry: SimplifyChartEntry) => Promise<void>
     /** Adds a simpler copy below the chart; rejects when it can't. */
@@ -68,13 +71,18 @@ export class SimplifyChartModal extends Modal {
             })
         }
         const { chart, body } = this.entry
+        // Chords are named as the chart draws them: its own naming, else the setting's.
+        const naming = chart.naming ?? this.deps.naming()
+        const named = (symbol: string) => chordShown(symbol, naming)
         const line = (text: string) => contentEl.createDiv({ cls: 'mp-item-meta', text })
         if (chart.piano) line(t('tools.simplify.piano'))
         else {
             line(
                 chart.easier.length
                     ? t('tools.simplify.easier', {
-                          chords: chart.easier.map((c) => `${c.from} → ${c.to}`).join(', ')
+                          chords: chart.easier
+                              .map((c) => `${named(c.from)} → ${named(c.to)}`)
+                              .join(', ')
                       })
                     : t('tools.simplify.noEasier')
             )
@@ -82,7 +90,7 @@ export class SimplifyChartModal extends Modal {
                 chart.capo
                     ? t('tools.simplify.capo', {
                           capo: chart.capo.capo,
-                          shapes: chart.capo.shapes.map((s) => s.shape).join(', '),
+                          shapes: chart.capo.shapes.map((s) => named(s.shape)).join(', '),
                           open: chart.capo.open,
                           total: chart.capo.shapes.length
                       })

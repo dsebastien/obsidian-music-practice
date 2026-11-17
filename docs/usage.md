@@ -168,7 +168,7 @@ Some charts are harder to play than they need to be: a Cmaj9 where a Cmaj7 is ea
 Then pick what to do with it:
 
 - **Switch on in the chart** writes `{simplify}` (when a chord has an easier one) and `{capo: auto}` (when a capo does better) at the top of the block. From then on, the chart draws and plays its easier version, and the chords you wrote stay in the block. When the chart asks for them already, the button reads **Already on in the chart** and is disabled.
-- **Insert a simpler copy** adds a new chart below the first one, written out: the easier chords in the lyrics, or the capo's shapes with a `{capo: 3}` line. The original chart doesn't change. The copy is in letters, even when the chart uses another naming (`{naming: solfege}`). Comments, tab and grid sections stay as written.
+- **Insert a simpler copy** adds a new chart below the first one, written out: the easier chords in the lyrics, or the capo's shapes with a `{capo: 3}` line. The original chart doesn't change. The copy keeps the chart's own naming (`{naming: solfege}`): a chord that changes is written in it. Comments, tab and grid sections stay as written.
 
 When the chart has nothing to offer, the window only has **Close**. A note with several charts gets a list to pick one, and the window opens on the first chart that has something to offer. Easier chords and the capo are a guitar's: on a piano chart (`{instrument: piano}`), the window says "Easier chords and the best capo are for guitar charts." If the chart changes while the window is open, nothing is written, and a notice says to run the command again.
 

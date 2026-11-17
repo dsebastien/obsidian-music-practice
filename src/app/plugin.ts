@@ -2370,6 +2370,7 @@ export class MusicPracticePlugin extends Plugin {
             drawn: this.notation.status('chords') === 'on',
             // As the note draws its charts: the chords used row needs the voicing lookup.
             renderOptions: () => ({ ...this.modalRenderOptions(), voicings: lookupGuitarVoicing }),
+            naming: () => namingOf(this.settings.notationLayout.naming) ?? 'letters',
             switchOn: (entry) =>
                 write((now) =>
                     replaceChart(

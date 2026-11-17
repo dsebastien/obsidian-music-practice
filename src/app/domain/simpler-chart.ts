@@ -3,8 +3,13 @@
  * capo (the library's `easierChart`), the chart with those options switched on, and a simpler
  * copy of it. Pure: no Obsidian imports.
  */
-import { easierChart, parseChordPro } from '@dsebastien/music-notation'
-import type { CapoChoice } from '@dsebastien/music-notation'
+import {
+    chordInNaming,
+    easierChart,
+    lettersInBlock,
+    parseChordPro
+} from '@dsebastien/music-notation'
+import type { CapoChoice, Naming } from '@dsebastien/music-notation'
 import { inLetters } from './block-letters'
 
 /** A chord chart of a note: its block and where its body is in the note's text. */
@@ -56,6 +61,17 @@ export interface SimplerChart {
     simplifyOn: boolean
     capoAutoOn: boolean
     piano: boolean
+    /** The chart's own naming (`{naming: solfege}`); null when it has none. */
+    naming: Naming | null
+}
+
+/** A chart's own naming (its `{naming: …}` line); null without one, or with one that doesn't read. */
+export function chartNaming(body: string): Naming | null {
+    try {
+        return lettersInBlock('chords', body).naming
+    } catch {
+        return null
+    }
 }
 
 /** What a chart's easier version is; null when the chart has no chord. */
@@ -75,7 +91,8 @@ export function simplerChart(body: string): SimplerChart | null {
         ownCapo: song.capo,
         simplifyOn: song.simplify === true,
         capoAutoOn: song.capoAuto === true,
-        piano: song.instrument === 'piano'
+        piano: song.instrument === 'piano',
+        naming: chartNaming(body)
     }
 }
 
@@ -89,7 +106,6 @@ const SIMPLIFY = DIRECTIVE('simplify')
 const CAPO = DIRECTIVE('capo')
 const TRANSPOSE = DIRECTIVE('transpose')
 const KEY = DIRECTIVE('key')
-const NAMING = DIRECTIVE('naming')
 
 /**
  * The chart with its options switched on: `{simplify}` when it has easier chords, `{capo: auto}`
@@ -109,28 +125,36 @@ export function withOptionsOn(body: string, chart: SimplerChart): string {
 
 /**
  * A simpler copy of the chart, written out: its chords are the easier ones, or the shapes of the
- * best capo with a `{capo: N}` line. It is read from the chart in letters, so a chart in another
- * naming gives a copy in letters. Tab and grid sections stay as written.
+ * best capo with a `{capo: N}` line. The copy is in the chart's own naming: a chord that changes
+ * is written in it, the others stay as written, and its `{naming: …}` line stays. Tab and grid
+ * sections stay as written.
  */
 export function simplerCopy(body: string): string {
-    const letters = inLetters('chords', body)
-    const song = parseChordPro(letters)
+    const naming = chartNaming(body) ?? 'letters'
+    const song = parseChordPro(inLetters('chords', body))
     const easy = easierChart(song, { simplify: true, capo: song.capo === null })
     const capo = easy.capo && easy.capo.capo > 0 ? easy.capo.capo : null
+    /** A chord as the chart writes it → as the copy writes it; null when it stays. */
+    const renamed = (written: string): string | null => {
+        // As the library reads it: in letters.
+        const letters = naming === 'letters' ? written : chordInLetters(written, naming)
+        const next = easy.renames.get(letters) ?? easy.renames.get(letters.trim())
+        return next === undefined ? null : chordInNaming(next, naming)
+    }
     let verbatim = false
     const lines: string[] = []
-    for (const line of letters.split('\n')) {
+    for (const line of body.split('\n')) {
         const directive = /^[ \t]*\{[ \t]*([\w-]+)/.exec(line)?.[1]?.toLowerCase()
         if (directive) {
             if (/^(start_of_(tab|grid)|sot|sog)$/.test(directive)) verbatim = true
             if (/^(end_of_(tab|grid)|eot|eog)$/.test(directive)) verbatim = false
             // Written out in the copy: the switches go, and with a capo its line and the song's
             // transposition, which the chords now hold.
-            if (SIMPLIFY.test(line) || NAMING.test(line)) continue
+            if (SIMPLIFY.test(line)) continue
             if (capo !== null && (CAPO.test(line) || TRANSPOSE.test(line))) continue
             if (CAPO.test(line) && /auto/i.test(line)) continue
             if (capo !== null && KEY.test(line) && easy.key) {
-                lines.push(`{key: ${easy.key}}`)
+                lines.push(`{key: ${chordInNaming(easy.key, naming)}}`)
                 continue
             }
             lines.push(line)
@@ -142,18 +166,28 @@ export function simplerCopy(body: string): string {
         }
         lines.push(
             line.replace(/\[([^\]\n]*)\]/g, (whole: string, chord: string) => {
-                const renamed = easy.renames.get(chord) ?? easy.renames.get(chord.trim())
-                return renamed === undefined ? whole : `[${renamed}]`
+                const next = renamed(chord)
+                return next === null ? whole : `[${next}]`
             })
         )
     }
     if (capo === null) return lines.join('\n')
     // After the title lines, where a reader looks for it.
     const head = lines.findIndex(
-        (line) => !/^[ \t]*\{[ \t]*(title|t|subtitle|st|artist)\b/i.test(line)
+        (line) => !/^[ \t]*\{[ \t]*(title|t|subtitle|st|artist|naming)\b/i.test(line)
     )
     const at = head === -1 ? lines.length : head
     return [...lines.slice(0, at), `{capo: ${capo}}`, ...lines.slice(at)].join('\n')
+}
+
+/** A chord written in a chart's naming, in letters, as the library reads a chart's brackets. */
+function chordInLetters(written: string, naming: Naming): string {
+    try {
+        const read = lettersInBlock('chords', `{naming: ${naming}}\n[${written}]`).text
+        return /\[([^\]\n]*)\]/.exec(read)?.[1] ?? written
+    } catch {
+        return written
+    }
 }
 
 /** The note's text with a chart's body replaced; null when the chart is no longer as it was. */

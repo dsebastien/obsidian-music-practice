@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import {
+    chartNaming,
     insertChartAfter,
     noteCharts,
     offersSomething,
@@ -74,9 +75,13 @@ describe('simplerChart', () => {
         expect(simplerChart('')).toBeNull()
     })
 
-    it('reads a chart written in another naming', () => {
+    it('reads a chart written in another naming, and says which', () => {
         const solfege = simplerChart('{naming: solfege}\n[Domaj9]Hello [Sol5]world')
         expect(solfege?.easier.map((c) => c.to)).toEqual(['Cmaj7', 'G'])
+        expect(solfege?.naming).toBe('solfege')
+        expect(simplerChart(BODY)?.naming).toBeNull()
+        expect(chartNaming('{naming: german}\n[H7]la')).toBe('german')
+        expect(chartNaming('{naming: klingon}\n[C]la')).toBeNull()
     })
 })
 
@@ -131,10 +136,26 @@ describe('simplerCopy', () => {
         expect(simplerCopy(tab)).toBe('# [G5] in a comment\n{sot}\ne|--[3]--|\n{eot}\n[G]Hello')
     })
 
-    it('gives a copy in letters for a chart in another naming', () => {
-        expect(simplerCopy('{naming: solfege}\n[Domaj9]Hello [Sol5]world')).toBe(
-            '[Cmaj7]Hello [G]world'
+    it("writes the copy in the chart's own naming, and keeps its naming line", () => {
+        // A chord that changes is written in the naming; one that stays is as written.
+        expect(simplerCopy('{naming: solfege}\n[Domaj9]Hello [Sol5]world [La m7]end')).toBe(
+            '{naming: solfege}\n[Do maj7]Hello [Sol]world [La m7]end'
         )
+        // German: H is B and B is B flat, read before the capo is found.
+        expect(
+            simplerCopy('{naming: german}\n{title: Lied}\n[H]Eins [E]zwei [F#]drei [G#m]vier')
+        ).toBe('{naming: german}\n{title: Lied}\n{capo: 4}\n[G]Eins [C]zwei [D]drei [Em]vier')
+        expect(simplerCopy('{naming: german}\n[Hmaj9]Eins [B5]zwei')).toBe(
+            '{naming: german}\n{capo: 4}\n[Gmaj7]Eins [Gb5]zwei'
+        )
+        const capo = simplerCopy(
+            '{naming: solfege}\n{title: Chanson}\n[Si♭]Un [Mi♭]deux [Fa]trois [Sol m]quatre'
+        )
+        expect(capo).toBe(
+            '{naming: solfege}\n{title: Chanson}\n{capo: 3}\n[Sol]Un [Do]deux [Ré]trois [Mi m]quatre'
+        )
+        // The copy reads as the same easier chart.
+        expect(simplerChart(capo)?.ownCapo).toBe(3)
     })
 })
 
