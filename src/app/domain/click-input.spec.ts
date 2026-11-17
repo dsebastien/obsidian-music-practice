@@ -309,6 +309,47 @@ describe('click input: review findings', () => {
         expect(bare.set).toEqual({ chord_symbol: 'Bm' })
     })
 
+    it("writes the shape a note's name gives, only when the note has none (#119)", () => {
+        const fields = createDefaultFieldNames()
+        const named = (fm: Record<string, unknown>, has = (_name: string) => true) =>
+            namedNoteChanges({
+                fields,
+                has,
+                fm,
+                symbol: 'Am7',
+                shape: 'Open',
+                frets: '',
+                pitches: ''
+            })
+        expect(named({}).set).toEqual({
+            chord_symbol: 'Am7',
+            chord_root: 'A',
+            chord_quality: 'Minor 7',
+            shape: 'Open'
+        })
+        // As the templates leave it: empty text, nothing, or an empty list (which stays a list).
+        expect(named({ shape: '' }).set['shape']).toBe('Open')
+        expect(named({ shape: null }).set['shape']).toBe('Open')
+        expect(named({ shape: [] }).set['shape']).toEqual(['Open'])
+        // A shape the note already has stays.
+        expect('shape' in named({ shape: 'Shell' }).set).toBe(false)
+        expect('shape' in named({ shape: ['Shell'] }).set).toBe(false)
+        // A type without the property; a name that gives no shape.
+        expect('shape' in named({}, (name) => name !== fields.shape).set).toBe(false)
+        expect(
+            'shape' in
+                namedNoteChanges({
+                    fields,
+                    has: () => true,
+                    fm: {},
+                    symbol: 'Am7',
+                    shape: null,
+                    frets: '',
+                    pitches: ''
+                }).set
+        ).toBe(false)
+    })
+
     it('says why nothing shows: too few notes, or no chord holds them (9)', () => {
         expect(clickHint([], [])).toBe('Click two notes or more: the chord they make shows here.')
         expect(clickHint([60], [])).toBe('Click two notes or more: the chord they make shows here.')

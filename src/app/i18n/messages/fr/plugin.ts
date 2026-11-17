@@ -76,6 +76,8 @@ export const pluginFr: Translation<typeof pluginEn> = {
         "Ce type de note n'a pas de propriété « {field} » pour y nommer l'accord.",
     'plugin.identify.notAChord': "« {symbol} » n'est pas un accord que la bibliothèque sait lire.",
     'plugin.identify.named': 'Cet accord est {name} ({symbol}).',
+    'plugin.identify.namedFromName':
+        "D'après le nom de la note : cet accord est {name} ({symbol}).",
     'plugin.identify.failed': "Impossible de nommer l'accord : {error}",
     'plugin.identify.noneFound':
         'Aucun accord trouvé : ajoutez six frettes à « {field} » (x02220).',

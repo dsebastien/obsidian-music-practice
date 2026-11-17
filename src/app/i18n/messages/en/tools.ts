@@ -59,6 +59,10 @@ export const toolsEn = {
     'tools.identify.ways': 'This chord reads {count} ways: pick one.',
     'tools.identify.is': 'This is {symbol}.',
     'tools.identify.nameIt': 'Name it {symbol}',
+    'tools.identify.nameSays': "The note's name says {name} ({symbol}).",
+    'tools.identify.nameSaysShape':
+        "The note's name says {name} ({symbol}), with the shape {shape}.",
+    'tools.identify.nameFromName': "Name it {symbol}, from the note's name",
     'tools.identify.failed': "Couldn't name the chord: {message}",
 
     // Tab exercise
