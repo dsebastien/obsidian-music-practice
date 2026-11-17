@@ -1,5 +1,29 @@
 # Release Notes
 
+## 0.27.0 (2026-11-17)
+
+Music Practice can now play better recorded instruments: the sound pack, GeneralUser GS, is an optional download in the settings. You can also choose the guitar that plays your diagrams, for all your notes, for one note or for one block. The guitar choice comes from music-notation 0.24.0.
+
+#### Sound
+
+- **Sound pack**: **Settings → Playback → Sound pack** downloads better recorded instruments, GeneralUser GS 2.0.3 by S. Christian Collins, cut into one small file per instrument: 132 files, 14.9 MB in all. Chords, scales, strumming and picking patterns, progressions, chord charts, tabs and scores then play with it, and a score loads only the instruments it uses (#100).
+- **Nothing is downloaded without your click**: the files come from jsDelivr (`cdn.jsdelivr.net`) only when you click **Download**. Each file is checked (its size and SHA-256 hash) before it's saved in the plugin's own folder, and a file that doesn't match is refused. A download that stopped (no network, **Cancel**) goes on from where it stopped. **Remove** deletes the files. This is the only time the plugin uses the network, and the README says so in its Network use section.
+- **Without the pack, nothing changes**: the plugin plays offline with the built-in soundfont, as before. The pack's files are not in `main.js`, so the plugin doesn't get bigger.
+- **One download per device**: Obsidian Sync doesn't sync the plugin's `sounds` folder, so download the pack on each device where you want it. Other sync tools and Git do copy it. On a device without the files, the built-in soundfont plays and a notice says so once. On a phone or a tablet, the row also shows the size, with the advice to download on Wi-Fi.
+- **Sound has three values**: **Settings → Playback → Sound** offers **Sound pack (GeneralUser GS)**, **Built-in soundfont** (the old **Soundfont**, still the default) and **Light synthesizer**. A finished download switches Sound to the pack, and **Remove** switches it back to the built-in soundfont. Tabs and scores play the pack or the built-in soundfont, never the light synthesizer. When Sound changes, the diagrams, tabs and scores on screen are drawn again with the new sound, and what was playing stops.
+- **A block can choose its sound**: the plugin now reads a block's `engine:` line: `engine: generaluser` (the sound pack), `engine: sonivox` (the built-in soundfont) or `engine: light` (the light synthesizer). In a tab or a score, write it among the settings lines at the top; in a chord chart, as a directive (`{engine: light}`). The block's line comes before the Sound setting. Without the pack, `engine: generaluser` plays the built-in soundfont.
+
+#### Guitar sound
+
+- **Four guitars**: **Settings → Playback → Guitar sound** chooses the guitar that plays chord diagrams, fretboards, strumming and picking patterns, progressions and chord charts: **Steel-string acoustic** (the default, the guitar you heard so far), **Nylon-string classical**, **Clean electric** or **Overdriven electric**. A change is heard at the next Play, and nothing on screen is drawn again (#108).
+- **A guitar for one note**: a note can name its own guitar with its `guitar_sound` property: `steel`, `nylon`, `clean` or `overdrive`. A classical piece's note with `guitar_sound: nylon` plays all its blocks on the nylon guitar, and so do **Play this chord or scale** and **Practice this progression in time** for that note. As for the other properties, you can rename it in **Settings → Property names**.
+- **A guitar for one block**: a `guitar:` line chooses for one block (`guitar: nylon`, or `{guitar: nylon}` in a chord chart), and a wrong value shows a message in the block. The order, first wins: the block's line, the note's property, the setting.
+- **Only the guitar changes**: keyboards and piano chords still play the piano, the bar's sound menu still offers guitar and piano, and tabs and scores keep the instruments of their tracks. It works with every Sound: with the sound pack, each guitar is one of its recorded instruments; with the built-in soundfont, that soundfont's guitar; the light synthesizer has its own version of each. The guitars play as they are, with no effects (no amplifier, no reverb).
+
+#### Other changes
+
+- **In French too**: the new settings are translated: "Pack de sons", "Son de guitare" and its four guitars, "Folk (cordes acier)", "Classique (cordes nylon)", "Électrique, son clair" and "Électrique, son saturé".
+
 ## 0.26.0 (2026-11-16)
 
 Music Practice now follows Obsidian's language, and French is the first translation. The notation blocks speak French too, and tabs and scores can follow the music, fit on one line and show the names of their notes. These come from music-notation 0.23.0 and 0.23.1.
