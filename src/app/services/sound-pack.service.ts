@@ -246,6 +246,24 @@ export class SoundPackService {
         return bytes.byteLength === file.size && (await this.deps.hash(bytes)) === file.sha256
     }
 
+    /**
+     * The folder above the pack's, when nothing is left in it. Obsidian's `rmdir` without
+     * `recursive` refuses a folder (EISDIR), so the empty folder goes with `recursive`. Tidying
+     * up only: the pack is gone already, so a failure here is not one of the removal.
+     */
+    private async removeEmptyParent(): Promise<void> {
+        const { store, folder } = this.deps
+        const parent = folder.split('/').slice(0, -1).join('/')
+        if (!parent) return
+        try {
+            if (!(await store.exists(parent))) return
+            const left = await store.list(parent)
+            if (!left.files.length && !left.folders.length) await store.rmdir(parent, true)
+        } catch {
+            // The empty folder stays.
+        }
+    }
+
     /** The folder and each folder above it that doesn't exist yet. */
     private async makeFolder(): Promise<void> {
         const { store, folder } = this.deps
@@ -268,14 +286,10 @@ export class SoundPackService {
         }
         try {
             if (await store.exists(folder)) await store.rmdir(folder, true)
-            const parent = folder.split('/').slice(0, -1).join('/')
-            if (parent && (await store.exists(parent))) {
-                const left = await store.list(parent)
-                if (!left.files.length && !left.folders.length) await store.rmdir(parent, false)
-            }
         } catch (error) {
             throw new PackError('storage', undefined, { cause: error })
         } finally {
+            await this.removeEmptyParent()
             await this.refresh()
             this.changed()
         }
