@@ -1,7 +1,8 @@
 /**
  * Identify this chord by clicking (#76): the note's frets or keys on a fretboard or keyboard,
  * changed by clicks; the chord they make (pick a reading to name the note) or, when they make
- * none, the chords that hold them with their missing notes.
+ * none, the chords that hold them with their missing notes. When the note's name says a chord
+ * (#119), one more button names the note from it, without clicks.
  */
 import { Modal, Notice } from 'obsidian'
 import type { App } from 'obsidian'
@@ -18,6 +19,14 @@ export interface IdentifyChordOptions {
     play: () => PlayOptions | false
     /** Names the note with this chord, and keeps the notes clicked; rejects when it can't. */
     name: (symbol: string, value: ClickValue) => Promise<void>
+    /** The chord the note's name says (#119), offered as a way to name the note without clicks. */
+    fromName?: {
+        name: string
+        symbol: string
+        shape: string | null
+        /** Names the note from its name; rejects when it can't. */
+        apply: () => Promise<void>
+    }
 }
 
 export class IdentifyChordModal extends Modal {
@@ -41,6 +50,38 @@ export class IdentifyChordModal extends Modal {
                     ? t('tools.identify.helpGuitar')
                     : t('tools.identify.helpPiano')
         })
+        // The note's name says a chord (#119): one click names the note, or the clicks below do.
+        const fromName = this.options.fromName
+        let nameButton: HTMLButtonElement | null = null
+        if (fromName) {
+            const box = el.createDiv({ cls: 'mp-click-name' })
+            box.createEl('p', {
+                text: fromName.shape
+                    ? t('tools.identify.nameSaysShape', {
+                          name: fromName.name,
+                          symbol: fromName.symbol,
+                          shape: fromName.shape
+                      })
+                    : t('tools.identify.nameSays', { name: fromName.name, symbol: fromName.symbol })
+            })
+            const button = box.createEl('button', {
+                cls: 'mod-cta',
+                text: t('tools.identify.nameFromName', { symbol: fromName.symbol })
+            })
+            button.addEventListener('click', () => {
+                button.disabled = true
+                void fromName
+                    .apply()
+                    .then(() => this.close())
+                    .catch((error: unknown) => {
+                        // Nothing written: the modal stays open and says why.
+                        button.disabled = false
+                        const message = error instanceof Error ? error.message : String(error)
+                        new Notice(t('tools.identify.failed', { message }))
+                    })
+            })
+            nameButton = button
+        }
         const host = el.createDiv()
         const result = el.createDiv({ cls: 'mp-click-result', attr: { 'aria-live': 'polite' } })
         const near = el.createDiv({ cls: 'mp-click-near-box' })
@@ -49,6 +90,8 @@ export class IdentifyChordModal extends Modal {
             const read = readValue(value)
             result.empty()
             actions.empty()
+            // Clicked notes that make a chord take the lead from the name.
+            nameButton?.toggleClass('mod-cta', !read.detected)
             if (read.detected) {
                 result.setText(
                     read.detected.readings.length > 1
@@ -92,6 +135,8 @@ export class IdentifyChordModal extends Modal {
             onChange: show
         })
         show(this.options.value)
+        // Enter names the note from its name right away.
+        nameButton?.focus()
     }
 
     override onClose(): void {

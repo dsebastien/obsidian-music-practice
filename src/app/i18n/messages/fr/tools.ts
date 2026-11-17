@@ -66,6 +66,10 @@ export const toolsFr: Translation<typeof toolsEn> = {
     'tools.identify.ways': 'Cet accord se lit de {count} façons : choisissez-en une.',
     'tools.identify.is': "C'est {symbol}.",
     'tools.identify.nameIt': 'Nommer {symbol}',
+    'tools.identify.nameSays': 'Le nom de la note indique {name} ({symbol}).',
+    'tools.identify.nameSaysShape':
+        'Le nom de la note indique {name} ({symbol}), avec la forme {shape}.',
+    'tools.identify.nameFromName': "Nommer {symbol}, d'après le nom de la note",
     'tools.identify.failed': "Impossible de nommer l'accord : {message}",
 
     // Tab exercise

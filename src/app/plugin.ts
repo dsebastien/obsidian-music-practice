@@ -280,9 +280,10 @@ export class MusicPracticePlugin extends Plugin {
          */
         const write = async (
             symbol: string,
-            notes?: ClickValue,
-            shape?: string | null
+            /** `notes`: the clicks. `shape` and `fromName`: what the note's name gave (#119). */
+            more: { notes?: ClickValue; shape?: string | null; fromName?: boolean } = {}
         ): Promise<void> => {
+            const { notes, shape } = more
             const chord = parseChord(symbol)
             if (!chord) throw new Error(t('plugin.identify.notAChord', { symbol }))
             await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
@@ -301,7 +302,7 @@ export class MusicPracticePlugin extends Plugin {
                 fm['aliases'] = withAlias(fm['aliases'], chord.symbol)
             })
             new Notice(
-                t(shape === undefined ? 'plugin.identify.named' : 'plugin.identify.namedFromName', {
+                t(more.fromName ? 'plugin.identify.namedFromName' : 'plugin.identify.named', {
                     name: chord.name,
                     symbol: chord.symbol
                 })
@@ -318,31 +319,55 @@ export class MusicPracticePlugin extends Plugin {
         // for guitar and piano chords; other instruments keep the message.
         if (!detected) {
             // Nothing to read the chord from: the note's name may say it, with its shape (#119).
-            if (!fretsText && !pitchesText) {
-                const reading = readChordName(
-                    titleOfName(file.basename, resolveNoteTypeAffixes(this.app, type.id)),
-                    type.fields.has(fields.shape) ? (type.allowedValues[fields.shape] ?? []) : null
-                )
-                if (reading) {
-                    void write(reading.chord.symbol, undefined, reading.shape).catch(
-                        (error: unknown) =>
-                            new Notice(t('plugin.identify.failed', { error: errorText(error) }))
-                    )
-                    return
-                }
-            }
+            const reading =
+                !fretsText && !pitchesText
+                    ? readChordName(
+                          titleOfName(file.basename, resolveNoteTypeAffixes(this.app, type.id)),
+                          type.fields.has(fields.shape)
+                              ? (type.allowedValues[fields.shape] ?? [])
+                              : null
+                      )
+                    : null
+            const fromName = (): Promise<void> =>
+                reading
+                    ? write(reading.chord.symbol, { shape: reading.shape, fromName: true })
+                    : Promise.resolve()
             const instrument =
                 type.subject === 'piano' ? 'piano' : type.subject === 'guitar' ? 'guitar' : null
             if (!instrument) {
-                new Notice(t('plugin.identify.noneFound', { field: fields.frets }))
+                // No click drawing for this instrument: the name applies at once.
+                if (reading)
+                    void fromName().catch(
+                        (error: unknown) =>
+                            new Notice(t('plugin.identify.failed', { error: errorText(error) }))
+                    )
+                else new Notice(t('plugin.identify.noneFound', { field: fields.frets }))
                 return
             }
+            // Guitar and piano: the clicks, and the name's chord one click away. Clicks that make
+            // the name's chord keep its shape.
             new IdentifyChordModal(this.app, {
                 instrument,
                 value: valueOfText(instrument === 'piano' ? pitchesText : fretsText, instrument),
                 layout: () => this.clickLayout(),
                 play: () => this.playOptions(),
-                name: (symbol, value) => write(symbol, value)
+                name: (symbol, value) =>
+                    write(symbol, {
+                        notes: value,
+                        ...(reading && parseChord(symbol)?.symbol === reading.chord.symbol
+                            ? { shape: reading.shape }
+                            : {})
+                    }),
+                ...(reading
+                    ? {
+                          fromName: {
+                              name: reading.chord.name,
+                              symbol: reading.chord.symbol,
+                              shape: reading.shape,
+                              apply: fromName
+                          }
+                      }
+                    : {})
             }).open()
             return
         }

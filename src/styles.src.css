@@ -1049,6 +1049,15 @@
     @apply mt-2;
 }
 
+/* The chord the note's name says, with the button that names the note from it. */
+.mp-click-name {
+    @apply flex flex-wrap items-center gap-2 mb-2;
+}
+
+.mp-click-name p {
+    @apply m-0;
+}
+
 @media (forced-colors: active) {
     .mp-click-input .mp-click-dot {
         fill: Highlight;
