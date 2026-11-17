@@ -83,6 +83,7 @@ A chord chart with its chord diagrams, lighting the chord that plays:
 - **Tab exercises**: turn a scale position or an arpeggio shape into a tab that plays in time, with a count-in and a speed control. Save BPM in the tab's player bar keeps the tempo you reached.
 - **Hear the diagrams**: click a chord, keyboard or fretboard diagram to hear it, or a dot to hear one note. One bar under each block plays its diagrams, one by one or all in turn. Chords strum, scales go up and down. Each note lights up on the drawing as you hear it.
 - **Sound pack**: better instrument sounds, as an optional download of 14.9 MB in **Settings → Playback**. Diagrams, patterns, progressions, charts, tabs and scores then play with it; without it, the built-in soundfont plays, offline (see [Network use](#network-use)).
+- **Four guitars**: a steel-string acoustic, a nylon-string classical, a clean electric or an overdriven electric guitar plays the diagrams, patterns, progressions and charts. Pick one in **Settings → Playback**, for one note with its `guitar_sound` property (a classical piece on nylon), or for one block with a `guitar:` line.
 - **Imports**: Guitar Pro, MusicXML, Capella and ChordPro files, plus pasted text tabs (drum tabs too) and chord sheets. A text tab already in a note shows as tablature you can play, and **Edit as alphaTex** turns it into alphaTex. **Tab**, **Score** and **Both** in the player bar change the view.
 
 ![A two-bar guitar part shown as notation over tablature, with the player bar and its Tab, Score and Both buttons](docs/images/tab.png)

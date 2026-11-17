@@ -269,6 +269,22 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         }
                     },
                     {
+                        name: t('settings.item.playGuitar.name'),
+                        desc: t('settings.item.playGuitar.desc', {
+                            property: this.plugin.settings.fields.guitarSound
+                        }),
+                        control: {
+                            type: 'dropdown',
+                            key: 'playback.guitar',
+                            options: {
+                                steel: t('settings.option.guitarSteel'),
+                                nylon: t('settings.option.guitarNylon'),
+                                clean: t('settings.option.guitarClean'),
+                                overdrive: t('settings.option.guitarOverdrive')
+                            }
+                        }
+                    },
+                    {
                         name: t('settings.item.soundPack.name'),
                         desc: '',
                         // The pack's state is on this device, not in the settings: read at each
@@ -460,6 +476,7 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             this.text('fields.strumPattern', 'fieldStrumPattern'),
                             this.text('fields.strumFeel', 'fieldStrumFeel'),
                             this.text('fields.pickingPattern', 'fieldPickingPattern'),
+                            this.text('fields.guitarSound', 'fieldGuitarSound'),
                             this.labelled('fields.lastReviewed', 'lastReviewed'),
                             this.labelled('fields.reviewInterval', 'reviewInterval'),
                             this.labelled('fields.reviewCount', 'reviewCount')

@@ -3,7 +3,7 @@ import { DEFAULT_SETTINGS } from '../types/plugin-settings.intf'
 import type { PluginSettings } from '../types/plugin-settings.intf'
 import { NAMINGS, ROOT_MARKS } from '@dsebastien/music-notation'
 import { ORIENTATIONS } from '../domain/notation-layout'
-import { PLAYBACK_ENGINES } from '../domain/playback'
+import { GUITAR_SOUNDS, PLAYBACK_ENGINES } from '../domain/playback'
 import { parseImageFolder } from '../domain/diagram-images'
 
 /**
@@ -113,7 +113,8 @@ const CHOICES: Record<string, readonly string[]> = {
     'notationLayout.keyboard': ORIENTATIONS,
     'notationLayout.naming': NAMINGS,
     'notationLayout.rootMark': ROOT_MARKS,
-    'playback.engine': PLAYBACK_ENGINES
+    'playback.engine': PLAYBACK_ENGINES,
+    'playback.guitar': GUITAR_SOUNDS
 }
 
 /** Parse a control value by the type of the default at its path. */
