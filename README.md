@@ -82,6 +82,7 @@ A chord chart with its chord diagrams, lighting the chord that plays:
 - **Tabs and scores** with playback: play, slow down, loop, metronome and count-in. Write them in alphaTex, or use a Guitar Pro / MusicXML file. Export to Guitar Pro 7 or MIDI, or print. Everything is bundled, so it works offline, and in popout windows too.
 - **Tab exercises**: turn a scale position or an arpeggio shape into a tab that plays in time, with a count-in and a speed control. Save BPM in the tab's player bar keeps the tempo you reached.
 - **Hear the diagrams**: click a chord, keyboard or fretboard diagram to hear it, or a dot to hear one note. One bar under each block plays its diagrams, one by one or all in turn. Chords strum, scales go up and down. Each note lights up on the drawing as you hear it.
+- **Sound pack**: better instrument sounds, as an optional download of 14.9 MB in **Settings → Playback**. Diagrams, patterns, progressions, charts, tabs and scores then play with it; without it, the built-in soundfont plays, offline (see [Network use](#network-use)).
 - **Imports**: Guitar Pro, MusicXML, Capella and ChordPro files, plus pasted text tabs (drum tabs too) and chord sheets. A text tab already in a note shows as tablature you can play, and **Edit as alphaTex** turns it into alphaTex. **Tab**, **Score** and **Both** in the player bar change the view.
 
 ![A two-bar guitar part shown as notation over tablature, with the player bar and its Tab, Score and Both buttons](docs/images/tab.png)
@@ -104,6 +105,10 @@ The user guide lives at **https://dsebastien.github.io/obsidian-music-practice/*
 
 Then follow the [getting started guide](https://dsebastien.github.io/obsidian-music-practice/usage.html).
 
+## Network use
+
+The plugin makes no network request by itself. The only network use is the optional sound pack, downloaded when you click **Download** in **Settings → Playback → Sound pack**. The files come from jsDelivr (`cdn.jsdelivr.net`), the public CDN of npm packages, from the package `@dsebastien/music-notation-sounds` at a fixed version. Nothing about you or your vault is sent: it's a plain file download. Every file is checked (its size and SHA-256 hash) before it's saved.
+
 ## Development
 
 Built with Bun and TypeScript from my [Obsidian plugin template](https://github.com/dsebastien/obsidian-plugin-template). See [DEVELOPMENT.md](./DEVELOPMENT.md) and [CONTRIBUTING.md](./CONTRIBUTING.md); the rules the plugin implements are in [documentation/Business Rules.md](./documentation/Business%20Rules.md).
@@ -113,6 +118,8 @@ Built with Bun and TypeScript from my [Obsidian plugin template](https://github.
 MIT License, see [LICENSE](./LICENSE).
 
 The plugin embeds, unmodified: [alphaTab](https://github.com/CoderLine/alphaTab) (MPL-2.0), the [Bravura](https://github.com/steinbergmedia/bravura) music font (SIL Open Font License 1.1) and the SONiVOX soundfont shipped with alphaTab (Apache-2.0). Their notices and license texts are at the end of `main.js`.
+
+The optional sound pack is not embedded: it's [GeneralUser GS](https://www.schristiancollins.com/generaluser) 2.0.3 by S. Christian Collins (GeneralUser GS License v2.0), downloaded only when you ask for it (see [Network use](#network-use)).
 
 <!-- support-cta -->
 

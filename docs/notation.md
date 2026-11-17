@@ -313,13 +313,15 @@ On phones and tablets, chord diagrams and fretboards are a third larger, so each
 
 Strumming and picking patterns have their own bar (see [Strumming patterns](#strumming-patterns) and [Picking patterns](#picking-patterns)). Progressions and chord charts have a bar that plays them in time (see [Progressions](#progressions)). In a learning note, each of these bars ends with **Save BPM** (the gauge icon). It opens Set BPM with the tempo set on the bar, rounded. In 6/8, 9/8 and 12/8, that tempo counts dotted beats, as the note's BPM does. The circle of fifths plays a key or a chord when you click it.
 
-The sound comes from a soundfont of recorded instruments, bundled with the plugin, so it works offline. **Settings → Playback** switches to a lighter synthesizer or turns the bar off.
+The sound comes from a soundfont of recorded instruments, bundled with the plugin, so it works offline. For a better sound, download the optional [sound pack](configuration.md#playback) (GeneralUser GS, 14.9 MB) in **Settings → Playback**: nothing is downloaded until you click **Download**. **Settings → Playback** also switches to a lighter synthesizer or turns the bar off.
+
+A block can choose its own sound with an `engine:` line: `engine: generaluser` (the sound pack), `engine: sonivox` (the built-in soundfont) or `engine: light` (the light synthesizer). In a tab or score block, write it among the settings lines at the top; in a chord chart, as a directive (`{engine: light}`). Without the sound pack, `engine: generaluser` plays the built-in soundfont.
 
 **Play this chord or scale** plays the current chord or scale note.
 
 ## Tabs and scores
 
-` ```tab ` and ` ```score ` blocks are written in [alphaTex](https://alphatab.net/docs/alphatex/introduction) and drawn by [alphaTab](https://alphatab.net). alphaTab is bundled with the plugin, so nothing is downloaded and it works offline:
+` ```tab ` and ` ```score ` blocks are written in [alphaTex](https://alphatab.net/docs/alphatex/introduction) and drawn by [alphaTab](https://alphatab.net). alphaTab is bundled with the plugin, so nothing is downloaded to draw and play them, and it works offline (the optional [sound pack](configuration.md#playback) is the only download, and only when you ask for it):
 
 ````markdown
 ```tab
@@ -351,7 +353,7 @@ staves: both
 
 - A ` ```tab ` or ` ```score ` block that holds a plain-text tab (`e|---0---|` lines) shows as tablature, and you can play it. Your note doesn't change: the tab is read again each time the block shows. It shows tablature unless you write a `staves:` line, and keeps its `staves:` and `tracks:` lines. Text tabs have no exact rhythm, so the rhythm comes from the spacing, and the player bar says **Rhythm guessed from the tab**.
 - **Text** in the player bar shows the block as you wrote it. **Show as tab** under the text goes back.
-- To correct the rhythm or the techniques, select **Edit as alphaTex** (in the player bar, or under the text), or put the cursor in the block and run **Edit this text tab as alphaTex**. The block becomes alphaTex, and your original text tab is kept in a comment at its end. Settings lines at the top (`staves:`, `tracks:`, `file:`, `layout:`, `names:`) stay as they are, and a block in a list or callout stays in it. To go back, select **Undo** in the notice, or press Ctrl+Z (Cmd+Z) in editing view. On canvas cards, the block shows as tablature, but there is no **Edit as alphaTex** and no **Keep this view**.
+- To correct the rhythm or the techniques, select **Edit as alphaTex** (in the player bar, or under the text), or put the cursor in the block and run **Edit this text tab as alphaTex**. The block becomes alphaTex, and your original text tab is kept in a comment at its end. Settings lines at the top (`staves:`, `tracks:`, `file:`, `engine:`, `layout:`, `names:`) stay as they are, and a block in a list or callout stays in it. To go back, select **Undo** in the notice, or press Ctrl+Z (Cmd+Z) in editing view. On canvas cards, the block shows as tablature, but there is no **Edit as alphaTex** and no **Keep this view**.
 - The converter reads string tabs (`e|---0---|`), drum tabs (`HH|x-x-x-x-|`, read as a drum track), strings numbered `1|` to `6|`, and a single named line (`A|--0--3--|`) or a few. A text tab it can't read shows as code. A blank stave, with no note on it, stays text too: it's a template you fill in by hand.
 
 The full syntax, with triads, chord transitions and every option, is in the [library's guide](https://dsebastien.github.io/music-notation/blocks.html).
