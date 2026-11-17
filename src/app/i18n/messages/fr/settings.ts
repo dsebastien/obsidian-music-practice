@@ -54,6 +54,10 @@ export const settingsFr: Translation<typeof settingsEn> = {
     'settings.option.vertical': 'Vertical',
     'settings.option.horizontal': 'Horizontal',
     'settings.option.generaluser': 'Pack de sons (GeneralUser GS)',
+    'settings.option.guitarSteel': 'Folk (cordes acier)',
+    'settings.option.guitarNylon': 'Classique (cordes nylon)',
+    'settings.option.guitarClean': 'Électrique, son clair',
+    'settings.option.guitarOverdrive': 'Électrique, son saturé',
     'settings.option.soundfont': 'Soundfont intégrée',
     'settings.option.light': 'Synthétiseur léger',
     'settings.option.bpm': 'BPM',
@@ -216,6 +220,9 @@ export const settingsFr: Translation<typeof settingsEn> = {
     'settings.item.playEngine.name': 'Son',
     'settings.item.playEngine.desc':
         'Pack de sons : les instruments enregistrés de GeneralUser GS, le meilleur son (à télécharger ci-dessous). Soundfont intégrée : des instruments enregistrés, légère, toujours disponible. Léger : un petit synthétiseur calculé, comme sur Obsidian Publish. Les tablatures et les partitions jouent le pack de sons ou la soundfont intégrée, jamais le synthétiseur léger.',
+    'settings.item.playGuitar.name': 'Son de guitare',
+    'settings.item.playGuitar.desc':
+        "La guitare qui joue les diagrammes d'accords, les manches, les rythmiques, les motifs de picking, les progressions et les grilles d'accords. Une note peut choisir la sienne avec sa propriété {property} (steel, nylon, clean ou overdrive), et un bloc avec une ligne guitar:. Les tablatures et les partitions gardent les instruments de leurs pistes. Un changement s'entend à la prochaine lecture.",
     'settings.item.soundPack.name': 'Pack de sons',
     'settings.item.soundPack.desc':
         "{name} : un petit fichier par instrument, {size} au total ({license}). Un clic sur Télécharger récupère les fichiers sur jsDelivr (cdn.jsdelivr.net), vérifie chacun d'eux et les enregistre dans {folder}. Rien n'est téléchargé sans ce clic. Sans le pack, la soundfont intégrée joue.",
@@ -425,6 +432,9 @@ export const settingsFr: Translation<typeof settingsEn> = {
     'settings.item.fieldStrumFeel.name': 'Feeling',
     'settings.item.fieldStrumFeel.desc':
         'Rythmiques : « straight », « swing » ou un taux de swing (« 60% »).',
+    'settings.item.fieldGuitarSound.name': 'Son de guitare',
+    'settings.item.fieldGuitarSound.desc':
+        "La guitare qui joue les blocs d'une note : « steel », « nylon », « clean » ou « overdrive ». Elle passe avant le réglage Son de guitare.",
     'settings.item.fieldPickingPattern.name': 'Motif de picking',
     'settings.item.fieldPickingPattern.desc':
         'Motifs de fingerpicking : un nom (« travis », « alternate bass », « 1-2-3-4 ») ou « p i m a ».',

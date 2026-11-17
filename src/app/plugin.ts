@@ -84,12 +84,16 @@ import { chordSheetToChordPro, textTabToAlphaTex } from '@dsebastien/music-notat
 import {
     DEFAULT_STRUM,
     drawnPlaybackChanged,
+    guitarOf,
+    guitarPlayer,
     libraryEngine,
+    noteGuitar,
     playOptions,
     strumOption,
     volumeChange,
     volumeOf
 } from './domain/playback'
+import type { GuitarSound } from './domain/playback'
 import type { NotePlayer, PlayOptions, RenderOptions } from '@dsebastien/music-notation'
 import { printTab } from '@dsebastien/music-notation/tab'
 import type { TabResult } from '@dsebastien/music-notation/tab'
@@ -622,7 +626,7 @@ export class MusicPracticePlugin extends Plugin {
             undefined,
             undefined,
             (path) => this.noteContext(path),
-            () => this.playOptions(),
+            (path) => this.playOptions(path),
             {
                 runtime: this.alphaTab,
                 resolveFile: (link, sourcePath) => this.readLinkedFile(link, sourcePath),
@@ -764,8 +768,30 @@ export class MusicPracticePlugin extends Plugin {
         volumeChanged()
     }
 
-    playOptions(): PlayOptions | false {
-        return playOptions(this.settings.playback, this.engines(), () => this.settings.playback)
+    /**
+     * `sourcePath` is the note the blocks are in: its guitar sound property wins over the setting
+     * (#108). Without one (modals, drills), the setting's guitar plays.
+     */
+    playOptions(sourcePath?: string): PlayOptions | false {
+        return playOptions(
+            this.settings.playback,
+            this.engines(),
+            () => this.settings.playback,
+            () => this.guitarFor(sourcePath)
+        )
+    }
+
+    /**
+     * The guitar that plays for a note (#108), read at each play: the note's guitar sound property
+     * when it names a guitar, else Settings → Playback → Guitar sound.
+     */
+    private guitarFor(sourcePath?: string): GuitarSound {
+        const file = sourcePath ? this.app.vault.getFileByPath(sourcePath) : null
+        const frontmatter = file ? this.app.metadataCache.getFileCache(file)?.frontmatter : null
+        return guitarOf(
+            this.settings.playback,
+            noteGuitar(frontmatter, this.effective().fields.guitarSound)
+        )
     }
 
     /**
@@ -793,16 +819,17 @@ export class MusicPracticePlugin extends Plugin {
 
     /**
      * The player for what the plugin plays itself (Play this chord or scale, progressions in
-     * time): the engine of Settings → Playback → Sound, else the best one there is.
+     * time): the engine of Settings → Playback → Sound, else the best one there is, playing the
+     * guitar of the note it plays for (#108).
      */
-    private enginePlayer(win: Window): NotePlayer {
+    private enginePlayer(win: Window, sourcePath?: string): NotePlayer {
         const engines = this.engines()
         const chosen = chooseEngine(libraryEngine(this.settings.playback.engine), (engine) => {
             if (engine === 'light') return lightPlayer(win)
             const given = engines[engine]
             return typeof given === 'function' ? given(win) : given
         })
-        return chosen?.value ?? lightPlayer(win)
+        return guitarPlayer(chosen?.value ?? lightPlayer(win), () => this.guitarFor(sourcePath))
     }
 
     /**
@@ -1902,7 +1929,7 @@ export class MusicPracticePlugin extends Plugin {
             return
         }
         const settings = this.settings.playback
-        const player = this.enginePlayer(activeWindow)
+        const player = this.enginePlayer(activeWindow, file.path)
         const sequence = sequenceOf(kind, pitches, {
             bpm: settings.bpm,
             strum: strumOption(settings).strum ?? (sound === 'piano' ? 0 : DEFAULT_STRUM),
@@ -2204,7 +2231,7 @@ export class MusicPracticePlugin extends Plugin {
                     window: win,
                     sound,
                     voicings: lookupGuitarVoicing,
-                    player: this.enginePlayer(win)
+                    player: this.enginePlayer(win, file.path)
                 }
             },
             ...(item

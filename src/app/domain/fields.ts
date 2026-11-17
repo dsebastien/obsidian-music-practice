@@ -57,6 +57,8 @@ export interface FieldNames {
      * per slot ("p i m a"); the meter is timeSignature, the chord chordSymbol.
      */
     pickingPattern: string
+    /** The guitar a note's blocks play on (#108): steel, nylon, clean or overdrive. */
+    guitarSound: string
     /** Spaced review (Kanban Action Planner: reviewed date / interval / count properties). */
     lastReviewed: string
     reviewInterval: string
@@ -113,6 +115,7 @@ export function createDefaultFieldNames(): FieldNames {
         strumPattern: 'strum_pattern',
         strumFeel: 'strum_feel',
         pickingPattern: 'picking_pattern',
+        guitarSound: 'guitar_sound',
         lastReviewed: 'last_reviewed',
         reviewInterval: 'review_interval',
         reviewCount: 'review_count',

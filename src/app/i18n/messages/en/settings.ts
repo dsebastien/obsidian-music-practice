@@ -54,6 +54,10 @@ export const settingsEn = {
     'settings.option.vertical': 'Vertical',
     'settings.option.horizontal': 'Horizontal',
     'settings.option.generaluser': 'Sound pack (GeneralUser GS)',
+    'settings.option.guitarSteel': 'Steel-string acoustic',
+    'settings.option.guitarNylon': 'Nylon-string classical',
+    'settings.option.guitarClean': 'Clean electric',
+    'settings.option.guitarOverdrive': 'Overdriven electric',
     'settings.option.soundfont': 'Built-in soundfont',
     'settings.option.light': 'Light synthesizer',
     'settings.option.bpm': 'BPM',
@@ -214,6 +218,9 @@ export const settingsEn = {
     'settings.item.playEngine.name': 'Sound',
     'settings.item.playEngine.desc':
         'Sound pack: the recorded instruments of GeneralUser GS, the best sound (download it below). Built-in soundfont: recorded instruments, small, always there. Light: a small computed synthesizer, as on Obsidian Publish. Tabs and scores play the sound pack or the built-in soundfont, never the light synthesizer.',
+    'settings.item.playGuitar.name': 'Guitar sound',
+    'settings.item.playGuitar.desc':
+        'The guitar that plays chord diagrams, fretboards, strumming and picking patterns, progressions and chord charts. A note can name its own with its {property} property (steel, nylon, clean or overdrive), and a block with a guitar: line. Tabs and scores keep the instruments of their tracks. A change is heard at the next Play.',
     'settings.item.soundPack.name': 'Sound pack',
     'settings.item.soundPack.desc':
         '{name}: one small file per instrument, {size} in all ({license}). A click on Download gets the files from jsDelivr (cdn.jsdelivr.net), checks each one and saves them in {folder}. Nothing is downloaded without that click. Without the pack, the built-in soundfont plays.',
@@ -408,6 +415,9 @@ export const settingsEn = {
     'settings.item.fieldStrumFeel.name': 'Feel',
     'settings.item.fieldStrumFeel.desc':
         'Strumming patterns: "straight", "swing" or a swing ratio ("60%").',
+    'settings.item.fieldGuitarSound.name': 'Guitar sound',
+    'settings.item.fieldGuitarSound.desc':
+        'The guitar the blocks of a note play on: "steel", "nylon", "clean" or "overdrive". It comes before the Guitar sound setting.',
     'settings.item.fieldPickingPattern.name': 'Picking pattern',
     'settings.item.fieldPickingPattern.desc':
         'Fingerpicking patterns: a name ("travis", "alternate bass", "1-2-3-4") or "p i m a".',

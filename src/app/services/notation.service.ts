@@ -452,7 +452,7 @@ export class NotationBlocks {
         private readonly render: typeof renderBlock = renderBlock,
         private readonly note: (sourcePath: string) => NoteContext | null = () => null,
         /** Playback on diagrams (#31): its options, or false when it's off. */
-        private readonly play: () => PlayOptions | false = () => false,
+        private readonly play: (sourcePath?: string) => PlayOptions | false = () => false,
         /** Tabs and scores; null leaves those languages alone. */
         private readonly tabs: TabHost | null = null,
         /**
@@ -497,7 +497,7 @@ export class NotationBlocks {
                             ...this.layout(),
                             ...(empty && own === null ? this.note(path) : null),
                             voicings: lookupGuitarVoicing,
-                            ...playOf(this.play(), this.timedBar(path)),
+                            ...playOf(this.play(path), this.timedBar(path)),
                             ...this.exerciseTabs(path)
                         })
                     }

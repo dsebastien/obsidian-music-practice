@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'bun:test'
 import {
+    GUITAR_SOUNDS,
     createDefaultPlayback,
     drawnPlaybackChanged,
+    guitarOf,
+    guitarPlayer,
     libraryEngine,
+    noteGuitar,
     playOptions,
     volumeChange
 } from './playback'
-import type { NotePlayer, PlayOptions } from '@dsebastien/music-notation'
+import type { GuitarSound } from './playback'
+import type { NoteEvent, NotePlayer, PlayOptions } from '@dsebastien/music-notation'
 
 const sound: NotePlayer = { play: () => ({ stop() {} }) }
 /** The players the plugin has: the sound pack's and the built-in soundfont's. */
@@ -91,5 +96,70 @@ describe('the tab tempo unit (music-notation #114)', () => {
         const before = createDefaultPlayback()
         expect(before.tempoUnit).toBe('bpm')
         expect(drawnPlaybackChanged(before, { ...before, tempoUnit: 'percent' })).toBe(false)
+    })
+})
+
+describe('the guitar that plays (#108)', () => {
+    it('is the steel-string acoustic by default, one of the four of the library', () => {
+        expect(createDefaultPlayback().guitar).toBe('steel')
+        expect([...GUITAR_SOUNDS]).toEqual(['steel', 'nylon', 'clean', 'overdrive'])
+    })
+
+    it('reaches the library as a function, so a change is heard at the next Play', () => {
+        let guitar: GuitarSound = 'nylon'
+        const options = playOptions(createDefaultPlayback(), player, undefined, () => guitar)
+        const read = options ? options.guitar : undefined
+        expect(typeof read).toBe('function')
+        expect((read as () => GuitarSound)()).toBe('nylon')
+        guitar = 'overdrive'
+        expect((read as () => GuitarSound)()).toBe('overdrive')
+        // Without it, the options name no guitar.
+        const none = playOptions(createDefaultPlayback(), player)
+        expect(none && 'guitar' in none).toBe(false)
+    })
+
+    it('redraws nothing when it changes: a redraw would stop what plays', () => {
+        const before = createDefaultPlayback()
+        expect(drawnPlaybackChanged(before, { ...before, guitar: 'clean' })).toBe(false)
+        expect(drawnPlaybackChanged(before, { ...before, engine: 'light' })).toBe(true)
+    })
+
+    it("reads a note's own guitar from its property, as the library reads a block's line", () => {
+        expect(noteGuitar({ guitar_sound: 'nylon' }, 'guitar_sound')).toBe('nylon')
+        expect(noteGuitar({ guitar_sound: ' Classical ' }, 'guitar_sound')).toBe('nylon')
+        expect(noteGuitar({ guitar_sound: ['overdrive'] }, 'guitar_sound')).toBe('overdrive')
+        expect(noteGuitar({ my_sound: 'clean' }, 'my_sound')).toBe('clean')
+        for (const other of ['banjo', '', 3, null, ['nylon', 'clean'], {}])
+            expect(noteGuitar({ guitar_sound: other }, 'guitar_sound')).toBeNull()
+        expect(noteGuitar({}, 'guitar_sound')).toBeNull()
+        expect(noteGuitar(null, 'guitar_sound')).toBeNull()
+        expect(noteGuitar({ guitar_sound: 'nylon' }, '')).toBeNull()
+    })
+
+    it("plays the note's guitar before the setting's, and steel when the setting is not a guitar", () => {
+        const settings = { ...createDefaultPlayback(), guitar: 'clean' as GuitarSound }
+        expect(guitarOf(settings, null)).toBe('clean')
+        expect(guitarOf(settings, 'nylon')).toBe('nylon')
+        expect(guitarOf({ ...settings, guitar: 'banjo' as GuitarSound }, null)).toBe('steel')
+    })
+
+    it('gives the guitar to what the plugin plays itself, read at each play', () => {
+        const heard: (string | undefined)[] = []
+        const inner: NotePlayer = {
+            reportsStart: true,
+            play(_events: NoteEvent[], options) {
+                heard.push(options.guitar)
+                return { stop() {} }
+            }
+        }
+        let guitar: GuitarSound = 'nylon'
+        const toned = guitarPlayer(inner, () => guitar)
+        expect(toned.reportsStart).toBe(true)
+        toned.play([], { sound: 'guitar', volume: 1 })
+        guitar = 'clean'
+        toned.play([], { sound: 'guitar', volume: 1 })
+        // A play that names its own keeps it.
+        toned.play([], { sound: 'guitar', volume: 1, guitar: 'overdrive' })
+        expect(heard).toEqual(['nylon', 'clean', 'overdrive'])
     })
 })
