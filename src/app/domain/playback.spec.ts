@@ -1,16 +1,34 @@
 import { describe, expect, it } from 'bun:test'
-import { createDefaultPlayback, drawnPlaybackChanged, playOptions, volumeChange } from './playback'
-import type { NotePlayer } from '@dsebastien/music-notation'
+import {
+    createDefaultPlayback,
+    drawnPlaybackChanged,
+    libraryEngine,
+    playOptions,
+    volumeChange
+} from './playback'
+import type { NotePlayer, PlayOptions } from '@dsebastien/music-notation'
 
-const player: NotePlayer = { play: () => ({ stop() {} }) }
+const sound: NotePlayer = { play: () => ({ stop() {} }) }
+/** The players the plugin has: the sound pack's and the built-in soundfont's. */
+const player: PlayOptions['engines'] = { generaluser: () => null, sonivox: sound }
 
 describe('playOptions', () => {
-    it('uses the soundfont by default, with the defaults', () => {
+    it('plays the built-in soundfont by default, with the defaults', () => {
         expect(playOptions(createDefaultPlayback(), player)).toEqual({
-            player,
+            engines: player,
+            engine: 'sonivox',
             volume: 0.8,
             bpm: 90
         })
+    })
+
+    it("names the setting's engine as the library does (#100)", () => {
+        expect(libraryEngine('generaluser')).toBe('generaluser')
+        expect(libraryEngine('soundfont')).toBe('sonivox')
+        expect(libraryEngine('light')).toBe('light')
+        expect(
+            playOptions({ ...createDefaultPlayback(), engine: 'generaluser' }, player)
+        ).toMatchObject({ engines: player, engine: 'generaluser' })
     })
 
     it('passes no strum at the default, so guitar strums and piano sounds together', () => {
@@ -21,11 +39,13 @@ describe('playOptions', () => {
         })
     })
 
-    it('uses the light synthesizer when asked, or when no soundfont is at hand', () => {
+    it('asks for the light synthesizer when set, and names no engine without players', () => {
         const light = playOptions({ ...createDefaultPlayback(), engine: 'light' }, player)
-        expect(light && 'player' in light).toBe(false)
+        expect(light).toMatchObject({ engine: 'light' })
+        // The library's own light synthesizer plays when the app gives no light player.
+        expect(player && 'light' in player).toBe(false)
         const none = playOptions(createDefaultPlayback(), undefined)
-        expect(none && 'player' in none).toBe(false)
+        expect(none && ('engines' in none || 'engine' in none || 'player' in none)).toBe(false)
     })
 
     it('reads the volume of the settings at each play when given them live (no volume on the bars)', () => {

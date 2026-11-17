@@ -44,7 +44,6 @@ const SAME_AS_ENGLISH = new Set<string>([
     'settings.noteTypes.counts',
     'settings.option.vertical',
     'settings.option.horizontal',
-    'settings.option.soundfont',
     'settings.option.bpm',
     'settings.support.plugin.button',
     'settings.support.touch.newsletter',

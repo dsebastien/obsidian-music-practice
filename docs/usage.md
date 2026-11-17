@@ -180,7 +180,7 @@ The loop counts the progression's own time, else the note's time signature (`tim
 
 **Play** starts the loop. Each chord is lit while it sounds, for one beat or for several bars, and a bar of silence shows as N.C. The line under the chords shows the bar, the pass and the BPM. A new tempo or click applies from the next pass, and a tempo you type restarts the speed trainer from there. A new progression or strum starts the loop again with it. **Save BPM** (in a learning note) opens Set BPM with the loop's tempo.
 
-The loop plays through your playback settings (the soundfont or the light synthesizer, and the volume), on piano for a piano progression block or a piano note. It never plays with the metronome: starting one stops the other. It stops when you close its window, when you close the Obsidian window it plays in, and when you turn the plugin off.
+The loop plays through your playback settings (the sound you chose and the volume), on piano for a piano progression block or a piano note. It never plays with the metronome: starting one stops the other. It stops when you close its window, when you close the Obsidian window it plays in, and when you turn the plugin off.
 
 ## Play along with a recording
 

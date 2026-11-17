@@ -103,6 +103,8 @@ export const pluginEn = {
     'plugin.play.nothingYet':
         'This note has nothing to play yet: add its chord and frets, or its scale.',
     'plugin.play.nothing': 'Nothing to play in this note.',
+    'plugin.soundPack.missing':
+        'The sound pack is not on this device, so the built-in soundfont plays. Download it in Settings → Playback.',
     'plugin.drill.needsExerciseType':
         'Chord change drills need a guitar exercise note type to keep their results.',
     'plugin.metronome.noNote': 'The metronome has no note to save the BPM to.',

@@ -1,5 +1,5 @@
-import { Modal, Notice, PluginSettingTab } from 'obsidian'
-import type { App, SettingDefinition, SettingDefinitionItem } from 'obsidian'
+import { Modal, Notice, Platform, PluginSettingTab } from 'obsidian'
+import type { App, Setting, SettingDefinition, SettingDefinitionItem } from 'obsidian'
 import type MusicPracticePlugin from '../../main'
 import { BUY_ME_A_COFFEE_BADGE_DATA_URL } from '../assets/buy-me-a-coffee'
 import { BUY_ME_A_COFFEE_URL, renderSupportSection } from '../ui/support-links'
@@ -9,6 +9,8 @@ import { BLOCK_LANGUAGES } from '../services/notation.service'
 import type { BlockLanguage } from '../services/notation.service'
 import { ROOT_MARK_LABELS } from '../domain/notation-layout'
 import { NAMING_LABELS } from '../domain/note-names'
+import { SOUND_PACK, megabytes, packBytes, packRowOf, percentOf } from '../domain/sound-pack'
+import { PackError } from '../services/sound-pack.service'
 import { interpolate, messageIn, currentLanguage, t, tn } from '../i18n/i18n'
 import type { MessageKey, MessageParams } from '../i18n/i18n'
 
@@ -260,10 +262,18 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                             type: 'dropdown',
                             key: 'playback.engine',
                             options: {
+                                generaluser: t('settings.option.generaluser'),
                                 soundfont: t('settings.option.soundfont'),
                                 light: t('settings.option.light')
                             }
                         }
+                    },
+                    {
+                        name: t('settings.item.soundPack.name'),
+                        desc: '',
+                        // The pack's state is on this device, not in the settings: read at each
+                        // opening, and while a download runs.
+                        render: (setting): (() => void) => this.renderSoundPack(setting)
                     },
                     this.num('playback.volume', 'playVolume'),
                     this.num('playback.bpm', 'playBpm'),
@@ -575,6 +585,118 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                 ]
             }
         ]
+    }
+
+    /**
+     * The sound pack's row (#100): what the pack is and where it goes, its state on this device,
+     * and Download, Cancel or Remove. A download's progress rewrites the status line only, so a
+     * button never changes under a click. Returns what stops it listening to the pack.
+     */
+    private renderSoundPack(setting: Setting): () => void {
+        const pack = this.plugin.soundPack
+        const size = megabytes(packBytes())
+        let statusEl: HTMLElement | null = null
+        let drawn = ''
+        const statusText = (): string => {
+            const row = packRowOf(pack.state, pack.downloading)
+            return row.status === 'downloading'
+                ? t('settings.soundPack.status.downloading', {
+                      percent: percentOf(pack.progress ?? { done: 0, total: 1 })
+                  })
+                : say(`settings.soundPack.status.${row.status}`)
+        }
+        const draw = (): void => {
+            const row = packRowOf(pack.state, pack.downloading)
+            const key = `${row.status}:${row.primary}`
+            if (key === drawn && statusEl) {
+                statusEl.setText(statusText())
+                return
+            }
+            drawn = key
+            setting.clear()
+            setting.setDesc(
+                createFragment((fragment) => {
+                    fragment.createDiv({
+                        text: t('settings.item.soundPack.desc', {
+                            name: SOUND_PACK.name,
+                            size,
+                            license: SOUND_PACK.license,
+                            folder: pack.folder
+                        })
+                    })
+                    if (Platform.isMobile)
+                        fragment.createDiv({ text: t('settings.soundPack.mobile', { size }) })
+                    statusEl = fragment.createDiv({ cls: 'mp-sound-pack-status' })
+                    statusEl.setText(statusText())
+                })
+            )
+            if (row.cancel)
+                setting.addButton((button) =>
+                    button.setButtonText(t('settings.soundPack.cancel')).onClick(() => {
+                        pack.cancel()
+                    })
+                )
+            const primary = row.primary
+            if (primary)
+                setting.addButton((button) =>
+                    button
+                        .setButtonText(say(`settings.soundPack.${primary}`))
+                        .setCta()
+                        .onClick(() => void this.downloadSoundPack())
+                )
+            if (row.remove)
+                setting.addButton((button) =>
+                    button
+                        .setButtonText(t('settings.soundPack.remove'))
+                        .onClick(() => void this.removeSoundPack())
+                )
+        }
+        draw()
+        return pack.onChange(draw)
+    }
+
+    /** Download (or go on, or update), then the pack is the sound that plays. */
+    private async downloadSoundPack(): Promise<void> {
+        const pack = this.plugin.soundPack
+        try {
+            await pack.download()
+        } catch (error: unknown) {
+            const failure = error instanceof PackError ? error.failure : 'network'
+            const file = error instanceof PackError ? (error.file ?? '') : ''
+            new Notice(
+                failure === 'cancelled'
+                    ? t('settings.soundPack.cancelled')
+                    : failure === 'storage'
+                      ? t('settings.soundPack.error.storage', { folder: pack.folder })
+                      : failure === 'checksum'
+                        ? t('settings.soundPack.error.checksum', { file })
+                        : t('settings.soundPack.error.network', { file })
+            )
+            return
+        }
+        if (this.plugin.settings.playback.engine !== 'generaluser')
+            await this.plugin.updateSettings((draft) => {
+                draft.playback.engine = 'generaluser'
+            })
+        new Notice(t('settings.soundPack.done'))
+        this.update()
+    }
+
+    /** Remove the pack from this device; the built-in soundfont is the sound again. */
+    private async removeSoundPack(): Promise<void> {
+        const pack = this.plugin.soundPack
+        try {
+            await pack.remove()
+        } catch {
+            new Notice(t('settings.soundPack.error.storage', { folder: pack.folder }))
+            return
+        }
+        if (this.plugin.settings.playback.engine === 'generaluser')
+            await this.plugin.updateSettings((draft) => {
+                draft.playback.engine = 'soundfont'
+            })
+        new Notice(t('settings.soundPack.removed'))
+        this.update()
     }
 
     private async reset(): Promise<void> {

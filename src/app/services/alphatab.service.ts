@@ -2,12 +2,22 @@ import { t } from '../i18n/i18n'
 import script from 'virtual:alphatab-script'
 import font from 'virtual:alphatab-font'
 import soundfont from 'virtual:alphatab-soundfont'
-import { ALPHATAB_VERSION, createSoundfontPlayer } from '@dsebastien/music-notation/tab'
+import {
+    ALPHATAB_VERSION,
+    createSoundfontPlayer,
+    engineAssets
+} from '@dsebastien/music-notation/tab'
 import type { AlphaTabModule, SoundfontPlayer, TabAssets } from '@dsebastien/music-notation/tab'
 import { lightPlayer } from '@dsebastien/music-notation'
-import type { NotePlayer } from '@dsebastien/music-notation'
+import type { InstrumentSource, NotePlayer } from '@dsebastien/music-notation'
 
 export type AlphaTabWindow = Window & { alphaTab?: AlphaTabModule }
+
+/**
+ * The recorded sounds a window plays through alphaTab (the library's engine names): the sound
+ * pack's instrument files (`generaluser`, #100) or the built-in soundfont (`sonivox`).
+ */
+export type SampleEngine = 'generaluser' | 'sonivox'
 
 /** A window's own URL and Blob (popouts have theirs). */
 const webOf = (win: Window) => win as Window & { URL: typeof URL; Blob: typeof Blob }
@@ -28,8 +38,10 @@ interface WindowState {
     /** The alphaTab our script set as `window.alphaTab` (only that one is removed again). */
     ours?: AlphaTabModule
     url?: string
-    player?: NotePlayer
-    soundfont?: SoundfontPlayer
+    /** The players handed out, by engine. */
+    players?: Partial<Record<SampleEngine, NotePlayer>>
+    /** The hidden alphaTab players made at a first play, by the sounds they hold. */
+    soundfonts?: Partial<Record<SampleEngine, SoundfontPlayer>>
 }
 
 /** How the runtime loads scripts and makes the soundfont player; replaced in tests. */
@@ -57,6 +69,8 @@ const DEFAULT_DEPS: RuntimeDeps = {
 export class AlphaTabRuntime {
     private readonly windows = new Map<AlphaTabWindow, WindowState>()
     private soundFont: Uint8Array | null = null
+    /** The sound pack's files (#100); null while the pack isn't on this device. */
+    private instruments: InstrumentSource | null = null
 
     constructor(private readonly deps: RuntimeDeps = DEFAULT_DEPS) {}
 
@@ -158,22 +172,58 @@ export class AlphaTabRuntime {
         return state.url
     }
 
-    /** The font, soundfont and worker script alphaTab needs, for this window. */
-    assets(win: AlphaTabWindow): TabAssets {
-        this.soundFont ??= Uint8Array.from(atob(this.deps.soundfont), (c) => c.charCodeAt(0))
-        return { scriptFile: this.scriptUrl(win), font: this.deps.font, soundFont: this.soundFont }
+    /**
+     * The sound pack came or went (#100): tabs and diagrams drawn from now on play with or
+     * without its files. The hidden players that hold the pack's sounds are freed; the ones with
+     * the built-in soundfont stay.
+     */
+    setInstruments(source: InstrumentSource | null): void {
+        if (this.instruments === source) return
+        this.instruments = source
+        for (const state of this.windows.values()) {
+            const held = state.soundfonts?.generaluser
+            if (!held) continue
+            delete state.soundfonts?.generaluser
+            try {
+                held.destroy()
+            } catch {
+                // Already gone with its window.
+            }
+        }
+    }
+
+    /** Whether the sound pack's files are at hand. */
+    hasInstruments(): boolean {
+        return this.instruments !== null
     }
 
     /**
-     * The diagrams' realistic sound in this window: alphaTab's synthesizer with the soundfont,
-     * started on the first play (the first notes wait for it); the light synthesizer when alphaTab
-     * or the soundfont can't load.
+     * The font, soundfont and worker script alphaTab needs, for this window, and the sound pack's
+     * files when they are on this device: the library then plays them (its `generaluser` engine)
+     * and keeps the built-in soundfont for what the pack can't give.
      */
-    player(win: AlphaTabWindow): NotePlayer {
+    assets(win: AlphaTabWindow): TabAssets {
+        this.soundFont ??= Uint8Array.from(atob(this.deps.soundfont), (c) => c.charCodeAt(0))
+        return {
+            scriptFile: this.scriptUrl(win),
+            font: this.deps.font,
+            soundFont: this.soundFont,
+            ...(this.instruments ? { instruments: this.instruments } : {})
+        }
+    }
+
+    /**
+     * The diagrams' realistic sound in this window: alphaTab's synthesizer, started on the first
+     * play (the first notes wait for it), with the built-in soundfont (`sonivox`) or the sound
+     * pack's files (`generaluser`; the built-in soundfont while the pack isn't there); the light
+     * synthesizer when alphaTab or the sounds can't load.
+     */
+    player(win: AlphaTabWindow, engine: SampleEngine = 'sonivox'): NotePlayer {
         const fallback = () => this.deps.fallback(win)
         if (this.isReleased(win)) return fallback()
         const state = this.state(win)
-        if (state.player) return state.player
+        const known = state.players?.[engine]
+        if (known) return known
         const light = fallback()
         const player: NotePlayer = {
             // The soundfont player says when its notes really start (after the soundfont loads),
@@ -185,13 +235,17 @@ export class AlphaTabRuntime {
                 this.module(win)
                     .then((alphaTab) => {
                         if (stopped || this.windows.get(win) !== state) return
-                        state.soundfont ??= this.deps.makePlayer(
+                        // Read at each play: the pack may have come or gone since the bar was drawn.
+                        const sounds: SampleEngine =
+                            engine === 'generaluser' && this.instruments ? 'generaluser' : 'sonivox'
+                        const soundfonts = (state.soundfonts ??= {})
+                        soundfonts[sounds] ??= this.deps.makePlayer(
                             alphaTab,
-                            this.assets(win),
+                            engineAssets(this.assets(win), sounds),
                             win.document,
                             light
                         )
-                        handle = state.soundfont.play(events, options)
+                        handle = soundfonts[sounds].play(events, options)
                     })
                     .catch(() => {
                         if (!stopped) handle = light.play(events, options)
@@ -204,7 +258,7 @@ export class AlphaTabRuntime {
                 }
             }
         }
-        state.player = player
+        ;(state.players ??= {})[engine] = player
         return player
     }
 
@@ -222,7 +276,7 @@ export class AlphaTabRuntime {
                 // Already gone with the window.
             }
         }
-        attempt(() => state.soundfont?.destroy())
+        for (const held of Object.values(state.soundfonts ?? {})) attempt(() => held.destroy())
         if (state.url) attempt(() => webOf(win).URL.revokeObjectURL(state.url!))
         if (state.tag) attempt(() => state.tag!.remove())
         // Only the alphaTab our script set, so another plugin's stays and a new version of this

@@ -53,7 +53,8 @@ export const settingsFr: Translation<typeof settingsEn> = {
     // Dropdown options
     'settings.option.vertical': 'Vertical',
     'settings.option.horizontal': 'Horizontal',
-    'settings.option.soundfont': 'Soundfont',
+    'settings.option.generaluser': 'Pack de sons (GeneralUser GS)',
+    'settings.option.soundfont': 'Soundfont intégrée',
     'settings.option.light': 'Synthétiseur léger',
     'settings.option.bpm': 'BPM',
     'settings.option.percent': 'Pourcentage',
@@ -214,7 +215,33 @@ export const settingsFr: Translation<typeof settingsEn> = {
         "Un clic sur un diagramme d'accord, de clavier ou de manche le joue, et un clic sur un point ou une touche joue cette note. Une barre sous chaque bloc joue ses diagrammes un par un ou tous à la suite, avec boucle, vitesse et son.",
     'settings.item.playEngine.name': 'Son',
     'settings.item.playEngine.desc':
-        'Soundfont : des instruments enregistrés, comme pour les tablatures et les partitions (réaliste). Léger : un petit synthétiseur calculé, comme sur Obsidian Publish.',
+        'Pack de sons : les instruments enregistrés de GeneralUser GS, le meilleur son (à télécharger ci-dessous). Soundfont intégrée : des instruments enregistrés, légère, toujours disponible. Léger : un petit synthétiseur calculé, comme sur Obsidian Publish. Les tablatures et les partitions jouent le pack de sons ou la soundfont intégrée, jamais le synthétiseur léger.',
+    'settings.item.soundPack.name': 'Pack de sons',
+    'settings.item.soundPack.desc':
+        "{name} : un petit fichier par instrument, {size} au total ({license}). Un clic sur Télécharger récupère les fichiers sur jsDelivr (cdn.jsdelivr.net), vérifie chacun d'eux et les enregistre dans {folder}. Rien n'est téléchargé sans ce clic. Sans le pack, la soundfont intégrée joue.",
+    'settings.soundPack.mobile':
+        'Sur un téléphone ou une tablette, le pack occupe {size} de stockage : téléchargez-le en Wi-Fi.',
+    'settings.soundPack.status.absent': 'Non téléchargé.',
+    'settings.soundPack.status.partial':
+        "Le téléchargement s'est arrêté avant la fin. Il reprend là où il s'est arrêté.",
+    'settings.soundPack.status.installed': 'Téléchargé.',
+    'settings.soundPack.status.outdated':
+        'Téléchargé. Une version plus récente du pack est disponible.',
+    'settings.soundPack.status.downloading': 'Téléchargement : {percent} %',
+    'settings.soundPack.download': 'Télécharger',
+    'settings.soundPack.resume': 'Reprendre le téléchargement',
+    'settings.soundPack.update': 'Mettre à jour',
+    'settings.soundPack.cancel': 'Annuler',
+    'settings.soundPack.remove': 'Supprimer',
+    'settings.soundPack.done': 'Le pack de sons est téléchargé. Il joue dès maintenant.',
+    'settings.soundPack.removed': 'Le pack de sons est supprimé. La soundfont intégrée joue.',
+    'settings.soundPack.cancelled':
+        'Le téléchargement est arrêté. Les fichiers déjà reçus sont conservés.',
+    'settings.soundPack.error.network':
+        "Le téléchargement de {file} a échoué. Vérifiez la connexion, puis cliquez de nouveau sur Télécharger : il reprend là où il s'est arrêté.",
+    'settings.soundPack.error.checksum':
+        "Le fichier {file} n'est pas celui attendu : il n'a pas été enregistré. Cliquez de nouveau sur Télécharger.",
+    'settings.soundPack.error.storage': "Le pack de sons n'a pas pu être enregistré dans {folder}.",
     'settings.item.playVolume.name': 'Volume',
     'settings.item.playVolume.desc':
         "De 0 à 100. Le volume de toutes les barres de lecture : diagrammes, rythmiques et motifs de picking, progressions et grilles d'accords. Les barres n'ont pas de contrôle de volume.",
