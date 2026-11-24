@@ -7,6 +7,7 @@ import { Modal, Notice, setIcon } from 'obsidian'
 import type { App } from 'obsidian'
 import { t, tn, type MessageKey } from '../i18n/i18n'
 import type { ReviewResult } from '../domain/review'
+import { effectsNow } from '../domain/playback'
 import {
     attachPick,
     emptyNoteSet,
@@ -756,9 +757,11 @@ export class NoteDrillModal extends Modal {
         if (startAt !== null) this.started = performance.now() + startAt * 1000
         const question = this.index
         try {
+            const effects = effectsNow(play)
             this.hearing = player.play(events, {
                 sound,
                 volume,
+                ...(effects ? { effects } : {}),
                 onStart: () => {
                     if (startAt !== null && !this.answered && this.index === question)
                         this.started = performance.now() + startAt * 1000

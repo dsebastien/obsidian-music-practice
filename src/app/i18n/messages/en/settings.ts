@@ -248,6 +248,18 @@ export const settingsEn = {
     'settings.item.playVolume.name': 'Volume',
     'settings.item.playVolume.desc':
         'From 0 to 100. The volume of every play bar: diagrams, strumming and picking patterns, progressions and chord charts. The bars have no volume control.',
+    'settings.item.playRoomLevel.name': 'Room level',
+    'settings.item.playRoomLevel.desc':
+        'From 0 to 100 (12.5 by default, a light room). How loud the room is against the notes. Everything the plugin plays sounds in one small room, then goes through a soft ceiling, so a loud strum is not cut flat. 0 turns the room off. With 0 and no amplifier, the notes go straight to the output, with no room and no ceiling to compute: use it on a slow device where the sound stutters. A change is heard at the next Play.',
+    'settings.item.playRoomLength.name': 'Room length',
+    'settings.item.playRoomLength.desc':
+        'How long the room rings, in seconds: from 0.2 (a small room) to 3 (a hall), 1.2 by default. A change is heard at the next Play.',
+    'settings.item.playAmpCabinet.name': 'Amplifier cabinet',
+    'settings.item.playAmpCabinet.desc':
+        "Off by default. A speaker cabinet's sound for the clean and overdriven electric guitars: less deep bass and less fizz, more mids. The other guitars, the piano, tabs and scores never go through the amplifier.",
+    'settings.item.playAmpDrive.name': 'Amplifier drive',
+    'settings.item.playAmpDrive.desc':
+        'From 0 to 100 (0 by default). How hard the amplifier of the clean and overdriven electric guitars is driven. The drive is matched in level: more drive changes the tone, not the loudness.',
     'settings.item.playBpm.name': 'Scale tempo',
     'settings.item.playBpm.desc':
         'Notes per minute when a scale plays, from 20 to 240. The bar can change it for one block.',

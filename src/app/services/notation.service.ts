@@ -17,7 +17,7 @@ import type {
 import { lookupGuitarVoicing } from '@dsebastien/music-notation/voicings'
 import { renderTab } from '@dsebastien/music-notation/tab'
 import type { Staves, TabResult } from '@dsebastien/music-notation/tab'
-import type { Engine, PlayOptions } from '@dsebastien/music-notation'
+import type { Engine, PlayEffects, PlayOptions } from '@dsebastien/music-notation'
 import type { AlphaTabRuntime, AlphaTabWindow } from './alphatab.service'
 import type { RenderDefaults } from '../domain/notation-layout'
 import type { TempoUnit } from '../domain/playback'
@@ -50,6 +50,11 @@ export interface TabHost {
      * volume of its own since music-notation 0.18 (#82); a change is heard at once (#85).
      */
     volume?: () => number
+    /**
+     * Settings → Playback, the room and the amplifier (music-notation #103), read each time a tab
+     * or score starts to play. Tabs and scores get the room; the library gives them no amplifier.
+     */
+    effects?: () => PlayEffects
     /** Settings → Playback → Tab tempo (music-notation #114): the unit a bar shows first. */
     tempoUnit?: () => TempoUnit
     /** The reader switched the unit on a bar: saved for the next scores. */
@@ -285,6 +290,7 @@ class TabChild extends MarkdownRenderChild {
                     ...(this.host.engine ? { engine: this.host.engine() } : {}),
                     resolveFile: (link) => this.host.resolveFile(link, this.sourcePath),
                     ...(this.host.volume ? { volume: this.host.volume } : {}),
+                    ...(this.host.effects ? { effects: this.host.effects } : {}),
                     ...(this.host.tempoUnit ? { tempoUnit: this.host.tempoUnit() } : {}),
                     ...(this.host.saveTempoUnit ? { onTempoUnit: this.host.saveTempoUnit } : {}),
                     // Text tabs show tablature unless a staves: line says otherwise (#84).

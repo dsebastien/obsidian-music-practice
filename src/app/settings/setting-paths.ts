@@ -70,6 +70,9 @@ const MINIMUMS: Record<string, { min: number; integer: boolean }> = {
     'playback.volume': { min: 0, integer: true },
     'playback.bpm': { min: 20, integer: true },
     'playback.strum': { min: 0, integer: true },
+    'playback.roomLevel': { min: 0, integer: false },
+    'playback.roomLength': { min: 0.2, integer: false },
+    'playback.ampDrive': { min: 0, integer: true },
     'playAlong.preRoll': { min: 0, integer: false }
 }
 
@@ -90,6 +93,9 @@ const MAXIMUMS: Record<string, number> = {
     'playback.volume': 100,
     'playback.bpm': 240,
     'playback.strum': 200,
+    'playback.roomLevel': 100,
+    'playback.roomLength': 3,
+    'playback.ampDrive': 100,
     'playAlong.preRoll': 2
 }
 

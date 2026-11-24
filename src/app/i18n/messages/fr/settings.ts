@@ -252,6 +252,18 @@ export const settingsFr: Translation<typeof settingsEn> = {
     'settings.item.playVolume.name': 'Volume',
     'settings.item.playVolume.desc':
         "De 0 à 100. Le volume de toutes les barres de lecture : diagrammes, rythmiques et motifs de picking, progressions et grilles d'accords. Les barres n'ont pas de contrôle de volume.",
+    'settings.item.playRoomLevel.name': 'Niveau de la reverb',
+    'settings.item.playRoomLevel.desc':
+        "De 0 à 100 (12,5 par défaut : une reverb légère). Le niveau de la pièce par rapport aux notes. Tout ce que le plugin joue sonne dans une même petite pièce, puis passe par un plafond souple, pour qu'un grattage fort ne soit pas coupé net. 0 coupe la reverb. À 0 et sans ampli, les notes vont droit à la sortie, sans reverb ni plafond à calculer : c'est le réglage pour un appareil lent où le son est haché. Un changement s'entend à la prochaine lecture.",
+    'settings.item.playRoomLength.name': 'Durée de la reverb',
+    'settings.item.playRoomLength.desc':
+        "Combien de temps la pièce résonne, en secondes : de 0,2 (une petite pièce) à 3 (une grande salle), 1,2 par défaut. Un changement s'entend à la prochaine lecture.",
+    'settings.item.playAmpCabinet.name': "Baffle de l'ampli",
+    'settings.item.playAmpCabinet.desc':
+        "Désactivé par défaut. Le son d'un baffle pour les guitares électriques, en son clair et en son saturé : moins de graves profonds, moins d'aigus agressifs, plus de médiums. Les autres guitares, le piano, les tablatures et les partitions ne passent jamais par l'ampli.",
+    'settings.item.playAmpDrive.name': "Gain de l'ampli",
+    'settings.item.playAmpDrive.desc':
+        "De 0 à 100 (0 par défaut). À quel point l'ampli des guitares électriques (son clair et son saturé) est poussé. Le niveau reste le même : plus de gain change le grain du son, pas son volume.",
     'settings.item.playBpm.name': 'Tempo des gammes',
     'settings.item.playBpm.desc':
         'Notes par minute quand une gamme est jouée, de 20 à 240. La barre peut le changer pour un seul bloc.',

@@ -292,6 +292,10 @@ export class MusicPracticeSettingTab extends PluginSettingTab {
                         render: (setting): (() => void) => this.renderSoundPack(setting)
                     },
                     this.num('playback.volume', 'playVolume'),
+                    this.num('playback.roomLevel', 'playRoomLevel'),
+                    this.num('playback.roomLength', 'playRoomLength'),
+                    this.toggle('playback.ampCabinet', 'playAmpCabinet'),
+                    this.num('playback.ampDrive', 'playAmpDrive'),
                     this.num('playback.bpm', 'playBpm'),
                     this.num('playback.strum', 'playStrum'),
                     {

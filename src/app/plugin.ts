@@ -86,6 +86,7 @@ import {
     drawnPlaybackChanged,
     guitarOf,
     guitarPlayer,
+    playEffects,
     libraryEngine,
     noteGuitar,
     playOptions,
@@ -694,6 +695,7 @@ export class MusicPracticePlugin extends Plugin {
                 convert: (request) => void this.textTabs.convertBlock(request),
                 keepView: (request, staves) => void this.textTabs.keepView(request, staves),
                 volume: () => volumeOf(this.settings.playback),
+                effects: () => playEffects(this.settings.playback),
                 tempoUnit: () => this.settings.playback.tempoUnit,
                 naming: () => namingOf(this.settings.notationLayout.naming) ?? 'letters',
                 engine: () => libraryEngine(this.settings.playback.engine),
@@ -889,7 +891,11 @@ export class MusicPracticePlugin extends Plugin {
             const given = engines[engine]
             return typeof given === 'function' ? given(win) : given
         })
-        return guitarPlayer(chosen?.value ?? lightPlayer(win), () => this.guitarFor(sourcePath))
+        return guitarPlayer(
+            chosen?.value ?? lightPlayer(win),
+            () => this.guitarFor(sourcePath),
+            () => playEffects(this.settings.playback)
+        )
     }
 
     /**
