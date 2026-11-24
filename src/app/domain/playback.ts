@@ -4,7 +4,14 @@
  * bar changes them for its own block only).
  */
 import { GUITAR_TONES, guitarToneOf } from '@dsebastien/music-notation'
-import type { Engine, GuitarTone, NotePlayer, PlayOptions } from '@dsebastien/music-notation'
+import type {
+    AmpOptions,
+    Engine,
+    GuitarTone,
+    NotePlayer,
+    PlayEffects,
+    PlayOptions
+} from '@dsebastien/music-notation'
 
 /**
  * The sound pack's instruments (`generaluser`, #100: an optional download), the built-in
@@ -42,6 +49,17 @@ export interface PlaybackSettings {
     /** Chords: milliseconds between strings. */
     strum: number
     /**
+     * The room every play sounds in (music-notation #103): how loud it is against the notes, 0 to
+     * 100 (the library's 0 to 1). 0 turns the room off.
+     */
+    roomLevel: number
+    /** How long the room rings, in seconds: 0.2 (a small room) to 3 (a hall). */
+    roomLength: number
+    /** A speaker cabinet for the clean and overdriven guitars; off by default. */
+    ampCabinet: boolean
+    /** How hard the amplifier of the clean and overdriven guitars is driven, 0 to 100; 0 by default. */
+    ampDrive: number
+    /**
      * The unit the tempo on a tab or score bar shows first (music-notation #114): BPM or percent.
      * A switch on a bar saves it here.
      */
@@ -61,6 +79,12 @@ export const DEFAULT_STRUM = 12
 /** The strum the plugin used before 0.10, stored in older settings: read as the default. */
 export const OLD_DEFAULT_STRUM = 40
 
+/** The library's own room: 12.5 of 100 (18 dB under the notes), 1.2 seconds. */
+export const DEFAULT_ROOM_LEVEL = 12.5
+export const DEFAULT_ROOM_LENGTH = 1.2
+/** The shortest and the longest room, in seconds (the library's range). */
+export const ROOM_LENGTHS = [0.2, 3] as const
+
 export const createDefaultPlayback = (): PlaybackSettings => ({
     enabled: true,
     engine: 'soundfont',
@@ -68,8 +92,40 @@ export const createDefaultPlayback = (): PlaybackSettings => ({
     volume: 80,
     bpm: 90,
     strum: DEFAULT_STRUM,
-    tempoUnit: 'bpm'
+    tempoUnit: 'bpm',
+    roomLevel: DEFAULT_ROOM_LEVEL,
+    roomLength: DEFAULT_ROOM_LENGTH,
+    ampCabinet: false,
+    ampDrive: 0
 })
+
+const within = (value: number, min: number, max: number, fallback: number): number =>
+    Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback
+
+/** The amplifier the settings ask for; null when the cabinet is off and the drive is 0. */
+export function ampOf(settings: PlaybackSettings): AmpOptions | null {
+    const drive = within(settings.ampDrive, 0, 100, 0) / 100
+    if (!settings.ampCabinet && drive === 0) return null
+    return { ...(drive > 0 ? { drive } : {}), ...(settings.ampCabinet ? { cabinet: true } : {}) }
+}
+
+/**
+ * The room and the amplifier the settings ask for, as the library's effects (music-notation
+ * #103). The room off (level 0) and no amplifier: `dry`, so the notes go straight to the output
+ * and no room is computed at all (the plugin's sound before the room). The room off with an
+ * amplifier: the room at 0, because `dry` would leave out the amplifier too. The library gives
+ * an amplifier to the clean and overdriven guitars only.
+ */
+export function playEffects(settings: PlaybackSettings): PlayEffects {
+    const reverb = within(settings.roomLevel, 0, 100, DEFAULT_ROOM_LEVEL) / 100
+    const amp = ampOf(settings)
+    if (reverb === 0 && !amp) return { dry: true }
+    return {
+        reverb,
+        room: within(settings.roomLength, ROOM_LENGTHS[0], ROOM_LENGTHS[1], DEFAULT_ROOM_LENGTH),
+        ...(amp ? { amp } : {})
+    }
+}
 
 /** The strum to pass to the library: none at the default, so the instrument decides. */
 export const strumOption = (settings: PlaybackSettings): { strum?: number } =>
@@ -83,14 +139,25 @@ export const volumeOf = (settings: PlaybackSettings): number =>
  * Whether a playback change shows on the bars (engine, tempo, strum, on or off), so they are drawn
  * again. The volume doesn't: it is heard at once (#95), and a redraw would stop what plays. Nor
  * does the tab tempo's unit: a bar saves it when the reader switches it, and only the next scores
- * drawn start from it. Nor does the guitar (#108): each play reads it, so it is heard at the next
- * Play.
+ * drawn start from it. Nor does the guitar (#108), nor the room and the amplifier: each play reads
+ * them, so they are heard at the next Play.
  */
 export function drawnPlaybackChanged(before: PlaybackSettings, after: PlaybackSettings): boolean {
     if (before === after) return false
-    const { volume: _before, tempoUnit: _unitBefore, guitar: _guitarBefore, ...a } = before
-    const { volume: _after, tempoUnit: _unitAfter, guitar: _guitarAfter, ...b } = after
-    return JSON.stringify(a) !== JSON.stringify(b)
+    const drawn = ({
+        volume: _volume,
+        tempoUnit: _unit,
+        guitar: _guitar,
+        roomLevel: _level,
+        roomLength: _length,
+        ampCabinet: _cabinet,
+        ampDrive: _drive,
+        ...rest
+    }: PlaybackSettings): Omit<
+        PlaybackSettings,
+        'volume' | 'tempoUnit' | 'guitar' | 'roomLevel' | 'roomLength' | 'ampCabinet' | 'ampDrive'
+    > => rest
+    return JSON.stringify(drawn(before)) !== JSON.stringify(drawn(after))
 }
 
 /**
@@ -114,15 +181,32 @@ export const guitarOf = (settings: PlaybackSettings, note: GuitarSound | null): 
 
 /**
  * `player` with the guitar given to each play that doesn't name one, for what the plugin plays
- * itself (the library does the same for the bars it draws). `guitar` is read at each play.
+ * itself (the library does the same for the bars it draws). `guitar` is read at each play. With
+ * `effects`, the room and the amplifier of the settings too (a play that names its own keeps
+ * them), also read at each play.
  */
-export function guitarPlayer(player: NotePlayer, guitar: () => GuitarSound): NotePlayer {
+export function guitarPlayer(
+    player: NotePlayer,
+    guitar: () => GuitarSound,
+    effects?: () => PlayEffects
+): NotePlayer {
     return {
         get reportsStart() {
             return player.reportsStart
         },
-        play: (events, options) =>
-            player.play(events, options.guitar ? options : { ...options, guitar: guitar() })
+        play: (events, options) => {
+            const named = options.guitar && (options.effects || !effects)
+            return player.play(
+                events,
+                named
+                    ? options
+                    : {
+                          ...options,
+                          guitar: options.guitar ?? guitar(),
+                          ...(effects && !options.effects ? { effects: effects() } : {})
+                      }
+            )
+        }
     }
 }
 
@@ -135,8 +219,8 @@ export const volumeChange = (before: PlaybackSettings, after: PlaybackSettings):
  * players the plugin has (the sound pack's and the built-in soundfont's; the light synthesizer is
  * the library's own): a block plays through its own `engine:` line, else the setting, else the
  * best one there is (music-notation #124). With `current` (the settings as they are now), the
- * volume is read at each play, so a change in Settings → Playback applies to diagrams already
- * drawn.
+ * volume, the room and the amplifier are read at each play, so a change in Settings → Playback
+ * applies to diagrams already drawn.
  */
 export function playOptions(
     settings: PlaybackSettings,
@@ -150,7 +234,40 @@ export function playOptions(
         ...(engines ? { engines, engine: libraryEngine(settings.engine) } : {}),
         ...(guitar ? { guitar } : {}),
         volume: current ? () => volumeOf(current()) : volumeOf(settings),
+        ...effectOptions(current ?? (() => settings)),
         bpm: settings.bpm,
         ...strumOption(settings)
     }
+}
+
+/** The room and the amplifier as the library's `play` options, each read at each play. */
+function effectOptions(
+    current: () => PlaybackSettings
+): Pick<PlayOptions, 'reverb' | 'room' | 'dry' | 'amp'> {
+    const effects = (): PlayEffects => playEffects(current())
+    return {
+        reverb: () => effects().reverb,
+        room: () => effects().room,
+        dry: () => effects().dry === true,
+        amp: () => effects().amp
+    }
+}
+
+/**
+ * The effects a `play` option asks for, read now: for a play the plugin starts itself with the
+ * options it gives the library (the note drill). Undefined when the option names none.
+ */
+export function effectsNow(play: PlayOptions): PlayEffects | undefined {
+    const read = <T>(value: T | (() => T | null | undefined) | undefined): T | undefined =>
+        (typeof value === 'function' ? (value as () => T | null | undefined)() : value) ?? undefined
+    const reverb = read(play.reverb)
+    const room = read(play.room)
+    const amp = read(play.amp)
+    const effects: PlayEffects = {
+        ...(reverb === undefined ? {} : { reverb }),
+        ...(room === undefined ? {} : { room }),
+        ...(read(play.dry) === true ? { dry: true } : {}),
+        ...(amp ? { amp } : {})
+    }
+    return Object.keys(effects).length ? effects : undefined
 }

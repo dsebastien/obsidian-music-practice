@@ -1,17 +1,20 @@
 import { describe, expect, it } from 'bun:test'
 import {
     GUITAR_SOUNDS,
+    ampOf,
     createDefaultPlayback,
     drawnPlaybackChanged,
+    effectsNow,
     guitarOf,
     guitarPlayer,
     libraryEngine,
     noteGuitar,
+    playEffects,
     playOptions,
     volumeChange
 } from './playback'
-import type { GuitarSound } from './playback'
-import type { NoteEvent, NotePlayer, PlayOptions } from '@dsebastien/music-notation'
+import type { GuitarSound, PlaybackSettings } from './playback'
+import type { NoteEvent, NotePlayer, PlayEffects, PlayOptions } from '@dsebastien/music-notation'
 
 const sound: NotePlayer = { play: () => ({ stop() {} }) }
 /** The players the plugin has: the sound pack's and the built-in soundfont's. */
@@ -19,12 +22,19 @@ const player: PlayOptions['engines'] = { generaluser: () => null, sonivox: sound
 
 describe('playOptions', () => {
     it('plays the built-in soundfont by default, with the defaults', () => {
-        expect(playOptions(createDefaultPlayback(), player)).toEqual({
+        const options = playOptions(createDefaultPlayback(), player)
+        expect(options).toMatchObject({
             engines: player,
             engine: 'sonivox',
             volume: 0.8,
             bpm: 90
         })
+        // The room and the amplifier are functions (read at each play): the library's own room,
+        // no amplifier.
+        expect(Object.keys(options || {}).sort()).toEqual(
+            ['amp', 'bpm', 'dry', 'engine', 'engines', 'reverb', 'room', 'volume'].sort()
+        )
+        expect(options && effectsNow(options)).toEqual({ reverb: 0.125, room: 1.2 })
     })
 
     it("names the setting's engine as the library does (#100)", () => {
@@ -161,5 +171,124 @@ describe('the guitar that plays (#108)', () => {
         // A play that names its own keeps it.
         toned.play([], { sound: 'guitar', volume: 1, guitar: 'overdrive' })
         expect(heard).toEqual(['nylon', 'clean', 'overdrive'])
+    })
+})
+
+describe('the room and the amplifier (music-notation #103)', () => {
+    const settings = (over: Partial<PlaybackSettings> = {}): PlaybackSettings => ({
+        ...createDefaultPlayback(),
+        ...over
+    })
+
+    it("asks for the library's own room by default, and no amplifier", () => {
+        expect(createDefaultPlayback()).toMatchObject({
+            roomLevel: 12.5,
+            roomLength: 1.2,
+            ampCabinet: false,
+            ampDrive: 0
+        })
+        expect(playEffects(settings())).toEqual({ reverb: 0.125, room: 1.2 })
+        expect(ampOf(settings())).toBeNull()
+    })
+
+    it('gives the level as the library wants it (0 to 1) and the length in seconds', () => {
+        expect(playEffects(settings({ roomLevel: 35, roomLength: 2 }))).toEqual({
+            reverb: 0.35,
+            room: 2
+        })
+        // Out of range (a data.json edited by hand): the nearest end; not a number: the default.
+        expect(playEffects(settings({ roomLevel: 250, roomLength: 9 }))).toEqual({
+            reverb: 1,
+            room: 3
+        })
+        expect(playEffects(settings({ roomLevel: NaN, roomLength: NaN }))).toEqual({
+            reverb: 0.125,
+            room: 1.2
+        })
+    })
+
+    it('plays dry when the room is off and there is no amplifier: no room is computed', () => {
+        expect(playEffects(settings({ roomLevel: 0 }))).toEqual({ dry: true })
+    })
+
+    it('keeps the amplifier when the room is off: a room at 0, not dry', () => {
+        expect(playEffects(settings({ roomLevel: 0, ampCabinet: true }))).toEqual({
+            reverb: 0,
+            room: 1.2,
+            amp: { cabinet: true }
+        })
+    })
+
+    it('names an amplifier for a cabinet, a drive, or both', () => {
+        expect(ampOf(settings({ ampCabinet: true }))).toEqual({ cabinet: true })
+        expect(ampOf(settings({ ampDrive: 40 }))).toEqual({ drive: 0.4 })
+        expect(ampOf(settings({ ampCabinet: true, ampDrive: 100 }))).toEqual({
+            drive: 1,
+            cabinet: true
+        })
+        expect(playEffects(settings({ ampCabinet: true, ampDrive: 40 }))).toEqual({
+            reverb: 0.125,
+            room: 1.2,
+            amp: { drive: 0.4, cabinet: true }
+        })
+    })
+
+    it('reaches the library as functions, so a change is heard at the next Play', () => {
+        let live = settings()
+        const options = playOptions(live, player, () => live)
+        if (!options) throw new Error('playback is on')
+        expect(effectsNow(options)).toEqual({ reverb: 0.125, room: 1.2 })
+        live = settings({ roomLevel: 0 })
+        expect(effectsNow(options)).toEqual({ dry: true })
+        live = settings({ roomLevel: 25, roomLength: 0.5, ampDrive: 20 })
+        expect(effectsNow(options)).toEqual({ reverb: 0.25, room: 0.5, amp: { drive: 0.2 } })
+        // Options that name no effect (another host's): nothing to pass on.
+        expect(effectsNow({ volume: 1 })).toBeUndefined()
+    })
+
+    it('redraws nothing when they change: a redraw would stop what plays', () => {
+        const before = settings()
+        for (const over of [
+            { roomLevel: 0 },
+            { roomLength: 2 },
+            { ampCabinet: true },
+            { ampDrive: 50 }
+        ] satisfies Partial<PlaybackSettings>[])
+            expect(drawnPlaybackChanged(before, settings(over))).toBe(false)
+        expect(drawnPlaybackChanged(before, settings({ roomLevel: 0, bpm: 100 }))).toBe(true)
+    })
+
+    it('gives them to what the plugin plays itself, read at each play', () => {
+        const heard: (PlayEffects | undefined)[] = []
+        const inner: NotePlayer = {
+            play(_events: NoteEvent[], options) {
+                heard.push(options.effects)
+                return { stop() {} }
+            }
+        }
+        let live = settings()
+        const toned = guitarPlayer(
+            inner,
+            () => 'steel',
+            () => playEffects(live)
+        )
+        toned.play([], { sound: 'guitar', volume: 1 })
+        live = settings({ roomLevel: 0 })
+        toned.play([], { sound: 'guitar', volume: 1, guitar: 'clean' })
+        // A play that names its own effects keeps them.
+        toned.play([], { sound: 'guitar', volume: 1, effects: { reverb: 0.5 } })
+        expect(heard).toEqual([{ reverb: 0.125, room: 1.2 }, { dry: true }, { reverb: 0.5 }])
+        // Without effects to give, a play gets none: the player's own room.
+        const plain: (PlayEffects | undefined)[] = []
+        guitarPlayer(
+            {
+                play(_events: NoteEvent[], options) {
+                    plain.push(options.effects)
+                    return { stop() {} }
+                }
+            },
+            () => 'steel'
+        ).play([], { sound: 'guitar', volume: 1 })
+        expect(plain).toEqual([undefined])
     })
 })

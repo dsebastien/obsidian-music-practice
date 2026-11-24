@@ -38,6 +38,19 @@ describe('setting paths', () => {
         expect(validateSetting(settings, 'rules.levels.mastered', 70)).toBeUndefined()
     })
 
+    it('keeps the room and the amplifier in their ranges (music-notation #103)', () => {
+        expect(validateSetting(settings, 'playback.roomLevel', 12.5)).toBeUndefined()
+        expect(validateSetting(settings, 'playback.roomLevel', 0)).toBeUndefined()
+        expect(validateSetting(settings, 'playback.roomLevel', 101)).toBeDefined()
+        expect(validateSetting(settings, 'playback.roomLevel', -1)).toBeDefined()
+        expect(validateSetting(settings, 'playback.roomLength', 1.2)).toBeUndefined()
+        expect(validateSetting(settings, 'playback.roomLength', 0.1)).toBeDefined()
+        expect(validateSetting(settings, 'playback.roomLength', 3.5)).toBeDefined()
+        expect(validateSetting(settings, 'playback.ampDrive', 40)).toBeUndefined()
+        expect(validateSetting(settings, 'playback.ampDrive', 12.5)).toBeDefined()
+        expect(validateSetting(settings, 'playback.ampDrive', 101)).toBeDefined()
+    })
+
     it('writes into a settings object', () => {
         const draft = createDefaultSettings()
         writeSetting(draft, 'local.levelNames.want', 'Wishlist')

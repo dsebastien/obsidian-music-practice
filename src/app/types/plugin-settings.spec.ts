@@ -170,6 +170,31 @@ describe('settingsFrom: playback strum', () => {
     })
 })
 
+describe('settingsFrom: the room and the amplifier (music-notation #103)', () => {
+    it("is the library's own room and no amplifier by default, also for older settings", () => {
+        const expected = { roomLevel: 12.5, roomLength: 1.2, ampCabinet: false, ampDrive: 0 }
+        expect(createDefaultSettings().playback).toMatchObject(expected)
+        expect(settingsFrom({ playback: { volume: 50 } }).playback).toMatchObject(expected)
+    })
+
+    it('keeps stored values in range, and reads the others as the defaults', () => {
+        expect(
+            settingsFrom({
+                playback: { roomLevel: 0, roomLength: 3, ampCabinet: true, ampDrive: 100 }
+            }).playback
+        ).toMatchObject({ roomLevel: 0, roomLength: 3, ampCabinet: true, ampDrive: 100 })
+        expect(
+            settingsFrom({
+                playback: { roomLevel: 101, roomLength: 0.1, ampCabinet: 'yes', ampDrive: 12.5 }
+            }).playback
+        ).toMatchObject({ roomLevel: 12.5, roomLength: 1.2, ampCabinet: false, ampDrive: 0 })
+        expect(settingsFrom({ playback: { roomLevel: -1, ampDrive: -5 } }).playback).toMatchObject({
+            roomLevel: 12.5,
+            ampDrive: 0
+        })
+    })
+})
+
 describe('settingsFrom: the play-along player (#75)', () => {
     it('is on with a 0.2 s pre-roll by default', () => {
         expect(createDefaultSettings().playAlong).toEqual({ enabled: true, preRoll: 0.2 })

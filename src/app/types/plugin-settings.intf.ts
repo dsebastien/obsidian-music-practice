@@ -13,8 +13,11 @@ import type { NotationLayout } from '../domain/notation-layout'
 import type { NotationToggles } from '../services/notation.service'
 import {
     createDefaultPlayback,
+    DEFAULT_ROOM_LENGTH,
+    DEFAULT_ROOM_LEVEL,
     DEFAULT_STRUM,
     OLD_DEFAULT_STRUM,
+    ROOM_LENGTHS,
     TEMPO_UNITS
 } from '../domain/playback'
 import type { PlaybackSettings } from '../domain/playback'
@@ -249,6 +252,12 @@ export function settingsFrom(loaded: unknown): PluginSettings {
     if (settings.playback.strum === OLD_DEFAULT_STRUM) settings.playback.strum = DEFAULT_STRUM
     // The tab tempo's unit (music-notation #114): anything but the known units is BPM.
     if (!TEMPO_UNITS.includes(settings.playback.tempoUnit)) settings.playback.tempoUnit = 'bpm'
+    // The room and the amplifier (music-notation #103): a value out of range is the default.
+    const pb = settings.playback
+    if (pb.roomLevel < 0 || pb.roomLevel > 100) pb.roomLevel = DEFAULT_ROOM_LEVEL
+    if (pb.roomLength < ROOM_LENGTHS[0] || pb.roomLength > ROOM_LENGTHS[1])
+        pb.roomLength = DEFAULT_ROOM_LENGTH
+    if (!Number.isInteger(pb.ampDrive) || pb.ampDrive < 0 || pb.ampDrive > 100) pb.ampDrive = 0
     // An undo record edited by hand or from an older version: nothing to undo.
     if (!isUndoRecord(settings.lastLog)) settings.lastLog = null
     // Orientations are text: anything but the known values falls back to the default.
